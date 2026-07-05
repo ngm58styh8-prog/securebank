@@ -159,19 +159,24 @@ button:hover {
     color: #1a8f4c;
 }
 
-.index-admin-link {
-    text-align: center;
-    margin-top: 12px;
-}
-
-.index-admin-link a {
-    color: #888;
+.mgmt-login-link {
+    position: fixed;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+    z-index: 100;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
     text-decoration: none;
-    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    opacity: 0.4;
+    transition: opacity 0.2s, color 0.2s;
 }
 
-.index-admin-link a:hover {
-    color: #0059b3;
+.mgmt-login-link:hover,
+.mgmt-login-link:focus-visible {
+    opacity: 1;
+    color: rgba(255, 255, 255, 0.9);
+    outline: none;
 }
 
 @media (max-width: 480px) {
@@ -212,7 +217,7 @@ button:hover {
         font-size: 12px;
     }
 
-    .index-admin-link a {
-        font-size: 12px;
+    .mgmt-login-link {
+        font-size: 10px;
     }
 }
