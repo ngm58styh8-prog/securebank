@@ -2,6 +2,7 @@ const adminEmail = requireAdminAuth();
 if (!adminEmail) throw new Error("Not authenticated");
 
 let pendingAdjust = { email: "", action: "" };
+let pendingSupport = { email: "", ticketId: "" };
 
 const HOLDING_LABELS = {
     btc: "Bitcoin", eth: "Ethereum", sol: "Solana", xrp: "XRP", gold: "Gold",
@@ -271,6 +272,87 @@ function renderNotificationLog() {
     }).join("");
 }
 
+function formatSupportType(type) {
+    if (type === "fraud") return "Fraud Report";
+    if (type === "chat") return "Live Chat";
+    return "Ticket";
+}
+
+function supportStatusClass(status) {
+    if (status === "Urgent") return "pl-negative";
+    if (status === "Resolved") return "pl-positive";
+    return "";
+}
+
+function renderSupportAdmin() {
+    const filter = document.getElementById("supportFilter").value;
+    const items = getAllSupportItems(filter);
+    const tbody = document.getElementById("supportBody");
+    const countEl = document.getElementById("openSupportCount");
+
+    if (countEl) countEl.textContent = String(getOpenSupportCount());
+
+    if (!tbody) return;
+
+    if (!items.length) {
+        tbody.innerHTML = '<tr><td colspan="6">No support items found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = items.map(function(item) {
+        const typeClass = item.type === "fraud" ? "pl-negative" : "";
+        const msgPreview = item.message.length > 50 ? item.message.slice(0, 50) + "…" : item.message;
+        return `<tr>
+            <td>${item.date}</td>
+            <td>${item.userName}<br><span class="admin-email">${item.userEmail}</span></td>
+            <td class="${typeClass}">${formatSupportType(item.type)}</td>
+            <td title="${item.message.replace(/"/g, "&quot;")}">${item.subject}<br><span class="admin-email">${msgPreview}</span></td>
+            <td class="${supportStatusClass(item.status)}">${item.status}</td>
+            <td class="admin-row-actions">
+                <button type="button" class="admin-mini-view admin-support-view"
+                    data-email="${item.userEmail}" data-id="${item.id}">View / Reply</button>
+            </td>
+        </tr>`;
+    }).join("");
+}
+
+function openSupportModal(email, ticketId) {
+    const items = getAllSupportItems("all");
+    const item = items.find(function(i) {
+        return i.userEmail === email && String(i.id) === String(ticketId);
+    });
+    if (!item) return;
+
+    pendingSupport = { email: email, ticketId: ticketId };
+    document.getElementById("supportModalTitle").textContent =
+        formatSupportType(item.type) + " — " + item.subject;
+    document.getElementById("supportModalMeta").innerHTML =
+        "<strong>User:</strong> " + item.userName + " (" + item.userEmail + ")<br>" +
+        "<strong>Status:</strong> " + item.status + " · <strong>Date:</strong> " + item.date;
+    document.getElementById("supportModalMessage").textContent = item.message;
+
+    const thread = document.getElementById("supportModalThread");
+    if (!item.responses || !item.responses.length) {
+        thread.innerHTML = '<p class="admin-empty">No responses yet.</p>';
+    } else {
+        thread.innerHTML = item.responses.map(function(r) {
+            return `<div class="admin-support-reply ${r.from === "admin" ? "admin-reply" : "user-reply"}">
+                <strong>${r.from === "admin" ? "Admin" : "User"}</strong>
+                <div>${r.message.replace(/\n/g, "<br>")}</div>
+                <div class="ticket-meta">${r.date}</div>
+            </div>`;
+        }).join("");
+    }
+
+    document.getElementById("supportResponseInput").value = "";
+    document.getElementById("supportModal").classList.remove("hidden");
+}
+
+function closeSupportModal() {
+    document.getElementById("supportModal").classList.add("hidden");
+    pendingSupport = { email: "", ticketId: "" };
+}
+
 function renderDashboard() {
     const admin = getAdminData();
     const users = getAllUsersSummary();
@@ -296,6 +378,7 @@ function renderDashboard() {
     loadWalletSettings();
     loadWebsiteSettingsForm();
     renderNotificationLog();
+    renderSupportAdmin();
 
     const paymentsBody = document.getElementById("paymentsBody");
     if (!admin.payments.length) {
@@ -383,6 +466,41 @@ function closeAdjustModal() {
 renderDashboard();
 
 document.getElementById("activityFilter").addEventListener("change", renderActivityFeed);
+
+document.getElementById("supportFilter").addEventListener("change", renderSupportAdmin);
+
+document.getElementById("supportBody").addEventListener("click", function(e) {
+    const btn = e.target.closest(".admin-support-view");
+    if (btn) openSupportModal(btn.dataset.email, btn.dataset.id);
+});
+
+document.getElementById("supportCloseBtn").addEventListener("click", closeSupportModal);
+
+document.getElementById("supportModal").addEventListener("click", function(e) {
+    if (e.target === document.getElementById("supportModal")) closeSupportModal();
+});
+
+document.getElementById("supportSendBtn").addEventListener("click", function() {
+    if (!pendingSupport.email) return;
+    const response = document.getElementById("supportResponseInput").value;
+    const result = adminRespondToSupport(pendingSupport.email, pendingSupport.ticketId, response, false);
+    if (!result.ok) { alert(result.error); return; }
+    alert("Response sent to user.");
+    closeSupportModal();
+    renderDashboard();
+});
+
+document.getElementById("supportResolveBtn").addEventListener("click", function() {
+    if (!pendingSupport.email) return;
+    const response = document.getElementById("supportResponseInput").value.trim();
+    const result = response
+        ? adminRespondToSupport(pendingSupport.email, pendingSupport.ticketId, response, true)
+        : adminResolveSupport(pendingSupport.email, pendingSupport.ticketId);
+    if (!result.ok) { alert(result.error); return; }
+    alert("Ticket marked resolved and user notified.");
+    closeSupportModal();
+    renderDashboard();
+});
 
 document.getElementById("creditBtn").addEventListener("click", function() {
     submitMainForm("credit");

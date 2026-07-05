@@ -1505,6 +1505,29 @@ body[data-theme="dark"] .type-badge.invest { color: #8fa8ff; }
     font-size: 0.8rem;
 }
 
+.ticket-preview {
+    margin: 8px 0;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.ticket-reply {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.ticket-reply.admin-reply {
+    border-left: 3px solid var(--primary);
+    background: rgba(0, 89, 179, 0.08);
+}
+
+.urgent-ticket {
+    border-left: 3px solid var(--danger);
+}
+
 .optional-tag {
     font-size: 0.75rem;
     color: var(--muted);

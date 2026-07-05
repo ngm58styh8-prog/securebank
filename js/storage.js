@@ -883,6 +883,121 @@ function ensureSupportTickets(account) {
     return account.supportTickets;
 }
 
+function getSupportItemType(ticket) {
+    if (ticket.type) return ticket.type;
+    if (ticket.subject === "FRAUD REPORT") return "fraud";
+    if (ticket.subject === "Live Chat") return "chat";
+    return "ticket";
+}
+
+function getAllSupportItems(statusFilter) {
+    const accounts = getAllAccounts();
+    const items = [];
+
+    Object.keys(accounts).forEach(function(email) {
+        const acct = accounts[email];
+        const userName = acct.profile ? acct.profile.fullName : email;
+        (acct.supportTickets || []).forEach(function(ticket) {
+            items.push({
+                id: ticket.id,
+                type: getSupportItemType(ticket),
+                subject: ticket.subject,
+                message: ticket.message,
+                status: ticket.status || "Open",
+                date: ticket.date,
+                responses: ticket.responses || [],
+                userEmail: normalizeEmail(email),
+                userName: userName
+            });
+        });
+    });
+
+    items.sort(function(a, b) {
+        const ta = new Date(a.date).getTime();
+        const tb = new Date(b.date).getTime();
+        return (isNaN(tb) ? 0 : tb) - (isNaN(ta) ? 0 : ta);
+    });
+
+    if (statusFilter === "open") {
+        return items.filter(function(item) {
+            return item.status === "Open" || item.status === "Urgent" || item.status === "In Progress";
+        });
+    }
+    if (statusFilter === "fraud") {
+        return items.filter(function(item) { return item.type === "fraud"; });
+    }
+    return items;
+}
+
+function getOpenSupportCount() {
+    return getAllSupportItems("open").length;
+}
+
+function adminRespondToSupport(userEmail, ticketId, response, markResolved) {
+    response = String(response || "").trim();
+    if (!response) {
+        return { ok: false, error: "Enter a response message." };
+    }
+
+    const key = normalizeEmail(userEmail);
+    const account = getAccount(key);
+    if (!account) {
+        return { ok: false, error: "User not found." };
+    }
+
+    const tickets = ensureSupportTickets(account);
+    const ticket = tickets.find(function(t) {
+        return String(t.id) === String(ticketId);
+    });
+    if (!ticket) {
+        return { ok: false, error: "Support item not found." };
+    }
+
+    if (!ticket.responses) ticket.responses = [];
+    ticket.responses.push({
+        from: "admin",
+        message: response,
+        date: new Date().toLocaleString()
+    });
+
+    if (markResolved) {
+        ticket.status = "Resolved";
+        ticket.resolvedAt = new Date().toLocaleString();
+    } else if (ticket.status === "Open" || ticket.status === "Urgent") {
+        ticket.status = "In Progress";
+    }
+
+    const subjectLabel = ticket.subject || "your support request";
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Support replied to \"" + subjectLabel + "\": " +
+            (response.length > 80 ? response.slice(0, 80) + "…" : response),
+        time: new Date().toISOString(),
+        read: false
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+
+    queueAccountEmail(account, {
+        to: key,
+        subject: "Support Response — " + subjectLabel,
+        body: "Hi " + (account.profile ? account.profile.fullName : key) + ",\n\n" +
+            "An admin has responded to your support request:\n\n" +
+            response + "\n\n" +
+            "Log in to SecureBank → Support to view the full conversation.\n\n" +
+            "SecureBank Support",
+        type: "support"
+    });
+
+    saveAccount(key, account);
+    return { ok: true };
+}
+
+function adminResolveSupport(userEmail, ticketId) {
+    return adminRespondToSupport(userEmail, ticketId, "This ticket has been marked as resolved.", true);
+}
+
 function ensureApiKeys(account) {
     if (!account.apiKeys) account.apiKeys = [];
     return account.apiKeys;

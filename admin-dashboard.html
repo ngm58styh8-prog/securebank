@@ -50,6 +50,10 @@
         <h3>⏳ Pending Deposits</h3>
         <div class="balance admin-stat" id="pendingDepositCount">0</div>
     </div>
+    <div class="card admin-pending-card">
+        <h3>💬 Open Support</h3>
+        <div class="balance admin-stat" id="openSupportCount">0</div>
+    </div>
 </div>
 
 <h2 class="section-title">🌐 Website Settings</h2>
@@ -112,6 +116,33 @@
 </tr>
 </thead>
 <tbody id="notificationLogBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">💬 Support & Reports</h2>
+<div class="card admin-filter-card">
+    <div class="admin-filter-row">
+        <label class="form-label" for="supportFilter">Filter</label>
+        <select id="supportFilter">
+            <option value="open">Open & in progress</option>
+            <option value="all">All items</option>
+            <option value="fraud">Fraud reports only</option>
+        </select>
+    </div>
+</div>
+<div class="table-scroll">
+<table id="supportTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>User</th>
+    <th>Type</th>
+    <th>Subject</th>
+    <th>Status</th>
+    <th>Actions</th>
+</tr>
+</thead>
+<tbody id="supportBody"></tbody>
 </table>
 </div>
 
@@ -279,6 +310,32 @@
         <div class="admin-monitor-section">
             <h4>Recent Notifications</h4>
             <div id="monitorNotifications" class="admin-notif-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="supportModal" class="modal-overlay hidden">
+    <div class="modal modal-wide admin-monitor-modal">
+        <div class="admin-monitor-header">
+            <h3 id="supportModalTitle">Support Item</h3>
+            <button type="button" class="modal-cancel admin-close-btn" id="supportCloseBtn">✕</button>
+        </div>
+        <div id="supportModalMeta" class="admin-modal-user"></div>
+        <div class="admin-monitor-section">
+            <h4>User Message</h4>
+            <div id="supportModalMessage" class="admin-support-message"></div>
+        </div>
+        <div class="admin-monitor-section">
+            <h4>Conversation</h4>
+            <div id="supportModalThread" class="admin-support-thread"></div>
+        </div>
+        <div class="admin-monitor-section">
+            <h4>Admin Response</h4>
+            <textarea id="supportResponseInput" rows="4" placeholder="Type your response to the user…"></textarea>
+            <div class="admin-form-actions" style="margin-top:12px">
+                <button type="button" class="admin-credit-btn" id="supportSendBtn">Send Response</button>
+                <button type="button" class="admin-approve-btn" id="supportResolveBtn">Mark Resolved</button>
+            </div>
         </div>
     </div>
 </div>

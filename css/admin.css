@@ -174,7 +174,8 @@
 
 .admin-dashboard-body .modal form input,
 .admin-dashboard-body #modalAdjustAmount,
-.admin-dashboard-body #modalAdjustNote {
+.admin-dashboard-body #modalAdjustNote,
+.admin-dashboard-body #supportResponseInput {
     width: 100%;
     padding: 12px;
     border: 1px solid #2a3548;
@@ -182,6 +183,41 @@
     background: #0f1419;
     color: #e8eef7;
     margin-bottom: 16px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.admin-support-message {
+    background: #152238;
+    border: 1px solid #2a3548;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.admin-support-thread {
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.admin-support-reply {
+    padding: 10px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.admin-support-reply.admin-reply {
+    background: rgba(77, 163, 255, 0.12);
+    border-left: 3px solid var(--primary);
+}
+
+.admin-support-reply.user-reply {
+    background: #152238;
+    border: 1px solid #2a3548;
 }
 
 .admin-pending-card {
