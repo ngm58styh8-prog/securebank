@@ -27,13 +27,22 @@
 
         <button id="themeToggle" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
 
+        <nav class="main-nav" id="mainNav">
+            <a href="dashboard.html" class="nav-link active" data-page="dashboard">Dashboard</a>
+            <a href="exchange.html" class="nav-link" data-page="exchange">Exchange</a>
+            <a href="support.html" class="nav-link" data-page="support">Support</a>
+            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+
         <div class="profile-wrap">
             <button id="profileBtn" class="profile-btn" type="button">
                 👤 <span class="username" id="profileName">User</span> ▾
             </button>
             <div id="profileMenu" class="dropdown hidden">
                 <div class="dropdown-header">👤 Account</div>
-                <button class="dropdown-item" type="button" id="viewProfileBtn">View Profile</button>
+                <button class="dropdown-item" type="button" id="viewProfileBtn">Profile</button>
+                <button class="dropdown-item" type="button" id="exchangeBtn">Exchange</button>
+                <button class="dropdown-item" type="button" id="supportBtn">Support</button>
                 <button class="dropdown-item" type="button" id="settingsBtn">Settings</button>
                 <button class="dropdown-item" type="button" id="walletBtn">Wallet & Transactions</button>
                 <button id="logoutBtn" class="dropdown-item" type="button">Log Out</button>
@@ -411,9 +420,10 @@
 
             <div id="paymentMethodGroup" class="payment-methods">
                 <span class="form-label">Payment Method</span>
-                <label class="radio-option"><input type="radio" name="paymentMethod" value="crypto" checked> Bitcoin / Crypto</label>
-                <label class="radio-option"><input type="radio" name="paymentMethod" value="bank"> Bank</label>
-                <label class="radio-option"><input type="radio" name="paymentMethod" value="card"> Card</label>
+                <label class="radio-option"><input type="radio" name="paymentMethod" value="crypto" checked> Bitcoin (BTC)</label>
+                <label class="radio-option payment-unavailable"><input type="radio" name="paymentMethod" value="bank" disabled> Bank Transfer <span class="unavailable-tag">Unavailable</span></label>
+                <label class="radio-option payment-unavailable"><input type="radio" name="paymentMethod" value="card" disabled> Visa / Card <span class="unavailable-tag">Unavailable</span></label>
+                <p class="deposit-hint payment-unavailable-note">Bank and Visa payments are unavailable at the moment. Please deposit using Bitcoin.</p>
             </div>
 
             <div id="cryptoWalletGroup" class="admin-payto-box">

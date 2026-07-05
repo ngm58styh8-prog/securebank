@@ -15,8 +15,15 @@
         <p>View, search, and export your activity</p>
     </div>
     <div class="header-right">
-        <a href="dashboard.html" class="nav-link">← Back to Dashboard</a>
+        <nav class="main-nav" id="mainNav">
+            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="exchange.html" class="nav-link" data-page="exchange">Exchange</a>
+            <a href="support.html" class="nav-link" data-page="support">Support</a>
+            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
         <button id="themeToggle" class="icon-btn" type="button">🌙</button>
+        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
     </div>
 </header>
 
@@ -69,6 +76,7 @@
 
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
+<script src="js/nav.js"></script>
 <script src="js/wallet.js"></script>
 
 </body>

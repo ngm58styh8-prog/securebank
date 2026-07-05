@@ -10,9 +10,17 @@ const DEFAULT_ADMIN = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "bc1qsecurebank0ff1c1aladm1nwalle7demo2024",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
     bankDetails: "SecureBank Admin · Routing: 021000021 · Account: 8847291053"
 };
+
+const DEPOSIT_METHODS = {
+    crypto: { enabled: true, label: "Bitcoin (BTC)" },
+    bank: { enabled: false, label: "Bank Transfer", unavailable: "Bank transfers are unavailable at the moment." },
+    card: { enabled: false, label: "Visa / Card", unavailable: "Visa and card payments are unavailable at the moment." }
+};
+
+const FX_RATES = { USD: 1, EUR: 0.92, GBP: 0.79 };
 
 const DEFAULT_WEBSITE_SETTINGS = {
     siteName: "SecureBank",
@@ -439,6 +447,9 @@ function getAdminData() {
             if (!data.pendingTransfers) data.pendingTransfers = [];
             if (!data.pendingDeposits) data.pendingDeposits = [];
             if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
+            if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
+                data.walletAddress = DEFAULT_ADMIN.walletAddress;
+            }
             if (!data.bankDetails) data.bankDetails = DEFAULT_ADMIN.bankDetails;
             if (!data.websiteSettings) {
                 data.websiteSettings = Object.assign({}, DEFAULT_WEBSITE_SETTINGS);
@@ -849,6 +860,48 @@ function rejectTransfer(transferId, reason) {
     return { ok: true };
 }
 
+function getDepositMethods() {
+    return DEPOSIT_METHODS;
+}
+
+function isDepositMethodEnabled(method) {
+    return !!(DEPOSIT_METHODS[method] && DEPOSIT_METHODS[method].enabled);
+}
+
+function ensureExchangeHistory(account) {
+    if (!account.exchangeHistory) account.exchangeHistory = [];
+    return account.exchangeHistory;
+}
+
+function ensureLinkedBanks(account) {
+    if (!account.linkedBanks) account.linkedBanks = [];
+    return account.linkedBanks;
+}
+
+function ensureSupportTickets(account) {
+    if (!account.supportTickets) account.supportTickets = [];
+    return account.supportTickets;
+}
+
+function ensureApiKeys(account) {
+    if (!account.apiKeys) account.apiKeys = [];
+    return account.apiKeys;
+}
+
+function recordExchange(userEmail, entry) {
+    const account = getAccount(userEmail);
+    if (!account) return { ok: false, error: "Account not found." };
+    const history = ensureExchangeHistory(account);
+    history.unshift(Object.assign({
+        id: Date.now() + Math.random(),
+        time: new Date().toISOString(),
+        date: new Date().toLocaleString()
+    }, entry));
+    if (history.length > 100) account.exchangeHistory = history.slice(0, 100);
+    saveAccount(userEmail, account);
+    return { ok: true };
+}
+
 function getAdminWalletAddress() {
     return getAdminData().walletAddress || DEFAULT_ADMIN.walletAddress;
 }
@@ -979,6 +1032,11 @@ function submitDepositRequest(userEmail, amount, method) {
     amount = parseFloat(amount);
     if (!amount || amount <= 0) {
         return { ok: false, error: "Enter a valid amount." };
+    }
+
+    if (!isDepositMethodEnabled(method)) {
+        const info = DEPOSIT_METHODS[method];
+        return { ok: false, error: info ? info.unavailable : "This payment method is unavailable." };
     }
 
     const admin = getAdminData();

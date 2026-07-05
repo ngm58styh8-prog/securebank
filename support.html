@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank — Support</title>
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h2>💬 Support</h2>
+        <p>Get help, submit tickets, and report issues</p>
+    </div>
+    <div class="header-right">
+        <nav class="main-nav" id="mainNav">
+            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="exchange.html" class="nav-link" data-page="exchange">Exchange</a>
+            <a href="support.html" class="nav-link active" data-page="support">Support</a>
+            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
+        <button id="themeToggle" class="icon-btn" type="button">🌙</button>
+        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
+    </div>
+</header>
+
+<div class="container feature-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div class="feature-grid">
+    <div class="card settings-section">
+        <h3>Live Chat</h3>
+        <div id="chatMessages" class="chat-box">
+            <div class="chat-msg agent">Hi! How can we help you today?</div>
+        </div>
+        <form id="chatForm" class="chat-form">
+            <input id="chatInput" type="text" placeholder="Type a message…" required>
+            <button class="edit-profile-btn" type="submit">Send</button>
+        </form>
+    </div>
+
+    <div class="card settings-section">
+        <h3>Submit Ticket</h3>
+        <form id="ticketForm" class="support-form">
+            <label class="form-label" for="ticketSubject">Subject</label>
+            <input id="ticketSubject" type="text" required placeholder="Brief summary">
+            <label class="form-label" for="ticketMessage">Message</label>
+            <textarea id="ticketMessage" rows="4" required placeholder="Describe your issue"></textarea>
+            <button class="edit-profile-btn" type="submit">Submit Ticket</button>
+        </form>
+        <div id="ticketList" class="ticket-list"></div>
+    </div>
+</div>
+
+<div class="card settings-section">
+    <h3>FAQs</h3>
+    <div class="faq-list">
+        <details class="faq-item">
+            <summary>How do I deposit funds?</summary>
+            <p>Click Deposit on your dashboard, send Bitcoin to the admin BTC address shown, then submit the amount for admin approval. Bank and Visa are currently unavailable.</p>
+        </details>
+        <details class="faq-item">
+            <summary>How long does deposit approval take?</summary>
+            <p>An admin verifies your BTC payment on-chain and approves the deposit. You'll receive an email and in-app notification once credited.</p>
+        </details>
+        <details class="faq-item">
+            <summary>How do I complete identity verification (KYC)?</summary>
+            <p>Go to Settings → Identity Verification or Profile, and submit your SSN for verification.</p>
+        </details>
+        <details class="faq-item">
+            <summary>Can I convert crypto to cash?</summary>
+            <p>Yes. Use the Exchange page to convert between BTC and your cash balance instantly.</p>
+        </details>
+    </div>
+</div>
+
+<div class="card settings-section fraud-card">
+    <h3>Report Fraud</h3>
+    <p class="section-desc">If you suspect unauthorized activity on your account, report it immediately.</p>
+    <form id="fraudForm" class="support-form">
+        <label class="form-label" for="fraudDetails">Describe the suspicious activity</label>
+        <textarea id="fraudDetails" rows="4" required placeholder="Include dates, amounts, and any details"></textarea>
+        <button class="edit-profile-btn fraud-btn" type="submit">Report Fraud</button>
+    </form>
+</div>
+
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/support.js"></script>
+</body>
+</html>

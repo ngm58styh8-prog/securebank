@@ -1311,3 +1311,230 @@ body[data-theme="dark"] .type-badge.invest { color: #8fa8ff; }
     line-height: 1.6;
     white-space: pre-wrap;
 }
+
+.main-nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.main-nav .nav-link {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.main-nav .nav-link:hover,
+.main-nav .nav-link.active {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.mobile-back {
+    display: none;
+}
+
+.feature-page,
+.settings-page {
+    padding-bottom: 40px;
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.settings-hub {
+    margin-bottom: 16px;
+}
+
+.hub-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.hub-link {
+    display: inline-block;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.hub-link:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.exchange-form,
+.support-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.exchange-form input,
+.exchange-form select,
+.support-form input,
+.support-form textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.exchange-balances {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 12px 0;
+    font-size: 0.95rem;
+}
+
+.fx-result {
+    padding: 12px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.chat-box {
+    height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: var(--bg);
+}
+
+.chat-msg {
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    max-width: 85%;
+    font-size: 0.9rem;
+}
+
+.chat-msg.agent {
+    background: var(--border);
+}
+
+.chat-msg.user {
+    background: rgba(0, 89, 179, 0.12);
+    margin-left: auto;
+}
+
+.chat-form {
+    display: flex;
+    gap: 8px;
+}
+
+.chat-form input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.faq-item {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--bg);
+}
+
+.faq-item summary {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.faq-item p {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.fraud-card {
+    border-top: 3px solid var(--danger);
+}
+
+.fraud-btn {
+    background: var(--danger);
+}
+
+.ticket-list,
+.linked-list {
+    margin-top: 16px;
+}
+
+.ticket-item,
+.linked-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+
+.ticket-meta {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.optional-tag {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-weight: normal;
+}
+
+.payment-unavailable {
+    opacity: 0.55;
+}
+
+.unavailable-tag {
+    font-size: 0.7rem;
+    background: var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+
+.payment-unavailable-note {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .main-nav {
+        display: none;
+    }
+
+    .mobile-back {
+        display: inline;
+    }
+}

@@ -594,9 +594,13 @@ function confirmModal(e) {
         if (method === "crypto") {
             const wallet = getAdminWalletAddress();
             if (!wallet) {
-                alert("Admin crypto wallet address is not configured. Please contact support.");
+                alert("Admin BTC wallet address is not configured. Please contact support.");
                 return;
             }
+        } else if (!isDepositMethodEnabled(method)) {
+            const methods = getDepositMethods();
+            alert(methods[method] ? methods[method].unavailable : "This payment method is unavailable.");
+            return;
         }
 
         const result = submitDepositRequest(username, amount, method);
@@ -778,6 +782,12 @@ function initUI() {
     document.getElementById("logoutBtn").addEventListener("click", logout);
     document.getElementById("viewProfileBtn").addEventListener("click", function() {
         window.location.href = "profile.html";
+    });
+    document.getElementById("exchangeBtn").addEventListener("click", function() {
+        window.location.href = "exchange.html";
+    });
+    document.getElementById("supportBtn").addEventListener("click", function() {
+        window.location.href = "support.html";
     });
     document.getElementById("settingsBtn").addEventListener("click", function() {
         window.location.href = "settings.html";

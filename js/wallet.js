@@ -95,7 +95,7 @@ function exportPdf() {
     win.print();
 }
 
-applyThemeToDocument(settings.theme);
+initPageNav("wallet");
 applyFilters();
 
 document.getElementById("searchInput").addEventListener("input", applyFilters);

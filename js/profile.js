@@ -43,7 +43,7 @@ function renderProfile() {
 function renderVerificationSection() {
     const isVerified = profile.verificationStatus === "Verified" && profile.ssnLast4;
     const banner = document.getElementById("verificationBanner");
-    const ssnForm = document.getElementById("ssnVerificationCard");
+    const ssnForm = document.getElementById("kyc");
     const ssnVerified = document.getElementById("ssnVerifiedCard");
 
     if (banner) banner.classList.toggle("hidden", isVerified);
@@ -158,7 +158,7 @@ function logout() {
     window.location.href = "index.html";
 }
 
-applyTheme((account.settings && account.settings.theme) || account.theme || "light");
+initPageNav("profile");
 renderProfile();
 
 document.getElementById("editProfileBtn").addEventListener("click", openEditModal);

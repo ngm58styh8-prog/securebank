@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank — Exchange</title>
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h2>💱 Exchange</h2>
+        <p>Convert crypto ↔ cash and view exchange history</p>
+    </div>
+    <div class="header-right">
+        <nav class="main-nav" id="mainNav">
+            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="exchange.html" class="nav-link active" data-page="exchange">Exchange</a>
+            <a href="support.html" class="nav-link" data-page="support">Support</a>
+            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
+        <button id="themeToggle" class="icon-btn" type="button">🌙</button>
+        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
+    </div>
+</header>
+
+<div class="container feature-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div class="feature-grid">
+    <div class="card settings-section">
+        <h3>Convert Crypto ↔ Cash</h3>
+        <p class="section-desc">Instantly convert between your cash balance and crypto holdings.</p>
+        <div class="exchange-balances">
+            <div><strong>Cash:</strong> <span id="exchangeCash">—</span></div>
+            <div><strong>BTC:</strong> <span id="exchangeBtc">—</span></div>
+            <div><strong>BTC Price:</strong> <span id="exchangeBtcPrice">Loading…</span></div>
+        </div>
+        <form id="convertForm" class="exchange-form">
+            <label class="form-label" for="convertDirection">Direction</label>
+            <select id="convertDirection">
+                <option value="cash-to-btc">Cash → BTC</option>
+                <option value="btc-to-cash">BTC → Cash</option>
+            </select>
+            <label class="form-label" for="convertAmount">Amount</label>
+            <input id="convertAmount" type="number" min="0.00000001" step="any" placeholder="0.00" required>
+            <p class="form-hint" id="convertHint">Enter USD amount to spend on BTC.</p>
+            <button class="edit-profile-btn" type="submit">Convert Now</button>
+        </form>
+    </div>
+
+    <div class="card settings-section">
+        <h3>Currency Converter</h3>
+        <p class="section-desc">Convert between USD, EUR, and GBP.</p>
+        <form id="fxForm" class="exchange-form">
+            <label class="form-label" for="fxAmount">Amount</label>
+            <input id="fxAmount" type="number" min="0.01" step="0.01" value="100" required>
+            <label class="form-label" for="fxFrom">From</label>
+            <select id="fxFrom">
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+            </select>
+            <label class="form-label" for="fxTo">To</label>
+            <select id="fxTo">
+                <option value="EUR">EUR (€)</option>
+                <option value="USD">USD ($)</option>
+                <option value="GBP">GBP (£)</option>
+            </select>
+            <div class="fx-result" id="fxResult">—</div>
+            <button class="edit-profile-btn" type="button" id="fxConvertBtn">Convert</button>
+        </form>
+    </div>
+</div>
+
+<div class="card settings-section">
+    <h3>Exchange History</h3>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr><th>Date</th><th>Type</th><th>Details</th><th>Amount</th></tr>
+            </thead>
+            <tbody id="exchangeHistoryBody">
+                <tr><td colspan="4">No exchanges yet.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/exchange.js"></script>
+</body>
+</html>
