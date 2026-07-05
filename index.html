@@ -8,7 +8,10 @@
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<a href="http://localhost:8765/admin.html" class="mgmt-login-link" id="mgmtLoginLink" title="Management Login">Management Login</a>
+<a href="http://localhost:8765/admin.html" class="mgmt-login-link" id="mgmtLoginLink" title="Management Login" aria-label="Management Login">
+    <span class="mgmt-login-dot" aria-hidden="true"></span>
+    <span class="mgmt-login-label">Management Login</span>
+</a>
 <div class="container">
     <div id="siteAnnouncement" class="site-announcement hidden"></div>
     <div class="login-box">
