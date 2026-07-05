@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1a2e">
+<title>SecureBank — Admin Dashboard</title>
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-dashboard-body">
+
+<header class="admin-header">
+    <div class="header-left">
+        <h2>🛡️ Admin Dashboard</h2>
+        <p>Payment & user overview</p>
+    </div>
+    <div class="header-right">
+        <a href="index.html" class="nav-link">User Site</a>
+        <button id="adminLogoutBtn" class="icon-btn" type="button">Log Out</button>
+    </div>
+</header>
+
+<div class="container">
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div class="cards admin-stats">
+    <div class="card admin-balance-card">
+        <h3>💰 Admin Account Balance</h3>
+        <div class="balance" id="adminBalance">$0.00</div>
+        <p class="admin-sub">Funds from user deposits minus withdrawals</p>
+    </div>
+    <div class="card">
+        <h3>👥 Total Users</h3>
+        <div class="balance admin-stat" id="totalUsers">0</div>
+    </div>
+    <div class="card">
+        <h3>📥 Total Deposits</h3>
+        <div class="balance admin-stat pl-positive" id="totalDeposits">$0.00</div>
+    </div>
+    <div class="card">
+        <h3>📤 Total Withdrawals</h3>
+        <div class="balance admin-stat pl-negative" id="totalWithdrawals">$0.00</div>
+    </div>
+    <div class="card admin-pending-card">
+        <h3>⏳ Pending Transfers</h3>
+        <div class="balance admin-stat" id="pendingTransferCount">0</div>
+    </div>
+    <div class="card admin-pending-card">
+        <h3>⏳ Pending Deposits</h3>
+        <div class="balance admin-stat" id="pendingDepositCount">0</div>
+    </div>
+</div>
+
+<h2 class="section-title">🌐 Website Settings</h2>
+<div class="card admin-adjust-card">
+    <form id="websiteSettingsForm" class="admin-adjust-form">
+        <div class="admin-form-row">
+            <label class="form-label" for="siteNameInput">Site Name</label>
+            <input id="siteNameInput" type="text" placeholder="SecureBank" required>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="siteTaglineInput">Tagline</label>
+            <input id="siteTaglineInput" type="text" placeholder="Secure Online Banking">
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="supportEmailInput">Support Email</label>
+            <input id="supportEmailInput" type="email" placeholder="support@securebank.com">
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="announcementInput">Site Announcement</label>
+            <textarea id="announcementInput" rows="3" placeholder="Optional banner message shown to all users"></textarea>
+            <p class="admin-sub">Leave blank to hide the announcement banner.</p>
+        </div>
+        <div class="admin-form-row admin-toggle-row">
+            <label class="form-label" for="maintenanceModeInput">Maintenance Mode</label>
+            <label class="admin-checkbox-label">
+                <input id="maintenanceModeInput" type="checkbox">
+                Block new logins and show maintenance notice
+            </label>
+        </div>
+        <button type="submit" class="admin-credit-btn wallet-save-btn">Save Website Settings</button>
+    </form>
+</div>
+
+<h2 class="section-title">🔔 Send Notifications</h2>
+<div class="card admin-adjust-card">
+    <form id="notificationForm" class="admin-adjust-form">
+        <div class="admin-form-row">
+            <label class="form-label" for="notifTarget">Send To</label>
+            <select id="notifTarget" required>
+                <option value="all">All users</option>
+            </select>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="notifMessage">Message</label>
+            <textarea id="notifMessage" rows="3" placeholder="Enter notification message for users…" required></textarea>
+        </div>
+        <button type="submit" class="admin-credit-btn wallet-save-btn">Send Notification</button>
+    </form>
+</div>
+
+<h2 class="section-title">📋 Sent Notifications</h2>
+<div class="table-scroll">
+<table id="notificationLogTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>Target</th>
+    <th>Message</th>
+    <th>Recipients</th>
+</tr>
+</thead>
+<tbody id="notificationLogBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">🏦 Admin Wallet & Payment Settings</h2>
+<div class="card admin-adjust-card">
+    <form id="walletSettingsForm" class="admin-adjust-form">
+        <div class="admin-form-row">
+            <label class="form-label" for="adminWalletInput">Crypto Wallet Address</label>
+            <input id="adminWalletInput" type="text" placeholder="bc1q... or 0x..." required>
+            <p class="admin-sub">All crypto deposits are sent to this address.</p>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="adminBankInput">Bank Account Details</label>
+            <input id="adminBankInput" type="text" placeholder="Bank name, routing, account number">
+            <p class="admin-sub">Shown to users paying by bank transfer.</p>
+        </div>
+        <button type="submit" class="admin-credit-btn wallet-save-btn">Save Settings</button>
+    </form>
+</div>
+
+<h2 class="section-title">✅ Approve Deposits</h2>
+<div class="table-scroll">
+<table id="pendingDepositsTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>User</th>
+    <th>Method</th>
+    <th>Pay To (Admin)</th>
+    <th>Amount</th>
+    <th>Actions</th>
+</tr>
+</thead>
+<tbody id="pendingDepositsBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">✅ Approve Transfers</h2>
+<div class="table-scroll">
+<table id="pendingTransfersTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>User</th>
+    <th>Destination</th>
+    <th>Method</th>
+    <th>Amount</th>
+    <th>Actions</th>
+</tr>
+</thead>
+<tbody id="pendingTransfersBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">📡 Live User Activity</h2>
+<div class="card admin-filter-card">
+    <div class="admin-filter-row">
+        <label class="form-label" for="activityFilter">Filter by user</label>
+        <select id="activityFilter">
+            <option value="">All users</option>
+        </select>
+    </div>
+</div>
+<div class="table-scroll">
+<table id="activityTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>User</th>
+    <th>Action</th>
+    <th>Amount</th>
+</tr>
+</thead>
+<tbody id="activityBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">⚖️ Credit / Debit User Account</h2>
+<div class="card admin-adjust-card">
+    <form id="adjustForm" class="admin-adjust-form">
+        <div class="admin-form-row">
+            <label class="form-label" for="adjustUser">User</label>
+            <select id="adjustUser" required>
+                <option value="">Select a user…</option>
+            </select>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="adjustAmount">Amount ($)</label>
+            <input id="adjustAmount" type="number" min="0.01" step="0.01" placeholder="0.00" required>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="adjustNote">Note (optional)</label>
+            <input id="adjustNote" type="text" placeholder="Reason for adjustment">
+        </div>
+        <div class="admin-form-actions">
+            <button type="button" class="admin-credit-btn" id="creditBtn">+ Credit Account</button>
+            <button type="button" class="admin-debit-btn" id="debitBtn">− Debit Account</button>
+        </div>
+    </form>
+</div>
+
+<h2 class="section-title">💳 Payment Activity</h2>
+<div class="table-scroll">
+<table id="paymentsTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>User</th>
+    <th>Type</th>
+    <th>Method</th>
+    <th>Amount</th>
+</tr>
+</thead>
+<tbody id="paymentsBody"></tbody>
+</table>
+</div>
+
+<h2 class="section-title">👤 User Accounts Monitor</h2>
+<div class="table-scroll">
+<table id="usersTable">
+<thead>
+<tr>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Cash</th>
+    <th>Holdings</th>
+    <th>Last Action</th>
+    <th>Txns</th>
+    <th>Actions</th>
+</tr>
+</thead>
+<tbody id="usersBody"></tbody>
+</table>
+</div>
+
+<div id="monitorModal" class="modal-overlay hidden">
+    <div class="modal modal-wide admin-monitor-modal">
+        <div class="admin-monitor-header">
+            <h3 id="monitorTitle">User Monitor</h3>
+            <button type="button" class="modal-cancel admin-close-btn" id="monitorCloseBtn">✕</button>
+        </div>
+        <div class="admin-monitor-grid">
+            <div class="admin-monitor-section">
+                <h4>Account Info</h4>
+                <div id="monitorProfile"></div>
+            </div>
+            <div class="admin-monitor-section">
+                <h4>Balances</h4>
+                <div id="monitorBalances"></div>
+            </div>
+        </div>
+        <div class="admin-monitor-section">
+            <h4>Holdings</h4>
+            <div id="monitorHoldings" class="admin-holdings-grid"></div>
+        </div>
+        <div class="admin-monitor-section">
+            <h4>Recent Transactions</h4>
+            <div class="table-scroll">
+                <table>
+                    <thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
+                    <tbody id="monitorTransactions"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="admin-monitor-section">
+            <h4>Recent Notifications</h4>
+            <div id="monitorNotifications" class="admin-notif-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="adjustModal" class="modal-overlay hidden">
+    <div class="modal">
+        <h3 id="adjustModalTitle">Adjust Balance</h3>
+        <p id="adjustModalUser" class="admin-modal-user"></p>
+        <label class="form-label" for="modalAdjustAmount">Amount ($)</label>
+        <input id="modalAdjustAmount" type="number" min="0.01" step="0.01" placeholder="0.00">
+        <label class="form-label" for="modalAdjustNote">Note (optional)</label>
+        <input id="modalAdjustNote" type="text" placeholder="Reason for adjustment">
+        <div class="modal-actions">
+            <button class="modal-cancel" type="button" id="modalAdjustCancel">Cancel</button>
+            <button class="modal-confirm" type="button" id="modalAdjustConfirm">Confirm</button>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/admin-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank — Login</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div id="siteAnnouncement" class="site-announcement hidden"></div>
+    <div class="login-box">
+        <h1 class="logo" id="siteName">🏦 SecureBank</h1>
+        <p class="subtitle" id="siteTagline">Secure Online Banking</p>
+
+        <div class="auth-tabs">
+            <button type="button" class="auth-tab active" id="signInTab">Sign In</button>
+            <button type="button" class="auth-tab" id="signUpTab">Sign Up</button>
+        </div>
+
+        <form id="signInForm" class="auth-form">
+            <input id="signInEmail" type="email" placeholder="Email address" required autocomplete="email">
+            <input id="signInPassword" type="password" placeholder="Password" required autocomplete="current-password">
+
+            <div class="options">
+                <label>
+                    <input type="checkbox" checked>
+                    Remember Me
+                </label>
+                <a href="#">Forgot Password?</a>
+            </div>
+
+            <button type="submit">Sign In</button>
+        </form>
+
+        <form id="signUpForm" class="auth-form hidden">
+            <input id="signUpName" type="text" placeholder="Full name" required autocomplete="name">
+            <input id="signUpEmail" type="email" placeholder="Email address" required autocomplete="email">
+            <input id="signUpPhone" type="tel" placeholder="Phone number" required autocomplete="tel">
+            <input id="signUpPassword" type="password" placeholder="Password (min. 6 characters)" required autocomplete="new-password" minlength="6">
+            <input id="signUpConfirm" type="password" placeholder="Confirm password" required autocomplete="new-password" minlength="6">
+
+            <button type="submit">Create Account</button>
+        </form>
+
+        <p class="hint">Sign up with your email to create an account. Your portfolio is saved in this browser.</p>
+        <p class="hint">Local server: <a href="http://localhost:8765/index.html">http://localhost:8765/index.html</a></p>
+        <p class="index-admin-link"><a href="admin.html">Admin portal →</a></p>
+    </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

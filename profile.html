@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank — Profile</title>
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h2>👤 My Profile</h2>
+        <p>Manage your SecureBank account details</p>
+    </div>
+    <div class="header-right">
+        <a href="dashboard.html" class="nav-link">← Back to Dashboard</a>
+        <button id="themeToggle" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
+        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
+    </div>
+</header>
+
+<div class="container profile-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div id="verificationBanner" class="card verification-banner hidden">
+    <div class="verification-banner-content">
+        <span class="verification-banner-icon">🔒</span>
+        <div>
+            <strong>Identity verification required</strong>
+            <p>Check your email for instructions, then submit your SSN below to unlock full account access.</p>
+        </div>
+    </div>
+</div>
+
+<div class="card profile-card">
+    <div class="profile-header">
+        <div class="profile-avatar" id="profileAvatar">U</div>
+        <div class="profile-title">
+            <h1 id="profileFullName">User Name</h1>
+            <span class="verification-badge verified" id="verificationBadge">✓ Verified</span>
+        </div>
+    </div>
+
+    <div class="profile-details">
+        <div class="profile-field">
+            <span class="field-label">Full Name</span>
+            <span class="field-value" id="displayFullName">—</span>
+        </div>
+        <div class="profile-field">
+            <span class="field-label">Email</span>
+            <span class="field-value" id="displayEmail">—</span>
+        </div>
+        <div class="profile-field">
+            <span class="field-label">Phone</span>
+            <span class="field-value" id="displayPhone">—</span>
+        </div>
+        <div class="profile-field">
+            <span class="field-label">Member Since</span>
+            <span class="field-value" id="displayMemberSince">—</span>
+        </div>
+        <div class="profile-field">
+            <span class="field-label">Verification Status</span>
+            <span class="field-value" id="displayVerification">—</span>
+        </div>
+    </div>
+
+    <button class="edit-profile-btn" type="button" id="editProfileBtn">✏️ Edit Profile</button>
+</div>
+
+<div id="ssnVerificationCard" class="card profile-card hidden">
+    <h2 class="section-heading">🔒 Identity Verification</h2>
+    <p class="section-desc">Federal regulations require us to verify your identity. Enter your Social Security Number (SSN) to complete verification.</p>
+    <form id="ssnVerificationForm" class="ssn-form">
+        <label class="form-label" for="ssnInput">Social Security Number</label>
+        <input id="ssnInput" type="text" inputmode="numeric" placeholder="XXX-XX-XXXX" maxlength="11" autocomplete="off" required>
+        <p class="form-hint">Your SSN is encrypted and used only for identity verification.</p>
+        <button class="edit-profile-btn" type="submit">Submit for Verification</button>
+    </form>
+</div>
+
+<div id="ssnVerifiedCard" class="card profile-card hidden">
+    <h2 class="section-heading">🔒 Identity Verification</h2>
+    <div class="profile-field">
+        <span class="field-label">SSN on File</span>
+        <span class="field-value" id="displaySsn">—</span>
+    </div>
+    <p class="form-hint verified-hint">✓ Your identity has been verified.</p>
+</div>
+
+<div class="card profile-card">
+    <h2 class="section-heading">📧 Email Inbox</h2>
+    <p class="section-desc">Messages sent to your registered email address.</p>
+    <div id="emailInbox" class="email-inbox">
+        <p class="email-empty">No emails yet.</p>
+    </div>
+</div>
+
+</div>
+
+<div id="editOverlay" class="modal-overlay hidden">
+    <div class="modal">
+        <h3>✏️ Edit Profile</h3>
+        <form id="editProfileForm">
+            <label class="form-label" for="editFullName">Full Name</label>
+            <input id="editFullName" type="text" required>
+
+            <label class="form-label" for="editEmail">Email</label>
+            <input id="editEmail" type="email" required>
+
+            <label class="form-label" for="editPhone">Phone</label>
+            <input id="editPhone" type="tel" placeholder="Phone number" required>
+
+            <div class="modal-actions">
+                <button class="modal-cancel" type="button" id="cancelEditBtn">Cancel</button>
+                <button class="modal-confirm" type="submit">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/profile.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank — Wallet & Transactions</title>
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h2>💳 Wallet & Transactions</h2>
+        <p>View, search, and export your activity</p>
+    </div>
+    <div class="header-right">
+        <a href="dashboard.html" class="nav-link">← Back to Dashboard</a>
+        <button id="themeToggle" class="icon-btn" type="button">🌙</button>
+    </div>
+</header>
+
+<div class="container wallet-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div class="card wallet-toolbar">
+    <div class="toolbar-row">
+        <input id="searchInput" type="search" placeholder="Search transactions..." class="wallet-search">
+        <select id="filterSelect" class="wallet-filter">
+            <option value="all">All</option>
+            <option value="deposit">Deposits</option>
+            <option value="withdraw">Withdrawals</option>
+            <option value="buy">Buys</option>
+            <option value="sell">Sells</option>
+            <option value="gold">Gold</option>
+            <option value="stock">Stocks</option>
+            <option value="investment">Investments</option>
+        </select>
+    </div>
+    <div class="toolbar-row">
+        <button class="deposit-btn" type="button" id="exportCsvBtn">Export CSV</button>
+        <button class="withdraw-btn" type="button" id="exportPdfBtn">Export PDF</button>
+    </div>
+</div>
+
+<div class="table-scroll">
+<table id="walletTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>Description</th>
+    <th>Amount</th>
+</tr>
+</thead>
+<tbody id="walletBody"></tbody>
+</table>
+</div>
+
+<div class="pagination">
+    <button type="button" id="prevPageBtn" class="page-btn">← Prev</button>
+    <span id="pageInfo">Page 1 of 1</span>
+    <button type="button" id="nextPageBtn" class="page-btn">Next →</button>
+</div>
+
+</div>
+
+<div id="printArea" class="print-only"></div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/wallet.js"></script>
+
+</body>
+</html>

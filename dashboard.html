@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0059b3">
+<title>SecureBank Dashboard</title>
+<link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <h2 id="dashboardSiteName">🏦 SecureBank Dashboard</h2>
+        <p>Welcome back, <span id="userName">User</span></p>
+    </div>
+    <div class="header-right">
+        <button id="notifBtn" class="icon-btn" type="button">
+            🔔 <span id="notifCount" class="badge" style="display:none">0</span>
+        </button>
+        <div id="notifPanel" class="notif-panel hidden">
+            <div class="notif-header">
+                <span>🔔 Notifications</span>
+            </div>
+            <div id="notifList"></div>
+        </div>
+
+        <button id="themeToggle" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
+
+        <div class="profile-wrap">
+            <button id="profileBtn" class="profile-btn" type="button">
+                👤 <span class="username" id="profileName">User</span> ▾
+            </button>
+            <div id="profileMenu" class="dropdown hidden">
+                <div class="dropdown-header">👤 Account</div>
+                <button class="dropdown-item" type="button" id="viewProfileBtn">View Profile</button>
+                <button class="dropdown-item" type="button" id="settingsBtn">Settings</button>
+                <button class="dropdown-item" type="button" id="walletBtn">Wallet & Transactions</button>
+                <button id="logoutBtn" class="dropdown-item" type="button">Log Out</button>
+            </div>
+        </div>
+    </div>
+</header>
+
+<div class="container">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div id="verificationBanner" class="card verification-banner hidden">
+    <div class="verification-banner-content">
+        <span class="verification-banner-icon">🔒</span>
+        <div>
+            <strong>Identity verification required</strong>
+            <p>We sent a welcome email and verification request to your inbox. <a href="profile.html">Complete verification in Profile</a> to unlock all features.</p>
+        </div>
+    </div>
+</div>
+
+<div class="cards overview-cards">
+
+<div class="card balance-card">
+    <h3>💰 Account Balance</h3>
+    <div class="balance" id="accountBalance">$25,480.33</div>
+    <div class="action-row">
+        <button class="deposit-btn" type="button" id="depositBtn">💸 Deposit</button>
+        <button class="withdraw-btn" type="button" id="withdrawBtn">💸 Transfer</button>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📊 Profit / Loss</h3>
+    <div id="plValue" class="balance pl-positive">+$0.00</div>
+    <div id="plPercent" class="pl-sub">0.00% all time</div>
+</div>
+
+</div>
+
+<div id="pendingTransfersCard" class="card pending-card hidden">
+    <h3>⏳ Pending Requests</h3>
+    <ul id="pendingTransfersList" class="pending-list"></ul>
+</div>
+
+<h2 class="section-title">₿ Cryptocurrency</h2>
+<div class="cards crypto-cards">
+
+<div class="card">
+    <h3>₿ Bitcoin</h3>
+    <div class="balance">
+        <div id="btcHoldings">0.4825 BTC</div>
+        <div id="btcPrice">Loading...</div>
+        <div id="btcChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-coin="btc" type="button" onclick="buyBTC()">Buy BTC</button>
+    <button class="sell-btn" data-coin="btc" type="button" onclick="sellBTC()">Sell BTC</button>
+</div>
+
+<div class="card">
+    <h3>Ξ Ethereum</h3>
+    <div class="balance">
+        <div id="ethHoldings">8.16 ETH</div>
+        <div id="ethPrice">Loading...</div>
+        <div id="ethChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-coin="eth" type="button" onclick="buyETH()">Buy ETH</button>
+    <button class="sell-btn" data-coin="eth" type="button" onclick="sellETH()">Sell ETH</button>
+</div>
+
+<div class="card">
+    <h3>◎ Solana</h3>
+    <div class="balance">
+        <div id="solHoldings">8.50 SOL</div>
+        <div id="solPrice">Loading...</div>
+        <div id="solChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-coin="sol" type="button" onclick="buySOL()">Buy SOL</button>
+    <button class="sell-btn" data-coin="sol" type="button" onclick="sellSOL()">Sell SOL</button>
+</div>
+
+<div class="card">
+    <h3>XRP</h3>
+    <div class="balance">
+        <div id="xrpHoldings">1,250 XRP</div>
+        <div id="xrpPrice">Loading...</div>
+        <div id="xrpChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-coin="xrp" type="button" onclick="buyXRP()">Buy XRP</button>
+    <button class="sell-btn" data-coin="xrp" type="button" onclick="sellXRP()">Sell XRP</button>
+</div>
+
+</div>
+
+<h2 class="section-title">🥇 Gold & Commodities</h2>
+<div class="cards">
+<div class="card asset-card gold-card">
+    <h3>🥇 Gold (XAU)</h3>
+    <div class="balance">
+        <div id="goldHoldings">1.50 oz</div>
+        <div id="goldPrice">Loading...</div>
+        <div id="goldChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="gold" type="button" onclick="buyAsset('gold')">Buy Gold</button>
+    <button class="sell-btn" data-asset="gold" type="button" onclick="sellAsset('gold')">Sell Gold</button>
+</div>
+</div>
+
+<h2 class="section-title">📈 Stocks</h2>
+<div class="cards">
+<div class="card asset-card stock-card">
+    <h3>🍎 Apple (AAPL)</h3>
+    <div class="balance">
+        <div id="aaplHoldings">12 shares</div>
+        <div id="aaplPrice">Loading...</div>
+        <div id="aaplChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="aapl" type="button" onclick="buyAsset('aapl')">Buy AAPL</button>
+    <button class="sell-btn" data-asset="aapl" type="button" onclick="sellAsset('aapl')">Sell AAPL</button>
+</div>
+<div class="card asset-card stock-card">
+    <h3>🔍 Alphabet (GOOGL)</h3>
+    <div class="balance">
+        <div id="googlHoldings">6 shares</div>
+        <div id="googlPrice">Loading...</div>
+        <div id="googlChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="googl" type="button" onclick="buyAsset('googl')">Buy GOOGL</button>
+    <button class="sell-btn" data-asset="googl" type="button" onclick="sellAsset('googl')">Sell GOOGL</button>
+</div>
+<div class="card asset-card stock-card">
+    <h3>💻 Microsoft (MSFT)</h3>
+    <div class="balance">
+        <div id="msftHoldings">10 shares</div>
+        <div id="msftPrice">Loading...</div>
+        <div id="msftChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="msft" type="button" onclick="buyAsset('msft')">Buy MSFT</button>
+    <button class="sell-btn" data-asset="msft" type="button" onclick="sellAsset('msft')">Sell MSFT</button>
+</div>
+<div class="card asset-card stock-card">
+    <h3>🟢 NVIDIA (NVDA)</h3>
+    <div class="balance">
+        <div id="nvdaHoldings">8 shares</div>
+        <div id="nvdaPrice">Loading...</div>
+        <div id="nvdaChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="nvda" type="button" onclick="buyAsset('nvda')">Buy NVDA</button>
+    <button class="sell-btn" data-asset="nvda" type="button" onclick="sellAsset('nvda')">Sell NVDA</button>
+</div>
+</div>
+
+<h2 class="section-title">💼 Investments (ETFs)</h2>
+<div class="cards">
+<div class="card asset-card invest-card">
+    <h3>📊 S&P 500 (SPY)</h3>
+    <div class="balance">
+        <div id="spyHoldings">20 shares</div>
+        <div id="spyPrice">Loading...</div>
+        <div id="spyChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="spy" type="button" onclick="buyAsset('spy')">Buy SPY</button>
+    <button class="sell-btn" data-asset="spy" type="button" onclick="sellAsset('spy')">Sell SPY</button>
+</div>
+<div class="card asset-card invest-card">
+    <h3>📈 Nasdaq 100 (QQQ)</h3>
+    <div class="balance">
+        <div id="qqqHoldings">15 shares</div>
+        <div id="qqqPrice">Loading...</div>
+        <div id="qqqChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="qqq" type="button" onclick="buyAsset('qqq')">Buy QQQ</button>
+    <button class="sell-btn" data-asset="qqq" type="button" onclick="sellAsset('qqq')">Sell QQQ</button>
+</div>
+<div class="card asset-card invest-card">
+    <h3>🌐 Total Market (VTI)</h3>
+    <div class="balance">
+        <div id="vtiHoldings">25 shares</div>
+        <div id="vtiPrice">Loading...</div>
+        <div id="vtiChange" class="coin-change">—</div>
+    </div>
+    <button class="buy-btn" data-asset="vti" type="button" onclick="buyAsset('vti')">Buy VTI</button>
+    <button class="sell-btn" data-asset="vti" type="button" onclick="sellAsset('vti')">Sell VTI</button>
+</div>
+</div>
+
+<h2 class="section-title">📊 Live Portfolio Analytics</h2>
+<div class="cards analytics-cards">
+    <div class="card">
+        <h3>Total Assets</h3>
+        <div class="balance" id="totalAssets">—</div>
+    </div>
+    <div class="card">
+        <h3>Today's Profit</h3>
+        <div class="balance" id="todayProfit">—</div>
+    </div>
+    <div class="card">
+        <h3>Monthly Return</h3>
+        <div class="balance" id="monthlyReturn">—</div>
+    </div>
+    <div class="card">
+        <h3>Best Performing</h3>
+        <div class="balance analytics-sm" id="bestCoin">—</div>
+    </div>
+    <div class="card">
+        <h3>Worst Performing</h3>
+        <div class="balance analytics-sm" id="worstCoin">—</div>
+    </div>
+</div>
+
+<div class="grid-2">
+
+<div class="card">
+    <h3>💰 Portfolio Allocation</h3>
+    <div class="chart-wrap pie-wrap">
+        <canvas id="allocationChart"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📈 Portfolio Growth</h3>
+    <div class="chart-wrap">
+        <canvas id="portfolioChart"></canvas>
+    </div>
+</div>
+
+</div>
+
+<div class="table-scroll">
+<table id="transactionTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>Description</th>
+    <th>Amount</th>
+</tr>
+</thead>
+<tbody id="transactionBody"></tbody>
+</table>
+</div>
+<p class="table-link"><a href="wallet.html">View all transactions →</a></p>
+
+<div class="card">
+    <h3>🟢 Market Overview — Live Prices</h3>
+    <div class="table-scroll">
+    <table class="market-table">
+        <thead>
+        <tr>
+            <th>Asset</th>
+            <th>Type</th>
+            <th>Price</th>
+            <th>24h Change</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>₿ Bitcoin</td>
+            <td><span class="type-badge crypto">Crypto</span></td>
+            <td id="marketBTC">Loading...</td>
+            <td id="marketBTCChange">—</td>
+        </tr>
+        <tr>
+            <td>Ξ Ethereum</td>
+            <td><span class="type-badge crypto">Crypto</span></td>
+            <td id="marketETH">Loading...</td>
+            <td id="marketETHChange">—</td>
+        </tr>
+        <tr>
+            <td>◎ Solana</td>
+            <td><span class="type-badge crypto">Crypto</span></td>
+            <td id="marketSOL">Loading...</td>
+            <td id="marketSOLChange">—</td>
+        </tr>
+        <tr>
+            <td>XRP</td>
+            <td><span class="type-badge crypto">Crypto</span></td>
+            <td id="marketXRP">Loading...</td>
+            <td id="marketXRPChange">—</td>
+        </tr>
+        <tr>
+            <td>🥇 Gold</td>
+            <td><span class="type-badge gold">Gold</span></td>
+            <td id="marketGOLD">Loading...</td>
+            <td id="marketGOLDChange">—</td>
+        </tr>
+        <tr>
+            <td>🍎 AAPL</td>
+            <td><span class="type-badge stock">Stock</span></td>
+            <td id="marketAAPL">Loading...</td>
+            <td id="marketAAPLChange">—</td>
+        </tr>
+        <tr>
+            <td>🔍 GOOGL</td>
+            <td><span class="type-badge stock">Stock</span></td>
+            <td id="marketGOOGL">Loading...</td>
+            <td id="marketGOOGLChange">—</td>
+        </tr>
+        <tr>
+            <td>💻 MSFT</td>
+            <td><span class="type-badge stock">Stock</span></td>
+            <td id="marketMSFT">Loading...</td>
+            <td id="marketMSFTChange">—</td>
+        </tr>
+        <tr>
+            <td>🟢 NVDA</td>
+            <td><span class="type-badge stock">Stock</span></td>
+            <td id="marketNVDA">Loading...</td>
+            <td id="marketNVDAChange">—</td>
+        </tr>
+        <tr>
+            <td>📊 SPY</td>
+            <td><span class="type-badge invest">ETF</span></td>
+            <td id="marketSPY">Loading...</td>
+            <td id="marketSPYChange">—</td>
+        </tr>
+        <tr>
+            <td>📈 QQQ</td>
+            <td><span class="type-badge invest">ETF</span></td>
+            <td id="marketQQQ">Loading...</td>
+            <td id="marketQQQChange">—</td>
+        </tr>
+        <tr>
+            <td>🌐 VTI</td>
+            <td><span class="type-badge invest">ETF</span></td>
+            <td id="marketVTI">Loading...</td>
+            <td id="marketVTIChange">—</td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+</div>
+
+</div>
+
+<div id="modalOverlay" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+        <h3 id="modalTitle">💸 Deposit Funds</h3>
+        <form id="cashForm">
+            <label class="form-label" for="modalInput">Amount</label>
+            <input id="modalInput" type="number" min="1" step="0.01" placeholder="0.00" required>
+
+            <div id="transferDetailsGroup" class="payment-methods hidden">
+                <label class="form-label" for="transferDestination">Transfer To</label>
+                <input id="transferDestination" type="text" placeholder="Bank name, account number, or recipient">
+                <label class="form-label">Transfer Method</label>
+                <label class="radio-option"><input type="radio" name="transferMethod" value="bank" checked> Bank</label>
+                <label class="radio-option"><input type="radio" name="transferMethod" value="wire"> Wire</label>
+                <label class="radio-option"><input type="radio" name="transferMethod" value="paypal"> PayPal</label>
+            </div>
+
+            <div id="paymentMethodGroup" class="payment-methods">
+                <span class="form-label">Payment Method</span>
+                <label class="radio-option"><input type="radio" name="paymentMethod" value="bank" checked> Bank</label>
+                <label class="radio-option"><input type="radio" name="paymentMethod" value="card"> Card</label>
+                <label class="radio-option"><input type="radio" name="paymentMethod" value="crypto"> Crypto</label>
+            </div>
+
+            <div id="cryptoWalletGroup" class="admin-payto-box hidden">
+                <span class="form-label">Admin Crypto Wallet Address</span>
+                <p class="crypto-pay-label">Send your crypto payment to this admin wallet:</p>
+                <div id="adminCryptoAddress" class="admin-payto-text admin-crypto-address"></div>
+                <button type="button" class="copy-btn" id="copyCryptoBtn">Copy Wallet Address</button>
+                <p class="deposit-hint">Send the exact USD amount in crypto, then click Submit Deposit. Admin will verify on-chain and approve.</p>
+            </div>
+
+            <div id="bankPayToGroup" class="admin-payto-box hidden">
+                <span class="form-label">Admin Bank Account</span>
+                <div id="adminBankPayTo" class="admin-payto-text"></div>
+                <button type="button" class="copy-btn" id="copyBankBtn">Copy Bank Details</button>
+                <p class="deposit-hint">Transfer to the admin bank account above, then submit your deposit request.</p>
+            </div>
+
+            <div id="cardPayToGroup" class="admin-payto-box hidden">
+                <span class="form-label">Admin Merchant Account</span>
+                <p class="admin-payto-text">Card payments are processed to the SecureBank admin merchant account.</p>
+                <p class="deposit-hint">Submit your deposit request after payment. Admin will verify and approve.</p>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-cancel" type="button" id="cancelModalBtn">Cancel</button>
+                <button class="modal-confirm" type="submit" id="confirmModalBtn">Deposit</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/dashboard.js"></script>
+
+</body>
+</html>
