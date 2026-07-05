@@ -125,12 +125,6 @@ body.auth-body {
     border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.promo-disclaimer {
-    font-size: 0.75rem;
-    opacity: 0.65;
-    line-height: 1.4;
-}
-
 .auth-container {
     width: 100%;
     max-width: 460px;
