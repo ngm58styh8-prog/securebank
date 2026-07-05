@@ -1,5 +1,6 @@
-const adminEmail = requireAdminAuth();
-if (!adminEmail) throw new Error("Not authenticated");
+(function() {
+    const adminEmail = requireAdminAuth();
+    if (!adminEmail) return;
 
 let pendingAdjust = { email: "", action: "" };
 let pendingSupport = { email: "", ticketId: "" };
@@ -644,3 +645,4 @@ window.addEventListener("storage", function() {
 });
 
 setInterval(renderDashboard, 5000);
+})();

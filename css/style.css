@@ -571,55 +571,6 @@ body[data-theme="dark"] .float-field select:focus {
     margin-bottom: 12px;
 }
 
-.mgmt-login-link {
-    position: fixed;
-    top: max(10px, env(safe-area-inset-top));
-    right: max(12px, env(safe-area-inset-right));
-    z-index: 100;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-    border-radius: 999px;
-    text-decoration: none;
-    color: rgba(255, 255, 255, 0.45);
-    background: rgba(0, 0, 0, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    opacity: 0.35;
-    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
-}
-
-.mgmt-login-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-}
-
-.mgmt-login-label {
-    max-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    font-size: 11px;
-    letter-spacing: 0.02em;
-    transition: max-width 0.25s ease;
-}
-
-.mgmt-login-link:hover,
-.mgmt-login-link:focus-visible {
-    opacity: 1;
-    color: rgba(255, 255, 255, 0.95);
-    background: rgba(0, 0, 0, 0.22);
-    border-color: rgba(255, 255, 255, 0.2);
-    outline: none;
-}
-
-.mgmt-login-link:hover .mgmt-login-label,
-.mgmt-login-link:focus-visible .mgmt-login-label {
-    max-width: 120px;
-}
-
 .server-warning {
     position: fixed;
     top: 0;
@@ -670,14 +621,5 @@ body[data-theme="dark"] .float-field select:focus {
     .options {
         flex-direction: column;
         align-items: flex-start;
-    }
-
-    .mgmt-login-label {
-        font-size: 10px;
-    }
-
-    .mgmt-login-link:hover .mgmt-login-label,
-    .mgmt-login-link:focus-visible .mgmt-login-label {
-        max-width: 110px;
     }
 }

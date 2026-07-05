@@ -13,9 +13,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     applyWebsiteSettings();
 
-    const mgmtLink = document.getElementById("mgmtLoginLink");
-    if (mgmtLink) mgmtLink.href = getLocalServerUrl("admin.html");
-
     initAuthTheme();
     initPasswordToggles();
     initFieldValidation();
