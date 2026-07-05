@@ -114,20 +114,4 @@ function applyWebsiteSettings() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", function() {
-    warnIfFileProtocol();
-    applyWebsiteSettings();
-});
-
-function warnIfFileProtocol() {
-    if (window.location.protocol !== "file:") return;
-
-    const page = window.location.pathname.split("/").pop() || "index.html";
-    const url = "http://localhost:8765/" + page;
-    const el = document.createElement("div");
-    el.className = "server-warning";
-    el.innerHTML =
-        "This site must run through a local server. " +
-        'Open <a href="' + url + '">' + url + "</a> instead of the file directly.";
-    document.body.prepend(el);
-}
+document.addEventListener("DOMContentLoaded", applyWebsiteSettings);
