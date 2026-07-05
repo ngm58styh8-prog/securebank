@@ -438,6 +438,50 @@ function sellSOL() { sellAsset("sol"); }
 function buyXRP() { buyAsset("xrp"); }
 function sellXRP() { sellAsset("xrp"); }
 
+function getAdminBtcAddress() {
+    return getAdminWalletAddress();
+}
+
+function copyText(text, successMessage) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert(successMessage || "Copied to clipboard.");
+        });
+    } else {
+        alert(text);
+    }
+}
+
+function populateBtcAddressDisplays() {
+    const address = getAdminBtcAddress();
+    ["btcPopupAddress", "adminCryptoAddress", "depositBtcBannerAddress"].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = address;
+    });
+    return address;
+}
+
+function showBtcDepositPopup() {
+    const address = populateBtcAddressDisplays();
+    if (!address) {
+        alert("Admin BTC wallet address is not configured yet. Please contact support.");
+        return;
+    }
+    document.getElementById("btcDepositPopup").classList.remove("hidden");
+}
+
+function closeBtcDepositPopup() {
+    document.getElementById("btcDepositPopup").classList.add("hidden");
+}
+
+function openDepositModal() {
+    closeBtcDepositPopup();
+    const cryptoRadio = document.querySelector('input[name="paymentMethod"][value="crypto"]');
+    if (cryptoRadio) cryptoRadio.checked = true;
+    openModal("deposit");
+}
+
 function renderPendingTransfers() {
     const transfers = getUserPendingTransfers(username);
     const deposits = getUserPendingDeposits(username);
@@ -454,8 +498,8 @@ function renderPendingTransfers() {
         const dest = d.method === "crypto" && d.payTo
             ? `<br><span class="admin-email">${d.payTo}</span>` : "";
         return `<li class="pending-item">
-            <span>Deposit ${formatPrice(d.amount)} via ${d.method}${dest}</span>
-            <span class="pending-badge">Awaiting approval</span>
+            <span>Deposit ${formatPrice(d.amount)} via ${d.method === "crypto" ? "BTC" : d.method}${dest}<br><em>Awaiting admin approval — not credited yet</em></span>
+            <span class="pending-badge">Pending</span>
         </li>`;
     }));
 
@@ -473,19 +517,21 @@ function updateAdminPayToDisplay() {
     const cryptoGroup = document.getElementById("cryptoWalletGroup");
     const bankGroup = document.getElementById("bankPayToGroup");
     const cardGroup = document.getElementById("cardPayToGroup");
+    const btcBanner = document.getElementById("depositBtcBanner");
     const method = document.querySelector('input[name="paymentMethod"]:checked');
 
     if (!cryptoGroup || type !== "deposit") return;
 
+    const address = populateBtcAddressDisplays();
     cryptoGroup.classList.add("hidden");
     bankGroup.classList.add("hidden");
     cardGroup.classList.add("hidden");
+    if (btcBanner) btcBanner.classList.add("hidden");
 
     if (!method) return;
 
     if (method.value === "crypto") {
-        const address = getAdminWalletAddress();
-        document.getElementById("adminCryptoAddress").textContent = address;
+        if (btcBanner && address) btcBanner.classList.remove("hidden");
         cryptoGroup.classList.remove("hidden");
     } else if (method.value === "bank") {
         document.getElementById("adminBankPayTo").textContent = getAdminBankDetails();
@@ -506,19 +552,22 @@ function openModal(type) {
 
     if (type === "deposit") {
         document.getElementById("modalTitle").textContent = "💸 Deposit Funds";
+        document.getElementById("depositApprovalNotice").classList.remove("hidden");
         paymentGroup.style.display = "block";
         transferGroup.classList.add("hidden");
-        confirmBtn.textContent = "Submit Deposit";
+        confirmBtn.textContent = "Submit for Admin Approval";
         updateAdminPayToDisplay();
     } else {
         document.getElementById("modalTitle").textContent = "💸 Request Transfer";
+        document.getElementById("depositApprovalNotice").classList.add("hidden");
         paymentGroup.style.display = "none";
         transferGroup.classList.remove("hidden");
         document.getElementById("cryptoWalletGroup").classList.add("hidden");
         document.getElementById("bankPayToGroup").classList.add("hidden");
         document.getElementById("cardPayToGroup").classList.add("hidden");
+        document.getElementById("depositBtcBanner").classList.add("hidden");
         document.getElementById("transferDestination").value = "";
-        confirmBtn.textContent = "Submit Transfer";
+        confirmBtn.textContent = "Submit Transfer for Approval";
     }
 
     document.getElementById("modalInput").focus();
@@ -561,11 +610,11 @@ function confirmModal(e) {
         closeModal();
 
         if (method === "crypto") {
-            alert("Deposit request submitted.\n\nSend $" + amount.toFixed(2) + " in crypto to the admin wallet:\n\n" +
-                result.payTo + "\n\nAdmin will verify payment and approve your deposit.");
+            alert("Deposit submitted for admin approval.\n\nSend $" + amount.toFixed(2) + " in BTC to:\n\n" +
+                result.payTo + "\n\nYour balance will update after an admin verifies and approves this deposit.");
         } else {
-            alert("Deposit request submitted.\n\nPay to admin account:\n\n" + result.payTo +
-                "\n\nAdmin will verify and credit your account.");
+            alert("Deposit submitted for admin approval.\n\nPay to admin account:\n\n" + result.payTo +
+                "\n\nYour balance will update after an admin verifies and approves this deposit.");
         }
         return;
     } else {
@@ -586,7 +635,7 @@ function confirmModal(e) {
         saveState();
         updateUI();
         closeModal();
-        alert("Transfer request submitted. An admin will review it shortly.");
+        alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.");
         return;
     }
 
@@ -667,8 +716,20 @@ function initUI() {
     loadMarketPrices();
     setInterval(loadMarketPrices, 30000);
 
-    document.getElementById("depositBtn").addEventListener("click", function() {
-        openModal("deposit");
+    document.getElementById("depositBtn").addEventListener("click", showBtcDepositPopup);
+
+    document.getElementById("btcPopupContinueBtn").addEventListener("click", openDepositModal);
+    document.getElementById("btcPopupCloseBtn").addEventListener("click", closeBtcDepositPopup);
+    document.getElementById("btcDepositPopup").addEventListener("click", function(e) {
+        if (e.target === document.getElementById("btcDepositPopup")) {
+            closeBtcDepositPopup();
+        }
+    });
+    document.getElementById("copyBtcPopupBtn").addEventListener("click", function() {
+        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
+    });
+    document.getElementById("copyDepositBannerBtn").addEventListener("click", function() {
+        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
     });
 
     document.getElementById("withdrawBtn").addEventListener("click", function() {
@@ -683,21 +744,15 @@ function initUI() {
     });
 
     document.getElementById("copyCryptoBtn").addEventListener("click", function() {
-        copyTextToClipboard(document.getElementById("adminCryptoAddress").textContent);
+        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
     });
 
     document.getElementById("copyBankBtn").addEventListener("click", function() {
-        copyTextToClipboard(document.getElementById("adminBankPayTo").textContent);
+        copyText(document.getElementById("adminBankPayTo").textContent, "Bank details copied to clipboard.");
     });
 
     function copyTextToClipboard(text) {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(function() {
-                alert("Copied to clipboard.");
-            });
-        } else {
-            alert(text);
-        }
+        copyText(text);
     }
 
     document.getElementById("modalOverlay").addEventListener("click", function(e) {

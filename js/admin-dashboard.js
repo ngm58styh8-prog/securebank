@@ -464,7 +464,7 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
     if (approveBtn) {
         const result = approveDeposit(approveBtn.dataset.id);
         if (!result.ok) { alert(result.error); return; }
-        alert("Deposit approved — user account credited, admin balance updated.");
+        alert("Deposit approved — user account credited and confirmation email sent.");
         renderDashboard();
     }
 

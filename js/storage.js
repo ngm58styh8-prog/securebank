@@ -133,6 +133,44 @@ function sendSsnVerificationEmail(account, email, fullName) {
     });
 }
 
+function formatDepositMethod(method) {
+    if (method === "crypto") return "Cryptocurrency";
+    if (method === "bank") return "Bank Transfer";
+    if (method === "card") return "Card";
+    return method || "Deposit";
+}
+
+function sendDepositApprovedEmail(account, userEmail, amount, method) {
+    const profile = account.profile || {};
+    const fullName = profile.fullName || userEmail;
+    const ws = getWebsiteSettings();
+    const siteName = ws.siteName || "SecureBank";
+    const supportEmail = ws.supportEmail || "support@securebank.com";
+    const methodLabel = formatDepositMethod(method);
+    const subject = siteName + " — Deposit of $" + amount.toFixed(2) + " credited";
+    const body = "Hi " + fullName + ",\n\n" +
+        "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
+        " has been approved and credited to your account.\n\n" +
+        "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
+        "Date: " + new Date().toLocaleString() + "\n\n" +
+        "Log in to SecureBank to view your updated balance and transaction history.\n\n" +
+        "If you did not make this deposit, contact us immediately at " + supportEmail + ".\n\n" +
+        "Thank you,\n" + siteName;
+
+    queueAccountEmail(account, {
+        to: userEmail,
+        subject: subject,
+        body: body,
+        type: "deposit"
+    });
+
+    if (typeof sendRealEmail !== "function") {
+        return Promise.resolve({ ok: false, error: "Email service unavailable." });
+    }
+
+    return sendRealEmail(userEmail, subject, body);
+}
+
 function submitSsnVerification(userEmail, ssn) {
     const key = normalizeEmail(userEmail);
     const account = getAccount(key);
@@ -981,8 +1019,8 @@ function submitDepositRequest(userEmail, amount, method) {
     account.notifications.unshift({
         id: Date.now() + Math.random(),
         message: method === "crypto"
-            ? "Send $" + amount.toFixed(2) + " in crypto to admin wallet " + payTo + " — awaiting approval"
-            : "Deposit of $" + amount.toFixed(2) + " submitted — send payment to admin account, then await approval",
+            ? "BTC deposit of $" + amount.toFixed(2) + " submitted — send to " + payTo + ". Awaiting admin approval."
+            : "Deposit of $" + amount.toFixed(2) + " submitted — awaiting admin approval before funds are credited.",
         time: new Date().toISOString(),
         read: false
     });
@@ -1041,6 +1079,7 @@ function approveDeposit(depositId) {
     deposit.status = "approved";
     deposit.resolvedAt = new Date().toLocaleString();
 
+    sendDepositApprovedEmail(account, deposit.userEmail, deposit.amount, deposit.method);
     saveAccount(deposit.userEmail, account);
     recordUserPayment(deposit.userEmail, "deposit", deposit.amount, deposit.method);
     saveAdminData(admin);
@@ -1048,10 +1087,10 @@ function approveDeposit(depositId) {
     resolveDepositOnAccount(
         deposit.userEmail,
         depositId,
-        "Your deposit of $" + deposit.amount.toFixed(2) + " was approved and credited"
+        "Your deposit of $" + deposit.amount.toFixed(2) + " was approved and credited — check your email for confirmation"
     );
 
-    return { ok: true };
+    return { ok: true, emailQueued: true };
 }
 
 function rejectDeposit(depositId, reason) {

@@ -55,6 +55,26 @@ function getDeviceLabel() {
     return "Unknown Device";
 }
 
+function sendRealEmail(to, subject, body) {
+    return fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: to, subject: subject, body: body })
+    })
+        .then(function(response) {
+            return response.json().catch(function() {
+                return { ok: false, error: "Invalid server response." };
+            }).then(function(data) {
+                if (!response.ok && data && data.error) return data;
+                if (!response.ok) return { ok: false, error: "Email service unavailable." };
+                return data;
+            });
+        })
+        .catch(function() {
+            return { ok: false, error: "Could not reach email service. Start the app with ./start.sh" };
+        });
+}
+
 function applyWebsiteSettings() {
     if (typeof getWebsiteSettings !== "function") return;
     const ws = getWebsiteSettings();

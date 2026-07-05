@@ -906,6 +906,44 @@ body[data-theme="dark"] .pending-badge {
     background: rgba(247, 147, 26, 0.08);
     font-size: 0.9rem;
     font-weight: bold;
+    word-break: break-all;
+}
+
+.btc-deposit-popup {
+    max-width: 480px;
+    text-align: center;
+}
+
+.btc-popup-desc {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.btc-popup-address {
+    font-size: 1rem;
+    padding: 16px;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.btc-popup-hint {
+    margin: 12px 0 16px;
+}
+
+.admin-approval-notice {
+    background: rgba(243, 156, 18, 0.12);
+    border: 1px solid rgba(243, 156, 18, 0.4);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.deposit-btc-banner {
+    margin-bottom: 16px;
 }
 
 .gold-card {
