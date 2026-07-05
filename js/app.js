@@ -8,6 +8,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
     applyWebsiteSettings();
 
+    const mgmtLink = document.getElementById("mgmtLoginLink");
+    if (mgmtLink) mgmtLink.href = getLocalServerUrl("admin.html");
+
     const ws = getWebsiteSettings();
     if (ws.maintenanceMode) {
         signInForm.querySelectorAll("input, button").forEach(function(el) { el.disabled = true; });

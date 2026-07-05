@@ -636,7 +636,7 @@ document.getElementById("notificationForm").addEventListener("submit", function(
 
 document.getElementById("adminLogoutBtn").addEventListener("click", function() {
     clearAdminSession();
-    window.location.href = "admin.html";
+    window.location.href = getLocalServerUrl("admin.html");
 });
 
 window.addEventListener("storage", function() {

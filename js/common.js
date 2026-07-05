@@ -1,4 +1,26 @@
 const CURRENCY_SYMBOLS = { USD: "$", EUR: "€", GBP: "£" };
+const LOCAL_SERVER_PORT = 8765;
+
+function isLocalServerHost() {
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1";
+}
+
+function getLocalServerUrl(path) {
+    const normalized = path.charAt(0) === "/" ? path : "/" + path;
+    if (isLocalServerHost()) {
+        return window.location.origin + normalized;
+    }
+    return "http://localhost:" + LOCAL_SERVER_PORT + normalized;
+}
+
+(function redirectAdminPagesToLocalhost() {
+    const page = window.location.pathname.split("/").pop() || "";
+    if (page !== "admin.html" && page !== "admin-dashboard.html") return;
+    if (window.location.protocol === "file:" || !isLocalServerHost()) {
+        window.location.replace(getLocalServerUrl(page || "admin.html"));
+    }
+})();
 
 function formatMoney(amount, currency) {
     currency = currency || "USD";

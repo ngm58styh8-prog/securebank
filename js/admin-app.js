@@ -1,4 +1,7 @@
 document.addEventListener("DOMContentLoaded", function() {
+    const backLink = document.querySelector(".admin-back a");
+    if (backLink) backLink.href = getLocalServerUrl("index.html");
+
     const form = document.getElementById("adminLoginForm");
     if (!form) return;
 

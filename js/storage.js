@@ -495,7 +495,9 @@ function requireAdminAuth() {
     const session = getAdminSession();
     const admin = getAdminData();
     if (!session || normalizeEmail(session.email) !== normalizeEmail(admin.email)) {
-        window.location.href = "admin.html";
+        window.location.href = typeof getLocalServerUrl === "function"
+            ? getLocalServerUrl("admin.html")
+            : "admin.html";
         return null;
     }
     return admin.email;
