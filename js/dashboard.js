@@ -615,10 +615,12 @@ function confirmModal(e) {
 
         if (method === "crypto") {
             alert("Deposit submitted for admin approval.\n\nSend $" + amount.toFixed(2) + " in BTC to:\n\n" +
-                result.payTo + "\n\nYour balance will update after an admin verifies and approves this deposit.");
+                result.payTo + "\n\nYour balance will update after an admin verifies and approves this deposit.\n\n" +
+                "A confirmation email was sent to your inbox.");
         } else {
             alert("Deposit submitted for admin approval.\n\nPay to admin account:\n\n" + result.payTo +
-                "\n\nYour balance will update after an admin verifies and approves this deposit.");
+                "\n\nYour balance will update after an admin verifies and approves this deposit.\n\n" +
+                "A confirmation email was sent to your inbox.");
         }
         return;
     } else {
@@ -639,7 +641,7 @@ function confirmModal(e) {
         saveState();
         updateUI();
         closeModal();
-        alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.");
+        alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.\n\nA confirmation email was sent to your inbox.");
         return;
     }
 

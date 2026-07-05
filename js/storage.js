@@ -266,35 +266,121 @@ function formatDepositMethod(method) {
     return method || "Deposit";
 }
 
-function sendDepositApprovedEmail(account, userEmail, amount, method) {
-    const profile = account.profile || {};
-    const fullName = profile.fullName || userEmail;
+function formatWithdrawalMethod(method) {
+    if (method === "crypto") return "Cryptocurrency";
+    if (method === "bank") return "Bank Transfer";
+    return method || "Transfer";
+}
+
+function getTransactionEmailMeta(account, userEmail) {
     const ws = getWebsiteSettings();
-    const siteName = ws.siteName || "SecureBank";
-    const supportEmail = ws.supportEmail || "support@securebank.com";
+    const profile = account.profile || {};
+    return {
+        siteName: ws.siteName || "SecureBank",
+        supportEmail: ws.supportEmail || "support@securebank.com",
+        fullName: profile.fullName || userEmail
+    };
+}
+
+function dispatchAccountEmail(account, userEmail, subject, body, type) {
+    queueAccountEmail(account, {
+        to: userEmail,
+        subject: subject,
+        body: body,
+        type: type || "general"
+    });
+    if (typeof sendRealEmail !== "function") {
+        return Promise.resolve({ ok: false, error: "Email service unavailable." });
+    }
+    return sendRealEmail(userEmail, subject, body);
+}
+
+function sendDepositSubmittedEmail(account, userEmail, amount, method, payTo) {
+    const meta = getTransactionEmailMeta(account, userEmail);
     const methodLabel = formatDepositMethod(method);
-    const subject = siteName + " — Deposit of $" + amount.toFixed(2) + " credited";
-    const body = "Hi " + fullName + ",\n\n" +
+    const subject = meta.siteName + " — Deposit request received ($" + amount.toFixed(2) + ")";
+    let body = "Hi " + meta.fullName + ",\n\n" +
+        "We received your deposit request for $" + amount.toFixed(2) + " via " + methodLabel + ".\n\n" +
+        "Status: Pending admin approval\n" +
+        "Submitted: " + new Date().toLocaleString() + "\n\n";
+    if (method === "crypto" && payTo) {
+        body += "Send your payment to this address:\n" + payTo + "\n\n";
+    }
+    body += "You will receive another email once your deposit is approved and credited.\n\n" +
+        "Questions? Contact " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
+}
+
+function sendDepositApprovedEmail(account, userEmail, amount, method) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const methodLabel = formatDepositMethod(method);
+    const subject = meta.siteName + " — Deposit of $" + amount.toFixed(2) + " credited";
+    const body = "Hi " + meta.fullName + ",\n\n" +
         "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
         " has been approved and credited to your account.\n\n" +
         "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
         "Log in to SecureBank to view your updated balance and transaction history.\n\n" +
-        "If you did not make this deposit, contact us immediately at " + supportEmail + ".\n\n" +
-        "Thank you,\n" + siteName;
+        "If you did not make this deposit, contact us immediately at " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
+}
 
-    queueAccountEmail(account, {
-        to: userEmail,
-        subject: subject,
-        body: body,
-        type: "deposit"
-    });
+function sendDepositRejectedEmail(account, userEmail, amount, method, reason) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const methodLabel = formatDepositMethod(method);
+    const subject = meta.siteName + " — Deposit request declined ($" + amount.toFixed(2) + ")";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "Your deposit request for $" + amount.toFixed(2) + " via " + methodLabel +
+        " was not approved.\n\n" +
+        (reason ? "Reason: " + reason + "\n\n" : "") +
+        "No funds were added to your account. If you believe this was a mistake, contact " +
+        meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
+}
 
-    if (typeof sendRealEmail !== "function") {
-        return Promise.resolve({ ok: false, error: "Email service unavailable." });
-    }
+function sendWithdrawalSubmittedEmail(account, userEmail, amount, destination, method) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const methodLabel = formatWithdrawalMethod(method);
+    const subject = meta.siteName + " — Withdrawal request received ($" + amount.toFixed(2) + ")";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "We received your withdrawal request for $" + amount.toFixed(2) + " via " + methodLabel +
+        " to " + (destination || "your linked account") + ".\n\n" +
+        "Status: Pending admin approval\n" +
+        "Submitted: " + new Date().toLocaleString() + "\n\n" +
+        "You will receive another email once your withdrawal is processed.\n\n" +
+        "If you did not submit this request, contact us immediately at " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
+}
 
-    return sendRealEmail(userEmail, subject, body);
+function sendWithdrawalApprovedEmail(account, userEmail, amount, destination, method) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const methodLabel = formatWithdrawalMethod(method);
+    const subject = meta.siteName + " — Withdrawal of $" + amount.toFixed(2) + " processed";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "Your withdrawal of $" + amount.toFixed(2) + " via " + methodLabel +
+        " to " + (destination || "your linked account") + " has been approved and processed.\n\n" +
+        "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
+        "Date: " + new Date().toLocaleString() + "\n\n" +
+        "Log in to SecureBank to view your transaction history.\n\n" +
+        "If you did not authorize this withdrawal, contact us immediately at " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
+}
+
+function sendWithdrawalRejectedEmail(account, userEmail, amount, destination, reason) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const subject = meta.siteName + " — Withdrawal request declined ($" + amount.toFixed(2) + ")";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "Your withdrawal request for $" + amount.toFixed(2) +
+        " to " + (destination || "your linked account") + " was not approved.\n\n" +
+        (reason ? "Reason: " + reason + "\n\n" : "") +
+        "Your balance was not changed. If you have questions, contact " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
 }
 
 function submitSsnVerification(userEmail, ssn) {
@@ -899,6 +985,7 @@ function submitTransferRequest(userEmail, amount, destination, method) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
+    sendWithdrawalSubmittedEmail(account, key, amount, dest, transfer.method);
     saveAccount(key, account);
     return { ok: true, transfer: transfer };
 }
@@ -953,6 +1040,7 @@ function approveTransfer(transferId) {
     transfer.status = "approved";
     transfer.resolvedAt = new Date().toLocaleString();
 
+    sendWithdrawalApprovedEmail(account, transfer.userEmail, transfer.amount, transfer.destination, transfer.method);
     saveAccount(transfer.userEmail, account);
     recordUserPayment(transfer.userEmail, "withdraw", transfer.amount, transfer.method);
     saveAdminData(admin);
@@ -960,10 +1048,10 @@ function approveTransfer(transferId) {
     resolveTransferOnAccount(
         transfer.userEmail,
         transferId,
-        "Your transfer of $" + transfer.amount.toFixed(2) + " was approved"
+        "Your transfer of $" + transfer.amount.toFixed(2) + " was approved — check your email for confirmation"
     );
 
-    return { ok: true };
+    return { ok: true, emailQueued: true };
 }
 
 function rejectTransfer(transferId, reason) {
@@ -986,6 +1074,7 @@ function rejectTransfer(transferId, reason) {
             description: "Transfer Rejected — " + transfer.destination,
             amount: 0
         });
+        sendWithdrawalRejectedEmail(accountTx, transfer.userEmail, transfer.amount, transfer.destination, transfer.rejectReason);
         saveAccount(transfer.userEmail, accountTx);
     }
 
@@ -995,10 +1084,10 @@ function rejectTransfer(transferId, reason) {
         transfer.userEmail,
         transferId,
         "Your transfer of $" + transfer.amount.toFixed(2) + " was rejected" +
-            (reason ? ": " + reason : "")
+            (reason ? ": " + reason : "") + " — check your email for details"
     );
 
-    return { ok: true };
+    return { ok: true, emailQueued: true };
 }
 
 function getDepositMethods() {
@@ -1342,6 +1431,7 @@ function submitDepositRequest(userEmail, amount, method) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
+    sendDepositSubmittedEmail(account, key, amount, method, payTo);
     saveAccount(key, account);
     return { ok: true, deposit: deposit, payTo: payTo };
 }
@@ -1427,6 +1517,7 @@ function rejectDeposit(depositId, reason) {
             description: "Deposit Rejected (" + deposit.method + ")",
             amount: 0
         });
+        sendDepositRejectedEmail(accountTx, deposit.userEmail, deposit.amount, deposit.method, deposit.rejectReason);
         saveAccount(deposit.userEmail, accountTx);
     }
 
@@ -1436,8 +1527,8 @@ function rejectDeposit(depositId, reason) {
         deposit.userEmail,
         depositId,
         "Your deposit of $" + deposit.amount.toFixed(2) + " was rejected" +
-            (reason ? ": " + reason : "")
+            (reason ? ": " + reason : "") + " — check your email for details"
     );
 
-    return { ok: true };
+    return { ok: true, emailQueued: true };
 }

@@ -561,7 +561,7 @@ document.getElementById("pendingTransfersBody").addEventListener("click", functi
     if (approveBtn && !approveBtn.classList.contains("admin-approve-deposit")) {
         const result = approveTransfer(approveBtn.dataset.id);
         if (!result.ok) { alert(result.error); return; }
-        alert("Transfer approved successfully.");
+        alert("Transfer approved — user debited and confirmation email sent.");
         renderDashboard();
     }
 
@@ -570,7 +570,7 @@ document.getElementById("pendingTransfersBody").addEventListener("click", functi
         if (reason === null) return;
         const result = rejectTransfer(rejectBtn.dataset.id, reason.trim());
         if (!result.ok) { alert(result.error); return; }
-        alert("Transfer rejected.");
+        alert("Transfer rejected — user notified by email.");
         renderDashboard();
     }
 });
@@ -591,7 +591,7 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
         if (reason === null) return;
         const result = rejectDeposit(rejectBtn.dataset.id, reason.trim());
         if (!result.ok) { alert(result.error); return; }
-        alert("Deposit rejected.");
+        alert("Deposit rejected — user notified by email.");
         renderDashboard();
     }
 });
