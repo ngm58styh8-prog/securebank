@@ -69,17 +69,135 @@ function getDefaultAccount() {
     };
 }
 
-function getDefaultProfile(email, fullName, phone) {
+function getDefaultProfile(email, fullName, phone, extras) {
+    extras = extras || {};
     const localPart = email.split("@")[0];
     const name = fullName || (localPart.charAt(0).toUpperCase() + localPart.slice(1));
     return {
         fullName: name,
         email: email,
         phone: phone || "",
+        country: extras.country || "",
+        dateOfBirth: extras.dateOfBirth || "",
+        referralCode: extras.referralCode || "",
         memberSince: new Date().toISOString(),
         verificationStatus: "Verified",
-        ssnLast4: null
+        ssnLast4: null,
+        lastLoginAt: null,
+        lastLoginDevice: null
     };
+}
+
+function generateVerificationCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function sendEmailVerificationEmail(account, email, fullName, code) {
+    queueAccountEmail(account, {
+        to: email,
+        subject: "Verify your SecureBank email",
+        body: "Hi " + fullName + ",\n\n" +
+            "Thanks for signing up! Enter this verification code to activate your account:\n\n" +
+            code + "\n\n" +
+            "This code expires in 24 hours. If you did not create an account, ignore this email.\n\n" +
+            "SecureBank Security Team",
+        type: "verification"
+    });
+}
+
+function verifyEmailCode(email, code) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account) return { ok: false, error: "Account not found." };
+    if (account.emailVerified) return { ok: true };
+    const expected = String(account.emailVerificationCode || "").trim();
+    if (!expected || String(code || "").trim() !== expected) {
+        return { ok: false, error: "Invalid verification code." };
+    }
+    account.emailVerified = true;
+    account.emailVerificationCode = null;
+    account.notifications.unshift({
+        id: Date.now(),
+        message: "Email verified — your account is now active",
+        time: new Date().toISOString(),
+        read: false
+    });
+    saveAccount(key, account);
+    return { ok: true };
+}
+
+function sendPasswordResetEmail(account, email) {
+    const profile = account.profile || {};
+    queueAccountEmail(account, {
+        to: email,
+        subject: "SecureBank password reset",
+        body: "Hi " + (profile.fullName || email) + ",\n\n" +
+            "We received a request to reset your password. In this demo, use your existing password or contact support.\n\n" +
+            "If you did not request this, you can safely ignore this message.\n\n" +
+            "SecureBank Security Team",
+        type: "security"
+    });
+}
+
+function requestPasswordReset(email) {
+    const key = normalizeEmail(email);
+    if (!isValidEmail(key)) {
+        return { ok: false, error: "Please enter a valid email address." };
+    }
+    const account = getAccount(key);
+    if (!account) {
+        return { ok: true, message: "If an account exists for that email, reset instructions were sent." };
+    }
+    sendPasswordResetEmail(account, key);
+    saveAccount(key, account);
+    return { ok: true, message: "If an account exists for that email, reset instructions were sent." };
+}
+
+function recordSuccessfulLogin(email) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account) return null;
+
+    const fingerprint = getDeviceFingerprint();
+    const deviceLabel = getDeviceLabel();
+    const knownDevices = account.knownDevices || [];
+    const isNewDevice = knownDevices.indexOf(fingerprint) === -1;
+    const previousLogin = account.profile && account.profile.lastLoginAt
+        ? { at: account.profile.lastLoginAt, device: account.profile.lastLoginDevice }
+        : null;
+
+    if (isNewDevice) {
+        knownDevices.push(fingerprint);
+        account.knownDevices = knownDevices.slice(-10);
+        account.notifications.unshift({
+            id: Date.now(),
+            message: "New device sign-in: " + deviceLabel,
+            time: new Date().toISOString(),
+            read: false
+        });
+    }
+
+    account.notifications.unshift({
+        id: Date.now() + 1,
+        message: "Login from " + deviceLabel,
+        time: new Date().toISOString(),
+        read: false
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+
+    ensureProfile(key, account);
+    account.profile.lastLoginAt = new Date().toISOString();
+    account.profile.lastLoginDevice = deviceLabel;
+    saveAccount(key, account);
+
+    return { isNewDevice: isNewDevice, deviceLabel: deviceLabel, previousLogin: previousLogin };
+}
+
+function verifyTwoFactorCode(account, code) {
+    if (!account || !getSettings(account).twoFactorEnabled) return true;
+    return String(code || "").trim() === "123456";
 }
 
 function isValidSsn(ssn) {
@@ -226,7 +344,8 @@ function submitSsnVerification(userEmail, ssn) {
     return { ok: true };
 }
 
-function getStarterAccount(fullName, email, phone) {
+function getStarterAccount(fullName, email, phone, extras) {
+    extras = extras || {};
     const account = getDefaultAccount();
     account.cash = 0;
     account.holdings = {
@@ -244,13 +363,19 @@ function getStarterAccount(fullName, email, phone) {
         },
         {
             id: 2,
+            message: "Verify your email — check your inbox for a 6-digit code",
+            time: new Date().toISOString(),
+            read: false
+        },
+        {
+            id: 3,
             message: "Identity verification required — check your email and submit your SSN in Profile",
             time: new Date().toISOString(),
             read: false
         }
     ];
     account.emails = [];
-    account.profile = getDefaultProfile(email, fullName, phone);
+    account.profile = getDefaultProfile(email, fullName, phone, extras);
     account.profile.verificationStatus = "Pending";
     account.profile.ssnLast4 = null;
     return account;
@@ -353,7 +478,8 @@ function accountExists(email) {
     return !!getAllAccounts()[normalizeEmail(email)];
 }
 
-function createAccount(email, password, fullName, phone) {
+function createAccount(email, password, fullName, phone, extras) {
+    extras = extras || {};
     const key = normalizeEmail(email);
     if (!isValidEmail(key)) {
         return { ok: false, error: "Please enter a valid email address." };
@@ -367,13 +493,26 @@ function createAccount(email, password, fullName, phone) {
     if (!isValidPhone(phone)) {
         return { ok: false, error: "Please enter a valid phone number (at least 10 digits)." };
     }
+    if (!extras.agreedToTerms) {
+        return { ok: false, error: "You must agree to the Terms & Privacy Policy." };
+    }
 
-    const account = getStarterAccount(fullName.trim(), key, phone.trim());
+    const account = getStarterAccount(fullName.trim(), key, phone.trim(), extras);
     account.password = password;
+    account.emailVerified = false;
+    account.emailVerificationCode = generateVerificationCode();
+    account.knownDevices = [];
+    account.settings = {
+        theme: "light",
+        currency: extras.currency || "USD",
+        language: "en",
+        twoFactorEnabled: false
+    };
     sendWelcomeEmail(account, key, fullName.trim());
     sendSsnVerificationEmail(account, key, fullName.trim());
+    sendEmailVerificationEmail(account, key, fullName.trim(), account.emailVerificationCode);
     saveAccount(key, account);
-    return { ok: true };
+    return { ok: true, verificationCode: account.emailVerificationCode };
 }
 
 function authenticate(email, password) {

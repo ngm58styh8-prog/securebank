@@ -7,48 +7,229 @@
 <title>SecureBank — Login</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="auth-body">
 <a href="http://localhost:8765/admin.html" class="mgmt-login-link" id="mgmtLoginLink" title="Management Login" aria-label="Management Login">
     <span class="mgmt-login-dot" aria-hidden="true"></span>
     <span class="mgmt-login-label">Management Login</span>
 </a>
-<div class="container">
-    <div id="siteAnnouncement" class="site-announcement hidden"></div>
-    <div class="login-box">
-        <h1 class="logo" id="siteName">🏦 SecureBank</h1>
-        <p class="subtitle" id="siteTagline">Secure Online Banking</p>
 
-        <div class="auth-tabs">
-            <button type="button" class="auth-tab active" id="signInTab">Sign In</button>
-            <button type="button" class="auth-tab" id="signUpTab">Sign Up</button>
-        </div>
+<button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
 
-        <form id="signInForm" class="auth-form">
-            <input id="signInEmail" type="email" placeholder="Email address" required autocomplete="email">
-            <input id="signInPassword" type="password" placeholder="Password" required autocomplete="current-password">
+<div class="auth-page">
+    <aside class="auth-promo" aria-label="Platform highlights">
+        <div class="promo-inner">
+            <p class="promo-eyebrow">Invest with confidence</p>
+            <h2 class="promo-title">Bank-grade security.<br>Crypto &amp; stocks in one place.</h2>
 
-            <div class="options">
-                <label>
-                    <input type="checkbox" checked>
-                    Remember Me
-                </label>
-                <a href="#">Forgot Password?</a>
+            <div class="live-prices" id="livePrices">
+                <div class="live-price-row">
+                    <span class="live-coin">₿ Bitcoin</span>
+                    <span class="live-val" id="liveBtc">—</span>
+                </div>
+                <div class="live-price-row">
+                    <span class="live-coin">Ξ Ethereum</span>
+                    <span class="live-val" id="liveEth">—</span>
+                </div>
             </div>
 
-            <button type="submit">Sign In</button>
-        </form>
+            <div class="trust-badges">
+                <span class="trust-badge">🔒 SSL Secure</span>
+                <span class="trust-badge">🛡️ Bank-grade encryption</span>
+                <span class="trust-badge">✨ Trusted by 10,000+ investors</span>
+            </div>
 
-        <form id="signUpForm" class="auth-form hidden">
-            <input id="signUpName" type="text" placeholder="Full name" required autocomplete="name">
-            <input id="signUpEmail" type="email" placeholder="Email address" required autocomplete="email">
-            <input id="signUpPhone" type="tel" placeholder="Phone number" required autocomplete="tel">
-            <input id="signUpPassword" type="password" placeholder="Password (min. 6 characters)" required autocomplete="new-password" minlength="6">
-            <input id="signUpConfirm" type="password" placeholder="Confirm password" required autocomplete="new-password" minlength="6">
+            <p class="promo-disclaimer">Demo platform — not a real bank or insured deposit account.</p>
+        </div>
+    </aside>
 
-            <button type="submit">Create Account</button>
-        </form>
+    <div class="auth-container">
+        <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
-        <p class="hint">Sign up with your email to create an account. Your portfolio is saved in this browser.</p>
+        <div class="login-box auth-card">
+            <h1 class="logo" id="siteName">🏦 SecureBank</h1>
+            <p class="subtitle" id="siteTagline">Secure Online Banking</p>
+
+            <div class="auth-tabs" role="tablist">
+                <button type="button" class="auth-tab active" id="signInTab" role="tab" aria-selected="true">🔐 Sign In</button>
+                <button type="button" class="auth-tab" id="signUpTab" role="tab" aria-selected="false">📝 Sign Up</button>
+            </div>
+
+            <div class="auth-forms-wrap">
+                <form id="signInForm" class="auth-form auth-panel-visible" autocomplete="on">
+                    <p class="last-login-banner hidden" id="lastLoginBanner"></p>
+                    <p class="auth-alert hidden" id="newDeviceAlert"></p>
+
+                    <div class="float-field" data-field="signInEmail">
+                        <span class="field-icon" aria-hidden="true">✉</span>
+                        <input id="signInEmail" type="email" required autocomplete="email" placeholder=" ">
+                        <label for="signInEmail">Email address</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field password-field" data-field="signInPassword">
+                        <span class="field-icon" aria-hidden="true">🔒</span>
+                        <input id="signInPassword" type="password" required autocomplete="current-password" placeholder=" ">
+                        <label for="signInPassword">Password</label>
+                        <button type="button" class="pwd-toggle" data-target="signInPassword" aria-label="Show password">👁</button>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="options">
+                        <label class="remember-label">
+                            <input type="checkbox" id="rememberMe" checked>
+                            Remember me
+                        </label>
+                        <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot password?</button>
+                    </div>
+
+                    <button type="submit" class="auth-submit">Sign In</button>
+                    <p class="auth-message hidden" id="signInMessage"></p>
+                </form>
+
+                <form id="signUpForm" class="auth-form auth-panel-hidden" autocomplete="on">
+                    <div class="signup-progress">
+                        <div class="signup-progress-bar" id="signupProgressBar"></div>
+                    </div>
+                    <p class="signup-progress-label" id="signupProgressLabel">0% complete</p>
+
+                    <div class="float-field" data-field="signUpName">
+                        <span class="field-icon" aria-hidden="true">👤</span>
+                        <input id="signUpName" type="text" required autocomplete="name" placeholder=" ">
+                        <label for="signUpName">Full name</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpEmail">
+                        <span class="field-icon" aria-hidden="true">✉</span>
+                        <input id="signUpEmail" type="email" required autocomplete="email" placeholder=" ">
+                        <label for="signUpEmail">Email address</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpPhone">
+                        <span class="field-icon" aria-hidden="true">📱</span>
+                        <input id="signUpPhone" type="tel" required autocomplete="tel" placeholder=" ">
+                        <label for="signUpPhone">Phone number</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpCountry">
+                        <span class="field-icon" aria-hidden="true">🌍</span>
+                        <select id="signUpCountry" required>
+                            <option value="" disabled selected hidden></option>
+                            <option value="US">United States</option>
+                            <option value="CA">Canada</option>
+                            <option value="GB">United Kingdom</option>
+                            <option value="DE">Germany</option>
+                            <option value="FR">France</option>
+                            <option value="AU">Australia</option>
+                            <option value="NG">Nigeria</option>
+                            <option value="IN">India</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                        <label for="signUpCountry">Country</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpDob">
+                        <span class="field-icon" aria-hidden="true">📅</span>
+                        <input id="signUpDob" type="date" required placeholder=" ">
+                        <label for="signUpDob">Date of birth</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpCurrency">
+                        <span class="field-icon" aria-hidden="true">💱</span>
+                        <select id="signUpCurrency" required>
+                            <option value="USD">USD — US Dollar</option>
+                            <option value="EUR">EUR — Euro</option>
+                            <option value="GBP">GBP — British Pound</option>
+                        </select>
+                        <label for="signUpCurrency">Preferred currency</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field" data-field="signUpReferral">
+                        <span class="field-icon" aria-hidden="true">🎁</span>
+                        <input id="signUpReferral" type="text" autocomplete="off" placeholder=" ">
+                        <label for="signUpReferral">Referral code (optional)</label>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="float-field password-field" data-field="signUpPassword">
+                        <span class="field-icon" aria-hidden="true">🔒</span>
+                        <input id="signUpPassword" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
+                        <label for="signUpPassword">Password (min. 6 characters)</label>
+                        <button type="button" class="pwd-toggle" data-target="signUpPassword" aria-label="Show password">👁</button>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <div class="password-strength" id="passwordStrength" aria-live="polite">
+                        <div class="password-strength-bar"><span id="passwordStrengthFill"></span></div>
+                        <span class="password-strength-label" id="passwordStrengthLabel">Password strength</span>
+                    </div>
+
+                    <div class="float-field password-field" data-field="signUpConfirm">
+                        <span class="field-icon" aria-hidden="true">🔒</span>
+                        <input id="signUpConfirm" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
+                        <label for="signUpConfirm">Confirm password</label>
+                        <button type="button" class="pwd-toggle" data-target="signUpConfirm" aria-label="Show password">👁</button>
+                        <span class="field-check" aria-hidden="true">✓</span>
+                    </div>
+
+                    <label class="terms-row">
+                        <input type="checkbox" id="signUpTerms" required>
+                        <span>I agree to the <a href="#" id="termsLink">Terms</a> &amp; <a href="#" id="privacyLink">Privacy Policy</a></span>
+                    </label>
+
+                    <button type="submit" class="auth-submit">Create Account</button>
+                    <p class="auth-message hidden" id="signUpMessage"></p>
+                </form>
+
+                <div id="twoFactorStep" class="auth-step auth-panel-hidden">
+                    <h3 class="step-title">Two-factor authentication</h3>
+                    <p class="step-desc">Enter the 6-digit code from your authenticator app. Demo code: <strong>123456</strong></p>
+                    <div class="float-field" data-field="twoFactorCode">
+                        <span class="field-icon" aria-hidden="true">🔐</span>
+                        <input id="twoFactorCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder=" ">
+                        <label for="twoFactorCode">Authentication code</label>
+                    </div>
+                    <button type="button" class="auth-submit" id="twoFactorSubmit">Verify &amp; Sign In</button>
+                    <button type="button" class="link-btn step-back" id="twoFactorBack">← Back to sign in</button>
+                    <p class="auth-message hidden" id="twoFactorMessage"></p>
+                </div>
+
+                <div id="emailVerifyStep" class="auth-step auth-panel-hidden">
+                    <h3 class="step-title">Verify your email</h3>
+                    <p class="step-desc" id="emailVerifyDesc">We sent a 6-digit code to your email. Check your inbox (or account emails in the dashboard after login).</p>
+                    <div class="float-field" data-field="emailVerifyCode">
+                        <span class="field-icon" aria-hidden="true">✉</span>
+                        <input id="emailVerifyCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder=" ">
+                        <label for="emailVerifyCode">Verification code</label>
+                    </div>
+                    <button type="button" class="auth-submit" id="emailVerifySubmit">Verify Email</button>
+                    <p class="auth-message hidden" id="emailVerifyMessage"></p>
+                </div>
+            </div>
+
+            <p class="hint">Sign up with your email to create an account. Your portfolio is saved in this browser.</p>
+        </div>
+    </div>
+</div>
+
+<div class="auth-modal hidden" id="forgotModal" role="dialog" aria-labelledby="forgotModalTitle">
+    <div class="auth-modal-backdrop" id="forgotModalBackdrop"></div>
+    <div class="auth-modal-box">
+        <h3 id="forgotModalTitle">Reset password</h3>
+        <p>Enter your email and we&apos;ll send reset instructions if an account exists.</p>
+        <div class="float-field" data-field="forgotEmail">
+            <span class="field-icon" aria-hidden="true">✉</span>
+            <input id="forgotEmail" type="email" placeholder=" ">
+            <label for="forgotEmail">Email address</label>
+        </div>
+        <button type="button" class="auth-submit" id="forgotSubmit">Send reset link</button>
+        <button type="button" class="link-btn" id="forgotCancel">Cancel</button>
+        <p class="auth-message hidden" id="forgotMessage"></p>
     </div>
 </div>
 

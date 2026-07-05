@@ -77,6 +77,31 @@ function getDeviceLabel() {
     return "Unknown Device";
 }
 
+function getDeviceFingerprint() {
+    const key = "securebank_device_id";
+    let id = localStorage.getItem(key);
+    if (!id) {
+        id = "dev_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+        localStorage.setItem(key, id);
+    }
+    return getDeviceLabel() + ":" + id;
+}
+
+function formatAuthDateTime(iso) {
+    if (!iso) return "—";
+    try {
+        return new Date(iso).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit"
+        });
+    } catch (e) {
+        return "—";
+    }
+}
+
 function sendRealEmail(to, subject, body) {
     return fetch("/api/send-email", {
         method: "POST",
