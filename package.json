@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
-    "pg": "^8.16.0",
     "resend": "^4.0.1"
   },
   "engines": {

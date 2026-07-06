@@ -32,27 +32,23 @@ loadDotenv(path.join(root, ".env.local"));
 loadDotenv(path.join(root, ".env"));
 
 const require = (await import("module")).createRequire(import.meta.url);
-const { getMissingSupabaseEnv, getSupabaseAdminKey } = require("../api/lib/supabase-config.js");
+const { getMissingSupabaseEnv, getSupabaseServiceRoleKey } = require("../api/lib/supabase-config.js");
 
 console.log("\nGlobalVest email verification — configuration check\n");
 
-const supabaseMissing = getMissingSupabaseEnv();
-const resendMissing = ["RESEND_API_KEY", "RESEND_FROM_EMAIL"].filter(function(k) {
-    return !process.env[k] || !String(process.env[k]).trim();
-});
-const missing = supabaseMissing.concat(resendMissing);
+const missing = getMissingSupabaseEnv();
 
 if (missing.length) {
-    console.log("MISSING environment variables:");
+    console.log("MISSING or invalid configuration:");
     missing.forEach(function(k) { console.log("  - " + k); });
-    console.log("\nSet them in Vercel Project Settings or copy .env.example → .env.local\n");
+    console.log("\nSet SUPABASE_SERVICE_ROLE_KEY to the service_role JWT from Supabase → Settings → API Keys.\n");
     process.exit(1);
 }
 
-const admin = getSupabaseAdminKey();
+const roleKey = getSupabaseServiceRoleKey();
 console.log("All required variables are set:");
 console.log("  ✓ SUPABASE_URL");
-console.log("  ✓ SUPABASE_ADMIN_KEY via " + admin.source + " (" + (admin.key.startsWith("sb_secret_") ? "sb_secret" : "legacy JWT") + ")");
+console.log("  ✓ SUPABASE_SERVICE_ROLE_KEY (" + roleKey.source + ")");
 console.log("  ✓ RESEND_API_KEY");
 console.log("  ✓ RESEND_FROM_EMAIL");
 

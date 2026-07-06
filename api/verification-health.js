@@ -1,11 +1,6 @@
 const { setCors, handleOptions } = require("./lib/cors");
 const { getSupabaseEnvChecks, getMissingSupabaseEnv } = require("./lib/supabase-config");
 
-function envStatus(name) {
-    const value = process.env[name];
-    return { set: !!value && String(value).trim().length > 0 };
-}
-
 module.exports = async function handler(req, res) {
     if (handleOptions(req, res)) return;
     setCors(res);
@@ -15,28 +10,8 @@ module.exports = async function handler(req, res) {
         return;
     }
 
-    const supabaseChecks = getSupabaseEnvChecks();
-    const checks = {
-        SUPABASE_URL: supabaseChecks.SUPABASE_URL,
-        SUPABASE_ADMIN_KEY: supabaseChecks.SUPABASE_ADMIN_KEY,
-        POSTGRES_URL: {
-            set: !!(
-                process.env.POSTGRES_URL ||
-                process.env.POSTGRES_URL_NON_POOLING ||
-                process.env.DATABASE_URL ||
-                ((process.env.POSTGRES_HOST || process.env.SUPABASE_DB_HOST) &&
-                    (process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD))
-            )
-        },
-        RESEND_API_KEY: envStatus("RESEND_API_KEY"),
-        RESEND_FROM_EMAIL: envStatus("RESEND_FROM_EMAIL")
-    };
-
-    const missing = getMissingSupabaseEnv().concat(
-        ["RESEND_API_KEY", "RESEND_FROM_EMAIL"].filter(function(key) {
-            return !checks[key].set;
-        })
-    );
+    const checks = getSupabaseEnvChecks();
+    const missing = getMissingSupabaseEnv();
 
     res.status(missing.length ? 503 : 200).json({
         ok: missing.length === 0,
@@ -44,7 +19,7 @@ module.exports = async function handler(req, res) {
         checks: checks,
         missing: missing,
         message: missing.length === 0
-            ? "Email verification is configured."
-            : "Missing environment variables: " + missing.join(", ")
+            ? "Email verification is configured with Supabase service role."
+            : "Missing or invalid configuration: " + missing.join(", ")
     });
 };

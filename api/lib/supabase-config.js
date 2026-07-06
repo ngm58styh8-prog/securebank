@@ -1,10 +1,10 @@
 /**
- * Resolve Supabase admin credentials from legacy or new API key env vars.
+ * Server-only Supabase admin credentials for email_verifications.
  *
- * Accepted admin key sources (first match wins):
- *   SUPABASE_SECRET_KEY          — single sb_secret_... key (Vercel / CLI)
- *   SUPABASE_SECRET_KEYS         — JSON map, e.g. {"default":"sb_secret_..."}
- *   SUPABASE_SERVICE_ROLE_KEY    — legacy JWT service_role key (or JSON map)
+ * Priority:
+ *   1. SUPABASE_SERVICE_ROLE_KEY  — service_role JWT (eyJ...) or legacy key
+ *   2. SUPABASE_SECRET_KEY        — sb_secret_... key
+ *   3. SUPABASE_SECRET_KEYS       — JSON map of secret keys
  */
 
 function cleanEnvValue(value) {
@@ -44,7 +44,6 @@ function resolveKeyFromEnv(name) {
     const raw = process.env[name];
     if (!raw) return { key: "", source: null };
 
-    const direct = cleanEnvValue(raw);
     const parsed = parseSecretKeysJson(raw);
     if (parsed) {
         const named = firstNonEmpty([
@@ -57,6 +56,7 @@ function resolveKeyFromEnv(name) {
         }
     }
 
+    const direct = cleanEnvValue(raw);
     if (direct) {
         return { key: direct, source: name };
     }
@@ -94,30 +94,41 @@ function getJwtRole(key) {
     }
 }
 
-function validateAdminKey(key) {
+function validateServiceRoleKey(key, sourceLabel) {
     const cleaned = cleanEnvValue(key);
+    const label = sourceLabel || "SUPABASE_SERVICE_ROLE_KEY";
+
     if (!cleaned) {
-        throw new Error("Supabase admin key is empty.");
+        throw new Error(label + " is empty.");
     }
-    return cleaned;
-}
-
-function getAdminKeyWarning(key) {
-    const cleaned = cleanEnvValue(key);
     if (isSupabasePublishableKey(cleaned)) {
-        return "Using publishable key for server RPC. Prefer SUPABASE_SECRET_KEY or a service_role JWT.";
+        throw new Error(
+            label + " is a publishable key (sb_publishable_...). Use the service_role JWT or sb_secret_ key from Supabase → Settings → API Keys."
+        );
     }
-    if (isSupabaseJwtKey(cleaned) && getJwtRole(cleaned) === "anon") {
-        return "Using anon JWT for server RPC. Prefer SUPABASE_SECRET_KEY or a service_role JWT.";
+    if (isSupabaseSecretKey(cleaned)) {
+        return cleaned;
     }
-    return null;
+    if (isSupabaseJwtKey(cleaned)) {
+        const role = getJwtRole(cleaned);
+        if (role !== "service_role") {
+            throw new Error(
+                label + " JWT must have role service_role (found " + (role || "unknown") + ")."
+            );
+        }
+        return cleaned;
+    }
+
+    throw new Error(
+        label + " must be a service_role JWT (eyJ...) or sb_secret_ key."
+    );
 }
 
-function getSupabaseAdminKey() {
+function getSupabaseServiceRoleKey() {
     const candidates = [
+        resolveKeyFromEnv("SUPABASE_SERVICE_ROLE_KEY"),
         resolveKeyFromEnv("SUPABASE_SECRET_KEY"),
-        resolveKeyFromEnv("SUPABASE_SECRET_KEYS"),
-        resolveKeyFromEnv("SUPABASE_SERVICE_ROLE_KEY")
+        resolveKeyFromEnv("SUPABASE_SECRET_KEYS")
     ];
 
     for (let i = 0; i < candidates.length; i++) {
@@ -129,38 +140,50 @@ function getSupabaseAdminKey() {
     return { key: "", source: null };
 }
 
-function getValidatedSupabaseAdminKey() {
-    const admin = getSupabaseAdminKey();
-    if (!admin.key) {
-        return admin;
+function getValidatedServiceRoleKey() {
+    const resolved = getSupabaseServiceRoleKey();
+    if (!resolved.key) {
+        return resolved;
     }
     return {
-        key: validateAdminKey(admin.key),
-        source: admin.source
+        key: validateServiceRoleKey(resolved.key, resolved.source),
+        source: resolved.source
     };
+}
+
+function getServiceRoleKeyType(key) {
+    if (!key) return null;
+    if (isSupabaseSecretKey(key)) return "secret";
+    if (isSupabasePublishableKey(key)) return "publishable";
+    if (isSupabaseJwtKey(key)) return getJwtRole(key) === "service_role" ? "service_role" : "jwt_" + (getJwtRole(key) || "unknown");
+    return "unknown";
 }
 
 function getSupabaseEnvChecks() {
     const url = getSupabaseUrl();
-    const admin = getSupabaseAdminKey();
+    const raw = resolveKeyFromEnv("SUPABASE_SERVICE_ROLE_KEY");
+    let serviceRoleValid = false;
+    let serviceRoleError = null;
+
+    if (raw.key) {
+        try {
+            validateServiceRoleKey(raw.key, "SUPABASE_SERVICE_ROLE_KEY");
+            serviceRoleValid = true;
+        } catch (e) {
+            serviceRoleError = e.message;
+        }
+    }
 
     return {
         SUPABASE_URL: { set: !!url },
-        SUPABASE_ADMIN_KEY: {
-            set: !!admin.key,
-            source: admin.source,
-            type: admin.key
-                ? (isSupabaseSecretKey(admin.key)
-                    ? "secret"
-                    : (isSupabasePublishableKey(admin.key)
-                        ? "publishable"
-                        : (isSupabaseJwtKey(admin.key) ? "service_role" : "unknown")))
-                : null,
-            warning: admin.key ? getAdminKeyWarning(admin.key) : null
+        SUPABASE_SERVICE_ROLE_KEY: {
+            set: !!raw.key,
+            valid: serviceRoleValid,
+            type: raw.key ? getServiceRoleKeyType(raw.key) : null,
+            error: serviceRoleError
         },
-        SUPABASE_SECRET_KEY: { set: !!resolveKeyFromEnv("SUPABASE_SECRET_KEY").key },
-        SUPABASE_SECRET_KEYS: { set: !!resolveKeyFromEnv("SUPABASE_SECRET_KEYS").key },
-        SUPABASE_SERVICE_ROLE_KEY: { set: !!resolveKeyFromEnv("SUPABASE_SERVICE_ROLE_KEY").key }
+        RESEND_API_KEY: { set: !!cleanEnvValue(process.env.RESEND_API_KEY) },
+        RESEND_FROM_EMAIL: { set: !!cleanEnvValue(process.env.RESEND_FROM_EMAIL) }
     };
 }
 
@@ -168,23 +191,30 @@ function getMissingSupabaseEnv() {
     const missing = [];
     if (!getSupabaseUrl()) missing.push("SUPABASE_URL");
 
-    const admin = getSupabaseAdminKey();
-    if (!admin.key) {
-        missing.push("SUPABASE_ADMIN_KEY (set SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY)");
+    const raw = resolveKeyFromEnv("SUPABASE_SERVICE_ROLE_KEY");
+    if (!raw.key) {
+        missing.push("SUPABASE_SERVICE_ROLE_KEY");
+    } else {
+        try {
+            validateServiceRoleKey(raw.key, "SUPABASE_SERVICE_ROLE_KEY");
+        } catch (e) {
+            missing.push(e.message);
+        }
     }
+
+    if (!cleanEnvValue(process.env.RESEND_API_KEY)) missing.push("RESEND_API_KEY");
+    if (!cleanEnvValue(process.env.RESEND_FROM_EMAIL)) missing.push("RESEND_FROM_EMAIL");
 
     return missing;
 }
 
-function buildSupabaseHeaders(key) {
-    const cleaned = validateAdminKey(key);
+function buildServiceRoleHeaders(key) {
+    const cleaned = validateServiceRoleKey(key);
     const headers = {
         apikey: cleaned,
         "Content-Type": "application/json"
     };
 
-    // RLS bypass is determined by Authorization, not apikey (legacy JWT service_role).
-    // sb_secret_* keys must stay on apikey only.
     if (isSupabaseJwtKey(cleaned)) {
         headers.Authorization = "Bearer " + cleaned;
     }
@@ -195,14 +225,18 @@ function buildSupabaseHeaders(key) {
 module.exports = {
     cleanEnvValue,
     getSupabaseUrl,
-    getSupabaseAdminKey,
-    getValidatedSupabaseAdminKey,
+    getSupabaseServiceRoleKey,
+    getValidatedServiceRoleKey,
+    validateServiceRoleKey,
     isSupabaseJwtKey,
     isSupabaseSecretKey,
     isSupabasePublishableKey,
     getJwtRole,
-    getAdminKeyWarning,
+    getServiceRoleKeyType,
     getSupabaseEnvChecks,
     getMissingSupabaseEnv,
-    buildSupabaseHeaders
+    buildServiceRoleHeaders,
+    getSupabaseAdminKey: getSupabaseServiceRoleKey,
+    getValidatedSupabaseAdminKey: getValidatedServiceRoleKey,
+    buildSupabaseHeaders: buildServiceRoleHeaders
 };

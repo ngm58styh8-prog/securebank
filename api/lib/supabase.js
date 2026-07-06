@@ -1,16 +1,22 @@
 const { createClient } = require("@supabase/supabase-js");
-const { getSupabaseUrl, getValidatedSupabaseAdminKey, isSupabaseJwtKey } = require("./supabase-config");
+const {
+    getSupabaseUrl,
+    getValidatedServiceRoleKey,
+    isSupabaseJwtKey,
+    validateServiceRoleKey
+} = require("./supabase-config");
 
-function getSupabaseAdmin() {
+function getSupabaseServiceRoleClient() {
     const url = getSupabaseUrl();
-    const admin = getValidatedSupabaseAdminKey();
+    const resolved = getValidatedServiceRoleKey();
 
-    if (!url || !admin.key) {
+    if (!url || !resolved.key) {
         throw new Error(
-            "Supabase is not configured. Set SUPABASE_URL and one of SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY."
+            "Supabase service role is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to a service_role JWT or sb_secret_ key."
         );
     }
 
+    const serviceRoleKey = validateServiceRoleKey(resolved.key, resolved.source);
     const options = {
         auth: {
             persistSession: false,
@@ -19,15 +25,18 @@ function getSupabaseAdmin() {
         }
     };
 
-    if (isSupabaseJwtKey(admin.key)) {
+    if (isSupabaseJwtKey(serviceRoleKey)) {
         options.global = {
             headers: {
-                Authorization: "Bearer " + admin.key
+                Authorization: "Bearer " + serviceRoleKey
             }
         };
     }
 
-    return createClient(url, admin.key, options);
+    return createClient(url, serviceRoleKey, options);
 }
 
-module.exports = { getSupabaseAdmin };
+module.exports = {
+    getSupabaseServiceRoleClient,
+    getSupabaseAdmin: getSupabaseServiceRoleClient
+};

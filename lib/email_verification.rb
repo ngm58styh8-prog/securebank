@@ -3,6 +3,8 @@
 require "net/http"
 require "uri"
 require "securerandom"
+require "base64"
+require "json"
 
 module EmailVerification
   CODE_TTL_SEC = 600
@@ -26,9 +28,12 @@ module EmailVerification
     end
   end
 
-  def supabase_admin_key
+  def supabase_service_role_key
     load_dotenv!
-    key = ENV["SUPABASE_SECRET_KEY"].to_s.strip
+    key = ENV["SUPABASE_SERVICE_ROLE_KEY"].to_s.strip
+    if key.empty?
+      key = ENV["SUPABASE_SECRET_KEY"].to_s.strip
+    end
     if key.empty? && ENV["SUPABASE_SECRET_KEYS"]
       begin
         keys = JSON.parse(ENV["SUPABASE_SECRET_KEYS"])
@@ -38,25 +43,57 @@ module EmailVerification
         key = ""
       end
     end
-    key = ENV["SUPABASE_SERVICE_ROLE_KEY"].to_s.strip if key.empty?
     key
   end
 
+  def supabase_service_role_jwt?
+    supabase_service_role_key.start_with?("eyJ")
+  end
+
   def supabase_secret_key?
-    supabase_admin_key.start_with?("sb_secret_")
+    supabase_service_role_key.start_with?("sb_secret_")
+  end
+
+  def jwt_role(key)
+    return nil unless key.start_with?("eyJ")
+
+    part = key.split(".")[1]
+    return nil unless part
+
+    padded = part.tr("-_", "+/") + ("=" * ((4 - part.length % 4) % 4))
+    payload = JSON.parse(Base64.decode64(padded))
+    payload["role"]
+  rescue StandardError
+    nil
+  end
+
+  def validate_service_role_key!
+    key = supabase_service_role_key
+    raise "SUPABASE_SERVICE_ROLE_KEY is empty." if key.empty?
+    if key.start_with?("sb_publishable_")
+      raise "SUPABASE_SERVICE_ROLE_KEY is a publishable key. Use the service_role JWT or sb_secret_ key."
+    end
+    if supabase_service_role_jwt?
+      raise "SUPABASE_SERVICE_ROLE_KEY JWT must have role service_role." unless jwt_role(key) == "service_role"
+    elsif !supabase_secret_key?
+      raise "SUPABASE_SERVICE_ROLE_KEY must be a service_role JWT or sb_secret_ key."
+    end
+    key
   end
 
   def configured?
     ENV["SUPABASE_URL"].to_s.strip != "" &&
-      !supabase_admin_key.empty? &&
+      !supabase_service_role_key.empty? &&
       ENV["RESEND_API_KEY"].to_s.strip != ""
   end
 
   def missing_env
     missing = []
     missing << "SUPABASE_URL" if ENV["SUPABASE_URL"].to_s.strip.empty?
-    if supabase_admin_key.empty?
-      missing << "SUPABASE_ADMIN_KEY (set SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY)"
+    begin
+      validate_service_role_key!
+    rescue StandardError => e
+      missing << e.message
     end
     missing << "RESEND_API_KEY" if ENV["RESEND_API_KEY"].to_s.strip.empty?
     missing << "RESEND_FROM_EMAIL" if ENV["RESEND_FROM_EMAIL"].to_s.strip.empty?
@@ -72,10 +109,11 @@ module EmailVerification
   end
 
   def supabase_jwt_key?
-    supabase_admin_key.start_with?("eyJ")
+    supabase_service_role_jwt?
   end
 
   def supabase_request(method, path, body = nil)
+    validate_service_role_key!
     base = ENV["SUPABASE_URL"].to_s.chomp("/")
     uri = URI("#{base}/rest/v1/#{path}")
     http = Net::HTTP.new(uri.host, uri.port)
@@ -88,9 +126,9 @@ module EmailVerification
       "DELETE" => Net::HTTP::Delete
     }[method]
     req = klass.new(uri)
-    key = supabase_admin_key
+    key = supabase_service_role_key
     req["apikey"] = key
-    req["Authorization"] = "Bearer #{key}" if supabase_jwt_key?
+    req["Authorization"] = "Bearer #{key}" if supabase_service_role_jwt?
     req["Content-Type"] = "application/json"
     req["Prefer"] = "return=minimal"
     req.body = body.to_json if body

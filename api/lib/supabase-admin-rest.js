@@ -1,7 +1,8 @@
 const {
     getSupabaseUrl,
-    getValidatedSupabaseAdminKey,
-    buildSupabaseHeaders
+    getValidatedServiceRoleKey,
+    buildServiceRoleHeaders,
+    validateServiceRoleKey
 } = require("./supabase-config");
 
 async function parseResponse(res) {
@@ -14,18 +15,19 @@ async function parseResponse(res) {
     }
 }
 
-async function supabaseRest(method, path, options) {
+async function supabaseServiceRoleRest(method, path, options) {
     options = options || {};
     const baseUrl = getSupabaseUrl().replace(/\/$/, "");
-    const admin = getValidatedSupabaseAdminKey();
+    const resolved = getValidatedServiceRoleKey();
 
-    if (!baseUrl || !admin.key) {
+    if (!baseUrl || !resolved.key) {
         throw new Error(
-            "Supabase is not configured. Set SUPABASE_URL and one of SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY."
+            "Supabase service role is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
         );
     }
 
-    const headers = Object.assign({}, buildSupabaseHeaders(admin.key), options.headers || {});
+    const serviceRoleKey = validateServiceRoleKey(resolved.key, resolved.source);
+    const headers = Object.assign({}, buildServiceRoleHeaders(serviceRoleKey), options.headers || {});
     if (options.prefer) {
         headers.Prefer = options.prefer;
     }
@@ -54,5 +56,6 @@ async function supabaseRest(method, path, options) {
 }
 
 module.exports = {
-    supabaseRest
+    supabaseServiceRoleRest,
+    supabaseRest: supabaseServiceRoleRest
 };

@@ -1,6 +1,5 @@
 const crypto = require("crypto");
-const { supabaseRest } = require("./supabase-admin-rest");
-const { ensureVerificationSchema } = require("./verification-schema");
+const { getSupabaseServiceRoleClient } = require("./supabase");
 const { sendVerificationEmail } = require("./resend");
 
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -18,68 +17,21 @@ function generateVerificationCode() {
     return String(crypto.randomInt(100000, 1000000));
 }
 
-function firstRow(data) {
-    if (Array.isArray(data)) return data[0] || null;
-    return data || null;
-}
-
-async function withRlsRetry(action) {
-    try {
-        return await action();
-    } catch (err) {
-        if (!String(err.message || "").includes("row-level security")) {
-            throw err;
-        }
-
-        const schema = require("./verification-schema");
-        if (typeof schema.resetVerificationSchemaCache === "function") {
-            schema.resetVerificationSchemaCache();
-        }
-        await ensureVerificationSchema();
-        return action();
-    }
-}
-
-async function deleteUnverified(email) {
-    return withRlsRetry(function() {
-        return supabaseRest(
-            "DELETE",
-            "email_verifications?email=eq." + encodeURIComponent(email) + "&verified=eq.false"
-        );
-    });
-}
-
-async function insertVerification(email, code, expiresAt) {
-    return withRlsRetry(function() {
-        return supabaseRest("POST", "email_verifications", {
-            body: {
-                email: email,
-                code: code,
-                expires_at: expiresAt,
-                verified: false
-            },
-            prefer: "return=minimal"
-        });
-    });
-}
-
 async function getLatestVerification(email) {
-    const data = await supabaseRest(
-        "GET",
-        "email_verifications?email=eq." + encodeURIComponent(email) + "&order=created_at.desc&limit=1",
-        { prefer: "return=representation" }
-    );
-    return firstRow(data);
-}
+    const supabase = getSupabaseServiceRoleClient();
+    const { data, error } = await supabase
+        .from("email_verifications")
+        .select("*")
+        .eq("email", email)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-async function getUnverifiedVerification(email) {
-    const data = await supabaseRest(
-        "GET",
-        "email_verifications?email=eq." + encodeURIComponent(email) +
-            "&verified=eq.false&order=created_at.desc&limit=1",
-        { prefer: "return=representation" }
-    );
-    return firstRow(data);
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    return data;
 }
 
 async function createAndSendVerification(email, options) {
@@ -90,7 +42,7 @@ async function createAndSendVerification(email, options) {
         return { ok: false, status: 400, error: "Please enter a valid email address." };
     }
 
-    await ensureVerificationSchema();
+    const supabase = getSupabaseServiceRoleClient();
 
     if (options.enforceCooldown) {
         const latest = await getLatestVerification(normalized);
@@ -111,8 +63,26 @@ async function createAndSendVerification(email, options) {
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
 
-    await deleteUnverified(normalized);
-    await insertVerification(normalized, code, expiresAt);
+    const { error: deleteError } = await supabase
+        .from("email_verifications")
+        .delete()
+        .eq("email", normalized)
+        .eq("verified", false);
+
+    if (deleteError) {
+        throw new Error(deleteError.message);
+    }
+
+    const { error: insertError } = await supabase.from("email_verifications").insert({
+        email: normalized,
+        code: code,
+        expires_at: expiresAt,
+        verified: false
+    });
+
+    if (insertError) {
+        throw new Error(insertError.message);
+    }
 
     await sendVerificationEmail(normalized, code);
 
@@ -136,9 +106,19 @@ async function verifyEmailCode(email, code) {
         return { ok: false, status: 400, error: "Enter a valid 6-digit verification code." };
     }
 
-    await ensureVerificationSchema();
+    const supabase = getSupabaseServiceRoleClient();
+    const { data, error } = await supabase
+        .from("email_verifications")
+        .select("*")
+        .eq("email", normalized)
+        .eq("verified", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    const data = await getUnverifiedVerification(normalized);
+    if (error) {
+        throw new Error(error.message);
+    }
 
     if (!data) {
         return { ok: false, status: 400, error: "No active verification code found. Request a new code." };
@@ -152,14 +132,14 @@ async function verifyEmailCode(email, code) {
         return { ok: false, status: 400, error: "Invalid verification code." };
     }
 
-    await supabaseRest(
-        "PATCH",
-        "email_verifications?id=eq." + encodeURIComponent(data.id),
-        {
-            body: { verified: true },
-            prefer: "return=minimal"
-        }
-    );
+    const { error: updateError } = await supabase
+        .from("email_verifications")
+        .update({ verified: true })
+        .eq("id", data.id);
+
+    if (updateError) {
+        throw new Error(updateError.message);
+    }
 
     await markServerAccountEmailVerified(normalized);
 
