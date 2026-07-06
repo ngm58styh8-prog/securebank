@@ -99,23 +99,18 @@ function validateAdminKey(key) {
     if (!cleaned) {
         throw new Error("Supabase admin key is empty.");
     }
-    if (isSupabasePublishableKey(cleaned)) {
-        throw new Error(
-            "Supabase publishable key cannot write to email_verifications. Set SUPABASE_SECRET_KEY or a service_role JWT in SUPABASE_SERVICE_ROLE_KEY."
-        );
-    }
-    if (isSupabaseJwtKey(cleaned)) {
-        const role = getJwtRole(cleaned);
-        if (role === "anon") {
-            throw new Error(
-                "Supabase anon JWT cannot bypass RLS. Set SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY to a service_role JWT."
-            );
-        }
-        if (role && role !== "service_role") {
-            throw new Error("Unexpected Supabase JWT role: " + role);
-        }
-    }
     return cleaned;
+}
+
+function getAdminKeyWarning(key) {
+    const cleaned = cleanEnvValue(key);
+    if (isSupabasePublishableKey(cleaned)) {
+        return "Using publishable key for server RPC. Prefer SUPABASE_SECRET_KEY or a service_role JWT.";
+    }
+    if (isSupabaseJwtKey(cleaned) && getJwtRole(cleaned) === "anon") {
+        return "Using anon JWT for server RPC. Prefer SUPABASE_SECRET_KEY or a service_role JWT.";
+    }
+    return null;
 }
 
 function getSupabaseAdminKey() {
@@ -147,19 +142,7 @@ function getValidatedSupabaseAdminKey() {
 
 function getSupabaseEnvChecks() {
     const url = getSupabaseUrl();
-    let admin = getSupabaseAdminKey();
-    let adminError = null;
-
-    try {
-        if (admin.key) {
-            admin = {
-                key: validateAdminKey(admin.key),
-                source: admin.source
-            };
-        }
-    } catch (e) {
-        adminError = e.message;
-    }
+    const admin = getSupabaseAdminKey();
 
     return {
         SUPABASE_URL: { set: !!url },
@@ -169,9 +152,11 @@ function getSupabaseEnvChecks() {
             type: admin.key
                 ? (isSupabaseSecretKey(admin.key)
                     ? "secret"
-                    : (isSupabaseJwtKey(admin.key) ? "service_role" : "unknown"))
+                    : (isSupabasePublishableKey(admin.key)
+                        ? "publishable"
+                        : (isSupabaseJwtKey(admin.key) ? "service_role" : "unknown")))
                 : null,
-            error: adminError
+            warning: admin.key ? getAdminKeyWarning(admin.key) : null
         },
         SUPABASE_SECRET_KEY: { set: !!resolveKeyFromEnv("SUPABASE_SECRET_KEY").key },
         SUPABASE_SECRET_KEYS: { set: !!resolveKeyFromEnv("SUPABASE_SECRET_KEYS").key },
@@ -183,13 +168,9 @@ function getMissingSupabaseEnv() {
     const missing = [];
     if (!getSupabaseUrl()) missing.push("SUPABASE_URL");
 
-    try {
-        const admin = getValidatedSupabaseAdminKey();
-        if (!admin.key) {
-            missing.push("SUPABASE_ADMIN_KEY (set SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY)");
-        }
-    } catch (e) {
-        missing.push(e.message);
+    const admin = getSupabaseAdminKey();
+    if (!admin.key) {
+        missing.push("SUPABASE_ADMIN_KEY (set SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY)");
     }
 
     return missing;
@@ -220,6 +201,7 @@ module.exports = {
     isSupabaseSecretKey,
     isSupabasePublishableKey,
     getJwtRole,
+    getAdminKeyWarning,
     getSupabaseEnvChecks,
     getMissingSupabaseEnv,
     buildSupabaseHeaders
