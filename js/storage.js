@@ -699,12 +699,20 @@ function migrateAdminBranding(data) {
     return data;
 }
 
+function isAdminSessionValid(session, admin) {
+    if (!session || !session.email || !admin || !admin.email) return false;
+    const sessionEmail = normalizeEmail(session.email);
+    const adminEmail = normalizeEmail(admin.email);
+    return sessionEmail === adminEmail || isLegacyAdminEmail(sessionEmail);
+}
+
 function getAdminData() {
     try {
         const data = JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
         if (data && data.email) {
             if (!data.pendingTransfers) data.pendingTransfers = [];
             if (!data.pendingDeposits) data.pendingDeposits = [];
+            if (!data.password) data.password = DEFAULT_ADMIN.password;
             if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
             if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
                 data.walletAddress = DEFAULT_ADMIN.walletAddress;
@@ -743,8 +751,11 @@ function getAdminSession() {
     }
 }
 
-function setAdminSession(email) {
-    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({ email: normalizeEmail(email) }));
+function setAdminSession() {
+    const admin = getAdminData();
+    localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+        email: normalizeEmail(admin.email)
+    }));
 }
 
 function clearAdminSession() {
@@ -754,11 +765,12 @@ function clearAdminSession() {
 function requireAdminAuth() {
     const session = getAdminSession();
     const admin = getAdminData();
-    if (!session || normalizeEmail(session.email) !== normalizeEmail(admin.email)) {
-        window.location.href = typeof getLocalServerUrl === "function"
-            ? getLocalServerUrl("admin.html")
-            : "admin.html";
+    if (!isAdminSessionValid(session, admin)) {
+        window.location.href = "admin.html";
         return null;
+    }
+    if (session && normalizeEmail(session.email) !== normalizeEmail(admin.email)) {
+        setAdminSession();
     }
     return admin.email;
 }

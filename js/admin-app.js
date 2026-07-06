@@ -21,7 +21,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const session = getAdminSession();
     const admin = getAdminData();
-    if (session && normalizeEmail(session.email) === normalizeEmail(admin.email)) {
+    if (isAdminSessionValid(session, admin)) {
+        if (session && normalizeEmail(session.email) !== normalizeEmail(admin.email)) {
+            setAdminSession();
+        }
         window.location.href = "admin-dashboard.html";
         return;
     }
@@ -43,7 +46,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
-        setAdminSession(email);
+        setAdminSession();
         window.location.href = "admin-dashboard.html";
     });
 });

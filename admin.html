@@ -21,13 +21,14 @@
         <p class="subtitle">GlobalVest payment management</p>
 
         <form id="adminLoginForm">
-            <input id="adminEmail" type="email" placeholder="Admin email" required autocomplete="email">
+            <input id="adminEmail" type="email" placeholder="Admin email" value="admin@globalvest.com" required autocomplete="email">
             <input id="adminPassword" type="password" placeholder="Password" required autocomplete="current-password">
             <button type="submit">Sign In to Admin</button>
             <p class="admin-auth-message" id="adminAuthMessage" role="alert"></p>
         </form>
 
-        <p class="hint">Authorized personnel only.</p>
+        <p class="hint">Authorized personnel only. Run <code>./start.sh</code>, then sign in at <code>http://localhost:8765/admin.html</code>.</p>
+        <p class="hint">Default credentials: admin@globalvest.com / admin123</p>
         <p class="admin-back"><a href="index.html">← Back to website</a></p>
     </div>
 </div>

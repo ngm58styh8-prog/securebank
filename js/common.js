@@ -7,20 +7,40 @@ function isLocalServerHost() {
 }
 
 function getLocalServerUrl(path) {
-    const normalized = path.charAt(0) === "/" ? path : "/" + path;
-    if (isLocalServerHost()) {
-        return window.location.origin + normalized;
+    const file = path.charAt(0) === "/" ? path.slice(1) : path;
+
+    if (window.location.protocol === "file:") {
+        return file;
     }
-    return "http://localhost:" + LOCAL_SERVER_PORT + normalized;
+
+    if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+        const dir = window.location.pathname.replace(/[^/]*$/, "");
+        return window.location.origin + dir + file;
+    }
+
+    return file;
 }
 
-(function redirectAdminPagesToLocalhost() {
+function showAdminServerHint() {
     const page = window.location.pathname.split("/").pop() || "";
     if (page !== "admin.html" && page !== "admin-dashboard.html") return;
-    if (window.location.protocol === "file:" || !isLocalServerHost()) {
-        window.location.replace(getLocalServerUrl(page || "admin.html"));
-    }
-})();
+    if (window.location.protocol !== "file:") return;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const box = document.querySelector(".login-box") || document.querySelector(".container");
+        if (!box || document.getElementById("adminServerHint")) return;
+
+        const hint = document.createElement("p");
+        hint.id = "adminServerHint";
+        hint.className = "admin-auth-message error";
+        hint.style.display = "block";
+        hint.style.marginBottom = "12px";
+        hint.textContent = "Open via the local server: run ./start.sh then visit http://localhost:8765/admin.html";
+        box.insertBefore(hint, box.firstChild);
+    });
+}
+
+showAdminServerHint();
 
 function formatMoney(amount, currency) {
     currency = currency || "USD";
