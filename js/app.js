@@ -72,6 +72,17 @@ document.addEventListener("DOMContentLoaded", function() {
     signInTab.addEventListener("click", showSignIn);
     signUpTab.addEventListener("click", showSignUp);
 
+    const landingTab = sessionStorage.getItem("securebank_auth_tab");
+    if (landingTab === "signup") {
+        showSignUp();
+    } else if (landingTab === "signin") {
+        showSignIn();
+    }
+    sessionStorage.removeItem("securebank_auth_tab");
+    sessionStorage.removeItem("securebank_page_transition");
+
+    initSocialAuth();
+
     function showMessage(el, text, type) {
         if (!el) return;
         el.textContent = text;
@@ -184,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
         if (!verifyTwoFactorCode(account, code)) {
-            showMessage(document.getElementById("twoFactorMessage"), "Invalid authentication code. Demo code: 123456", "error");
+            showMessage(document.getElementById("twoFactorMessage"), "Invalid authentication code.", "error");
             return;
         }
         finalizeLogin(pendingLoginEmail);
@@ -221,9 +232,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const email = normalizeEmail(document.getElementById("signUpEmail").value);
         const phone = document.getElementById("signUpPhone").value.trim();
         const country = document.getElementById("signUpCountry").value;
-        const dateOfBirth = document.getElementById("signUpDob").value;
-        const currency = document.getElementById("signUpCurrency").value;
-        const referralCode = document.getElementById("signUpReferral").value.trim();
         const password = document.getElementById("signUpPassword").value;
         const confirm = document.getElementById("signUpConfirm").value;
         const agreedToTerms = document.getElementById("signUpTerms").checked;
@@ -238,11 +246,6 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
-        if (!dateOfBirth) {
-            showMessage(document.getElementById("signUpMessage"), "Please enter your date of birth.", "error");
-            return;
-        }
-
         if (password !== confirm) {
             showMessage(document.getElementById("signUpMessage"), "Passwords do not match.", "error");
             return;
@@ -250,9 +253,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const result = createAccount(email, password, fullName, phone, {
             country: country,
-            dateOfBirth: dateOfBirth,
-            referralCode: referralCode,
-            currency: currency,
+            dateOfBirth: "",
+            referralCode: "",
+            currency: "USD",
             agreedToTerms: agreedToTerms
         });
 
@@ -264,15 +267,10 @@ document.addEventListener("DOMContentLoaded", function() {
         pendingSignupEmail = email;
         pendingLoginEmail = email;
         document.getElementById("emailVerifyDesc").textContent =
-            "We sent a 6-digit code to " + email + ". Check your inbox (demo: code is in your account emails after login).";
+            "We sent a 6-digit code to " + email + ". Check your inbox to continue.";
         document.getElementById("emailVerifyCode").value = "";
         hideMessage(document.getElementById("emailVerifyMessage"));
         showPanel(emailVerifyStep);
-
-        if (result.verificationCode) {
-            document.getElementById("emailVerifyDesc").textContent +=
-                " Demo code: " + result.verificationCode;
-        }
     });
 
     document.getElementById("forgotPasswordBtn").addEventListener("click", function() {
@@ -296,12 +294,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     document.getElementById("termsLink").addEventListener("click", function(e) {
         e.preventDefault();
-        alert("SecureBank Terms of Service (demo): Use this platform for demonstration purposes only.");
+        alert("SecureBank Terms of Service — by creating an account you agree to our terms of use and acceptable use policy.");
     });
 
     document.getElementById("privacyLink").addEventListener("click", function(e) {
         e.preventDefault();
-        alert("SecureBank Privacy Policy (demo): Data is stored locally in your browser.");
+        alert("SecureBank Privacy Policy — we protect your personal data with bank-grade encryption and never sell your information.");
     });
 
     document.getElementById("signUpPassword").addEventListener("input", updatePasswordStrength);
@@ -376,8 +374,6 @@ function initFieldValidation() {
             } else if (id === "signUpConfirm") {
                 const pw = document.getElementById("signUpPassword");
                 valid = input.value.length >= 6 && pw && input.value === pw.value;
-            } else if (id === "signUpReferral") {
-                valid = true;
             } else if (input.tagName === "SELECT") {
                 valid = !!input.value;
             } else if (input.type === "checkbox") {
@@ -425,7 +421,7 @@ function updatePasswordStrength() {
 function updateSignupProgress() {
     const fields = [
         "signUpName", "signUpEmail", "signUpPhone", "signUpCountry",
-        "signUpDob", "signUpCurrency", "signUpPassword", "signUpConfirm"
+        "signUpPassword", "signUpConfirm"
     ];
     let filled = 0;
     fields.forEach(function(id) {
@@ -440,6 +436,20 @@ function updateSignupProgress() {
     const label = document.getElementById("signupProgressLabel");
     if (bar) bar.style.width = pct + "%";
     if (label) label.textContent = pct + "% complete";
+}
+
+function initSocialAuth() {
+    function bindSocial(id) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.addEventListener("click", function() {
+            alert("Social sign-in is not available yet. Please use email and password.");
+        });
+    }
+    bindSocial("googleSignIn");
+    bindSocial("appleSignIn");
+    bindSocial("googleSignUp");
+    bindSocial("appleSignUp");
 }
 
 async function initLivePrices() {

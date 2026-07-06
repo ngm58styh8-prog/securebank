@@ -155,7 +155,7 @@ function saveProfile(e) {
 
 function logout() {
     clearSession();
-    window.location.href = "index.html";
+    window.location.href = "login.html";
 }
 
 initPageNav("profile");

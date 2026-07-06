@@ -654,12 +654,12 @@ function requireAuth() {
     const session = getSession();
     const email = session && (session.email || session.username);
     if (!email) {
-        window.location.href = "index.html";
+        window.location.href = "login.html";
         return null;
     }
     if (!getAccount(email)) {
         clearSession();
-        window.location.href = "index.html";
+        window.location.href = "login.html";
         return null;
     }
     return normalizeEmail(email);

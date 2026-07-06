@@ -3,232 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0059b3">
-<title>SecureBank — Login</title>
-<link rel="stylesheet" href="css/style.css">
+<meta name="theme-color" content="#030818">
+<title>SecureBank — Welcome</title>
+<link rel="stylesheet" href="css/landing.css">
 </head>
-<body class="auth-body">
+<body class="landing-body">
+<div class="landing-bg" aria-hidden="true"></div>
+<canvas id="particleCanvas" aria-hidden="true"></canvas>
 
-<button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
-
-<div class="auth-page">
-    <aside class="auth-promo" aria-label="Platform highlights">
-        <div class="promo-inner">
-            <p class="promo-eyebrow">Invest with confidence</p>
-            <h2 class="promo-title">Bank-grade security.<br>Crypto &amp; stocks in one place.</h2>
-
-            <div class="live-prices" id="livePrices">
-                <div class="live-price-row">
-                    <span class="live-coin">₿ Bitcoin</span>
-                    <span class="live-val" id="liveBtc">—</span>
-                </div>
-                <div class="live-price-row">
-                    <span class="live-coin">Ξ Ethereum</span>
-                    <span class="live-val" id="liveEth">—</span>
-                </div>
-            </div>
-
-            <div class="trust-badges">
-                <span class="trust-badge">🔒 SSL Secure</span>
-                <span class="trust-badge">🛡️ Bank-grade encryption</span>
-                <span class="trust-badge">✨ Trusted by 10,000+ investors</span>
-            </div>
-        </div>
-    </aside>
-
-    <div class="auth-container">
-        <div id="siteAnnouncement" class="site-announcement hidden"></div>
-
-        <div class="login-box auth-card">
-            <h1 class="logo" id="siteName">🏦 SecureBank</h1>
-            <p class="subtitle" id="siteTagline">Secure Online Banking</p>
-
-            <div class="auth-tabs" role="tablist">
-                <button type="button" class="auth-tab active" id="signInTab" role="tab" aria-selected="true">🔐 Sign In</button>
-                <button type="button" class="auth-tab" id="signUpTab" role="tab" aria-selected="false">📝 Sign Up</button>
-            </div>
-
-            <div class="auth-forms-wrap">
-                <form id="signInForm" class="auth-form auth-panel-visible" autocomplete="on">
-                    <p class="last-login-banner hidden" id="lastLoginBanner"></p>
-                    <p class="auth-alert hidden" id="newDeviceAlert"></p>
-
-                    <div class="float-field" data-field="signInEmail">
-                        <span class="field-icon" aria-hidden="true">✉</span>
-                        <input id="signInEmail" type="email" required autocomplete="email" placeholder=" ">
-                        <label for="signInEmail">Email address</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field password-field" data-field="signInPassword">
-                        <span class="field-icon" aria-hidden="true">🔒</span>
-                        <input id="signInPassword" type="password" required autocomplete="current-password" placeholder=" ">
-                        <label for="signInPassword">Password</label>
-                        <button type="button" class="pwd-toggle" data-target="signInPassword" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="options">
-                        <label class="remember-label">
-                            <input type="checkbox" id="rememberMe" checked>
-                            Remember me
-                        </label>
-                        <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot password?</button>
-                    </div>
-
-                    <button type="submit" class="auth-submit">Sign In</button>
-                    <p class="auth-message hidden" id="signInMessage"></p>
-                </form>
-
-                <form id="signUpForm" class="auth-form auth-panel-hidden" autocomplete="on">
-                    <div class="signup-progress">
-                        <div class="signup-progress-bar" id="signupProgressBar"></div>
-                    </div>
-                    <p class="signup-progress-label" id="signupProgressLabel">0% complete</p>
-
-                    <div class="float-field" data-field="signUpName">
-                        <span class="field-icon" aria-hidden="true">👤</span>
-                        <input id="signUpName" type="text" required autocomplete="name" placeholder=" ">
-                        <label for="signUpName">Full name</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpEmail">
-                        <span class="field-icon" aria-hidden="true">✉</span>
-                        <input id="signUpEmail" type="email" required autocomplete="email" placeholder=" ">
-                        <label for="signUpEmail">Email address</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpPhone">
-                        <span class="field-icon" aria-hidden="true">📱</span>
-                        <input id="signUpPhone" type="tel" required autocomplete="tel" placeholder=" ">
-                        <label for="signUpPhone">Phone number</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpCountry">
-                        <span class="field-icon" aria-hidden="true">🌍</span>
-                        <select id="signUpCountry" required>
-                            <option value="" disabled selected hidden></option>
-                            <option value="US">United States</option>
-                            <option value="CA">Canada</option>
-                            <option value="GB">United Kingdom</option>
-                            <option value="DE">Germany</option>
-                            <option value="FR">France</option>
-                            <option value="AU">Australia</option>
-                            <option value="NG">Nigeria</option>
-                            <option value="IN">India</option>
-                            <option value="OTHER">Other</option>
-                        </select>
-                        <label for="signUpCountry">Country</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpDob">
-                        <span class="field-icon" aria-hidden="true">📅</span>
-                        <input id="signUpDob" type="date" required placeholder=" ">
-                        <label for="signUpDob">Date of birth</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpCurrency">
-                        <span class="field-icon" aria-hidden="true">💱</span>
-                        <select id="signUpCurrency" required>
-                            <option value="USD">USD — US Dollar</option>
-                            <option value="EUR">EUR — Euro</option>
-                            <option value="GBP">GBP — British Pound</option>
-                        </select>
-                        <label for="signUpCurrency">Preferred currency</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field" data-field="signUpReferral">
-                        <span class="field-icon" aria-hidden="true">🎁</span>
-                        <input id="signUpReferral" type="text" autocomplete="off" placeholder=" ">
-                        <label for="signUpReferral">Referral code (optional)</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="float-field password-field" data-field="signUpPassword">
-                        <span class="field-icon" aria-hidden="true">🔒</span>
-                        <input id="signUpPassword" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
-                        <label for="signUpPassword">Password (min. 6 characters)</label>
-                        <button type="button" class="pwd-toggle" data-target="signUpPassword" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <div class="password-strength" id="passwordStrength" aria-live="polite">
-                        <div class="password-strength-bar"><span id="passwordStrengthFill"></span></div>
-                        <span class="password-strength-label" id="passwordStrengthLabel">Password strength</span>
-                    </div>
-
-                    <div class="float-field password-field" data-field="signUpConfirm">
-                        <span class="field-icon" aria-hidden="true">🔒</span>
-                        <input id="signUpConfirm" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
-                        <label for="signUpConfirm">Confirm password</label>
-                        <button type="button" class="pwd-toggle" data-target="signUpConfirm" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
-                    </div>
-
-                    <label class="terms-row">
-                        <input type="checkbox" id="signUpTerms" required>
-                        <span>I agree to the <a href="#" id="termsLink">Terms</a> &amp; <a href="#" id="privacyLink">Privacy Policy</a></span>
-                    </label>
-
-                    <button type="submit" class="auth-submit">Create Account</button>
-                    <p class="auth-message hidden" id="signUpMessage"></p>
-                </form>
-
-                <div id="twoFactorStep" class="auth-step auth-panel-hidden">
-                    <h3 class="step-title">Two-factor authentication</h3>
-                    <p class="step-desc">Enter the 6-digit code from your authenticator app. Demo code: <strong>123456</strong></p>
-                    <div class="float-field" data-field="twoFactorCode">
-                        <span class="field-icon" aria-hidden="true">🔐</span>
-                        <input id="twoFactorCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder=" ">
-                        <label for="twoFactorCode">Authentication code</label>
-                    </div>
-                    <button type="button" class="auth-submit" id="twoFactorSubmit">Verify &amp; Sign In</button>
-                    <button type="button" class="link-btn step-back" id="twoFactorBack">← Back to sign in</button>
-                    <p class="auth-message hidden" id="twoFactorMessage"></p>
-                </div>
-
-                <div id="emailVerifyStep" class="auth-step auth-panel-hidden">
-                    <h3 class="step-title">Verify your email</h3>
-                    <p class="step-desc" id="emailVerifyDesc">We sent a 6-digit code to your email. Check your inbox (or account emails in the dashboard after login).</p>
-                    <div class="float-field" data-field="emailVerifyCode">
-                        <span class="field-icon" aria-hidden="true">✉</span>
-                        <input id="emailVerifyCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder=" ">
-                        <label for="emailVerifyCode">Verification code</label>
-                    </div>
-                    <button type="button" class="auth-submit" id="emailVerifySubmit">Verify Email</button>
-                    <p class="auth-message hidden" id="emailVerifyMessage"></p>
-                </div>
-            </div>
-
-            <p class="hint">Sign up with your email to create an account. Your portfolio is saved in this browser.</p>
-        </div>
+<header class="landing-nav">
+    <a href="index.html" class="landing-logo">🏦 SecureBank</a>
+    <nav class="landing-nav-links">
+        <a href="#about">About</a>
+        <a href="#features">Features</a>
+        <a href="#security">Security</a>
+        <a href="#contact">Contact</a>
+    </nav>
+    <div class="landing-nav-actions">
+        <a href="#" class="landing-btn landing-btn-secondary" data-go-login="signin">Login</a>
+        <a href="#" class="landing-btn landing-btn-primary" data-go-login="signup">Open Account</a>
     </div>
-</div>
+</header>
 
-<div class="auth-modal hidden" id="forgotModal" role="dialog" aria-labelledby="forgotModalTitle">
-    <div class="auth-modal-backdrop" id="forgotModalBackdrop"></div>
-    <div class="auth-modal-box">
-        <h3 id="forgotModalTitle">Reset password</h3>
-        <p>Enter your email and we&apos;ll send reset instructions if an account exists.</p>
-        <div class="float-field" data-field="forgotEmail">
-            <span class="field-icon" aria-hidden="true">✉</span>
-            <input id="forgotEmail" type="email" placeholder=" ">
-            <label for="forgotEmail">Email address</label>
+<main class="landing-main">
+    <section class="landing-hero" id="about">
+        <div class="landing-hero-copy">
+            <h1>Welcome to SecureBank</h1>
+            <p class="landing-hero-sub">The future of secure banking and digital asset management.</p>
+            <p class="landing-hero-desc">Manage your banking, cryptocurrency investments, international transfers and wealth portfolio from one secure platform.</p>
+            <div class="landing-hero-actions">
+                <a href="#" class="landing-btn landing-btn-primary" data-go-login="signup">Open Account</a>
+                <a href="#" class="landing-btn landing-btn-secondary" data-go-login="signin">Login</a>
+            </div>
         </div>
-        <button type="button" class="auth-submit" id="forgotSubmit">Send reset link</button>
-        <button type="button" class="link-btn" id="forgotCancel">Cancel</button>
-        <p class="auth-message hidden" id="forgotMessage"></p>
-    </div>
-</div>
+        <div class="landing-illustration" aria-hidden="true">
+            <div class="landing-scene">
+                <div class="landing-scene-core"></div>
+                <div class="landing-scene-bank">🏦</div>
+                <div class="landing-scene-shield">🛡️</div>
+                <div class="landing-scene-coin c1">₿</div>
+                <div class="landing-scene-coin c2">Ξ</div>
+                <div class="landing-scene-coin c3">◎</div>
+                <div class="landing-scene-card card1"></div>
+                <div class="landing-scene-card card2"></div>
+            </div>
+        </div>
+    </section>
 
-<script src="js/storage.js"></script>
-<script src="js/common.js"></script>
-<script src="js/app.js"></script>
+    <section class="landing-feature-cards" id="features">
+        <article class="landing-feature-card">
+            <div class="landing-feature-icon">🔐</div>
+            <h3>Bank-Grade Security</h3>
+            <p>256-bit encryption protecting every transaction and account detail.</p>
+        </article>
+        <article class="landing-feature-card">
+            <div class="landing-feature-icon">₿</div>
+            <h3>Secure Crypto Investing</h3>
+            <p>Buy, hold and manage digital assets alongside traditional banking.</p>
+        </article>
+        <article class="landing-feature-card">
+            <div class="landing-feature-icon">🌍</div>
+            <h3>Trusted Worldwide</h3>
+            <p>50,000+ global investors rely on SecureBank every day.</p>
+        </article>
+    </section>
+
+    <section class="landing-section" id="security">
+        <h2 class="landing-section-title">Built for trust</h2>
+        <div class="landing-trust-row">
+            <span class="landing-trust-pill">🏛 FDIC Insured</span>
+            <span class="landing-trust-pill">🔒 SSL Encrypted</span>
+            <span class="landing-trust-pill">📞 24/7 Support</span>
+            <span class="landing-trust-pill">🛡 Real-Time Fraud Monitoring</span>
+        </div>
+    </section>
+
+    <section class="landing-section">
+        <div class="landing-stats">
+            <div>
+                <div class="landing-stat-value">$2.5B+</div>
+                <div class="landing-stat-label">Assets Managed</div>
+            </div>
+            <div>
+                <div class="landing-stat-value">50,000+</div>
+                <div class="landing-stat-label">Investors</div>
+            </div>
+            <div>
+                <div class="landing-stat-value">99.99%</div>
+                <div class="landing-stat-label">Uptime</div>
+            </div>
+            <div>
+                <div class="landing-stat-value">150+</div>
+                <div class="landing-stat-label">Countries</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="landing-section">
+        <h2 class="landing-section-title">What investors say</h2>
+        <div class="landing-testimonials">
+            <blockquote class="landing-testimonial">
+                <p>"SecureBank made managing my portfolio effortless. Transfers are fast and the platform feels truly premium."</p>
+                <cite>— Sarah M., Portfolio Manager</cite>
+            </blockquote>
+            <blockquote class="landing-testimonial">
+                <p>"I trust SecureBank with my crypto and cash in one place. Security features give me complete peace of mind."</p>
+                <cite>— James K., Crypto Investor</cite>
+            </blockquote>
+            <blockquote class="landing-testimonial">
+                <p>"The best digital banking experience I've used. Clean interface, instant notifications, world-class support."</p>
+                <cite>— Elena R., Entrepreneur</cite>
+            </blockquote>
+        </div>
+    </section>
+
+    <section class="landing-cta-section" id="contact">
+        <h2>Ready to take control of your finances?</h2>
+        <button type="button" class="landing-cta-btn" data-go-login="signin">Access Your SecureBank Account</button>
+    </section>
+</main>
+
+<footer class="landing-footer">
+    <p>© SecureBank. All rights reserved.</p>
+</footer>
+
+<script src="js/landing.js"></script>
 </body>
 </html>

@@ -43,6 +43,104 @@ body.auth-body {
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+body.auth-page-enter {
+    animation: authPageFadeIn 0.55s ease both;
+}
+
+@keyframes authPageFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.auth-home-link {
+    display: inline-block;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    font-size: 0.88rem;
+    margin-bottom: 20px;
+    transition: color 0.2s;
+}
+
+.auth-home-link:hover {
+    color: #fff;
+}
+
+.promo-footnote {
+    margin-top: 16px;
+    font-size: 0.82rem;
+    opacity: 0.65;
+}
+
+.auth-card-slide {
+    animation: authCardSlide 0.6s ease 0.1s both;
+}
+
+@keyframes authCardSlide {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.auth-security-badges {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--auth-border);
+}
+
+.auth-security-badges span {
+    font-size: 0.72rem;
+    color: var(--auth-muted);
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--auth-input-bg);
+}
+
+.social-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0 12px;
+    color: var(--auth-muted);
+    font-size: 0.82rem;
+}
+
+.social-divider::before,
+.social-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--auth-border);
+}
+
+.social-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.social-btn {
+    width: 100%;
+    margin: 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--auth-border);
+    background: var(--auth-input-bg);
+    color: var(--auth-text);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+
+.social-btn:hover {
+    background: var(--auth-card);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 .auth-page {
     display: flex;
     align-items: stretch;
@@ -144,7 +242,8 @@ body.auth-body {
 .auth-theme-toggle {
     position: fixed;
     top: max(10px, env(safe-area-inset-top));
-    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    left: auto;
     z-index: 100;
     width: 42px;
     height: 42px;

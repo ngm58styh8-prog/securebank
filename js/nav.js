@@ -11,7 +11,7 @@ function initPageNav(activePage) {
         logoutBtn.dataset.bound = "1";
         logoutBtn.addEventListener("click", function() {
             clearSession();
-            window.location.href = "index.html";
+            window.location.href = "login.html";
         });
     }
 

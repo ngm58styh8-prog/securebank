@@ -670,7 +670,7 @@ function toggleDropdown(id) {
 
 function logout() {
     clearSession();
-    window.location.href = "index.html";
+    window.location.href = "login.html";
 }
 
 function initCharts() {

@@ -8,6 +8,9 @@
 <title>SecureBank — Admin Dashboard</title>
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/admin.css">
+<style>
+.admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
+</style>
 </head>
 <body class="admin-dashboard-body">
 
@@ -17,7 +20,7 @@
         <p>Payment & user overview</p>
     </div>
     <div class="header-right">
-        <a href="index.html" class="nav-link">User Site</a>
+        <a href="login.html" class="nav-link">User Site</a>
         <button id="adminLogoutBtn" class="icon-btn" type="button">Log Out</button>
     </div>
 </header>
@@ -360,6 +363,12 @@
 
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
+<script>
+(function() {
+    if (!requireAdminAuth()) return;
+    document.body.classList.add("admin-auth-ready");
+})();
+</script>
 <script src="js/admin-dashboard.js"></script>
 </body>
 </html>

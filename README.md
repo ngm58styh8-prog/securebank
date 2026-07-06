@@ -8,7 +8,8 @@ Demo online banking app (static frontend + local Python server).
 ./start.sh
 ```
 
-- User login: http://localhost:8765/index.html
+- User site: http://localhost:8765/index.html (landing)
+- Sign in: http://localhost:8765/login.html
 - Admin login: http://localhost:8765/admin.html (direct URL only — not linked from the user site)
 
 ## Email notifications (deposits & withdrawals)
