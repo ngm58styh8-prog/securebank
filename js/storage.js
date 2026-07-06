@@ -191,6 +191,7 @@ function recordSuccessfulLogin(email) {
     account.profile.lastLoginAt = new Date().toISOString();
     account.profile.lastLoginDevice = deviceLabel;
     saveAccount(key, account);
+    recordAdminUserEvent(key, "login", "Signed in from " + deviceLabel, 0);
 
     return { isNewDevice: isNewDevice, deviceLabel: deviceLabel, previousLogin: previousLogin };
 }
@@ -529,7 +530,25 @@ function clearSession() {
 
 function getAllAccounts() {
     try {
-        return JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {};
+        const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {};
+        const normalized = {};
+        let changed = false;
+
+        Object.keys(raw).forEach(function(key) {
+            const emailKey = normalizeEmail(key);
+            if (normalized[emailKey]) {
+                normalized[emailKey] = Object.assign({}, normalized[emailKey], raw[key]);
+            } else {
+                normalized[emailKey] = raw[key];
+            }
+            if (emailKey !== key) changed = true;
+        });
+
+        if (changed) {
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(normalized));
+        }
+
+        return normalized;
     } catch (e) {
         return {};
     }
@@ -598,6 +617,7 @@ function createAccount(email, password, fullName, phone, extras) {
     sendSsnVerificationEmail(account, key, fullName.trim());
     sendEmailVerificationEmail(account, key, fullName.trim(), account.emailVerificationCode);
     saveAccount(key, account);
+    recordAdminUserEvent(key, "signup", "New account registered", 0);
     return { ok: true, verificationCode: account.emailVerificationCode };
 }
 
@@ -722,11 +742,12 @@ function getAdminData() {
                 data.websiteSettings = Object.assign({}, DEFAULT_WEBSITE_SETTINGS);
             }
             if (!data.notificationLog) data.notificationLog = [];
-            return migrateAdminBranding(data);
+            if (!data.userActivityLog) data.userActivityLog = [];
+            return backfillAdminUserRegistry(migrateAdminBranding(data));
         }
     } catch (e) { /* ignore */ }
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(Object.assign({}, DEFAULT_ADMIN, {
-        payments: [], pendingTransfers: [], pendingDeposits: []
+        payments: [], pendingTransfers: [], pendingDeposits: [], userActivityLog: []
     })));
     return JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
 }
@@ -803,6 +824,72 @@ function recordUserPayment(userEmail, type, amount, method) {
     saveAdminData(admin);
 }
 
+function backfillAdminUserRegistry(admin) {
+    if (admin._userRegistrySynced) return admin;
+
+    ensureAdminUserActivityLog(admin);
+    const accounts = getAllAccounts();
+    const knownSignups = {};
+
+    admin.userActivityLog.forEach(function(entry) {
+        if (entry.type === "signup") {
+            knownSignups[normalizeEmail(entry.userEmail)] = true;
+        }
+    });
+
+    Object.keys(accounts).forEach(function(email) {
+        const key = normalizeEmail(email);
+        if (knownSignups[key]) return;
+
+        const acct = accounts[email];
+        const userName = acct.profile ? acct.profile.fullName : key;
+        admin.userActivityLog.push({
+            id: Date.now() + Math.random(),
+            date: acct.profile && acct.profile.memberSince
+                ? new Date(acct.profile.memberSince).toLocaleString()
+                : new Date().toLocaleString(),
+            userEmail: key,
+            userName: userName,
+            type: "signup",
+            description: "Account registered",
+            amount: 0
+        });
+    });
+
+    admin._userRegistrySynced = true;
+    saveAdminData(admin);
+    return admin;
+}
+
+function ensureAdminUserActivityLog(admin) {
+    if (!admin.userActivityLog) admin.userActivityLog = [];
+    return admin.userActivityLog;
+}
+
+function recordAdminUserEvent(userEmail, type, description, amount) {
+    const admin = getAdminData();
+    const key = normalizeEmail(userEmail);
+    const account = getAccount(key);
+    const userName = account && account.profile ? account.profile.fullName : key;
+
+    ensureAdminUserActivityLog(admin);
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: new Date().toLocaleString(),
+        userEmail: key,
+        userName: userName,
+        type: type,
+        description: description,
+        amount: amount != null ? amount : 0
+    });
+
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    saveAdminData(admin);
+}
+
 function getHoldingsSummary(holdings) {
     holdings = holdings || {};
     const labels = {
@@ -831,18 +918,30 @@ function getAllUsersSummary() {
         const acct = accounts[email];
         const profile = acct.profile || {};
         const lastTx = acct.transactions && acct.transactions[0];
+        const pendingDeposits = getUserPendingDeposits(email).length;
+        const pendingTransfers = getUserPendingTransfers(email).length;
         return {
             email: email,
             name: profile.fullName || email,
             phone: profile.phone || "—",
             cash: acct.cash || 0,
             holdingsSummary: getHoldingsSummary(acct.holdings),
-            lastActivity: lastTx ? lastTx.description : "—",
-            lastActivityDate: lastTx ? lastTx.date : "—",
+            lastActivity: lastTx ? lastTx.description : "Account registered",
+            lastActivityDate: lastTx ? lastTx.date : (profile.memberSince
+                ? new Date(profile.memberSince).toLocaleString() : "—"),
             transactionCount: (acct.transactions || []).length,
-            memberSince: profile.memberSince || null
+            memberSince: profile.memberSince || null,
+            lastLoginAt: profile.lastLoginAt || null,
+            lastLoginDevice: profile.lastLoginDevice || null,
+            verificationStatus: profile.verificationStatus || "Pending",
+            emailVerified: !!acct.emailVerified,
+            pendingDeposits: pendingDeposits,
+            pendingTransfers: pendingTransfers
         };
     }).sort(function(a, b) {
+        const aTime = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
+        const bTime = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
+        if (aTime !== bTime) return bTime - aTime;
         return a.email.localeCompare(b.email);
     });
 }
@@ -859,14 +958,32 @@ function getUserDetailForAdmin(email) {
         holdingsSummary: getHoldingsSummary(account.holdings),
         transactions: account.transactions || [],
         notifications: account.notifications || [],
-        transactionCount: (account.transactions || []).length
+        transactionCount: (account.transactions || []).length,
+        emailVerified: !!account.emailVerified,
+        pendingDeposits: getUserPendingDeposits(email),
+        pendingTransfers: getUserPendingTransfers(email),
+        supportItems: getAllSupportItems("all").filter(function(item) {
+            return normalizeEmail(item.userEmail) === normalizeEmail(email);
+        })
     };
 }
 
 function getAllUserActivity(filterEmail, limit) {
-    limit = limit || 50;
+    limit = limit || 100;
     const accounts = getAllAccounts();
+    const admin = getAdminData();
     let activities = [];
+
+    (admin.userActivityLog || []).forEach(function(entry) {
+        if (filterEmail && normalizeEmail(entry.userEmail) !== normalizeEmail(filterEmail)) return;
+        activities.push({
+            userEmail: entry.userEmail,
+            userName: entry.userName,
+            date: entry.date,
+            description: entry.description,
+            amount: entry.amount || 0
+        });
+    });
 
     Object.keys(accounts).forEach(function(email) {
         if (filterEmail && normalizeEmail(email) !== normalizeEmail(filterEmail)) return;
@@ -1034,6 +1151,7 @@ function submitTransferRequest(userEmail, amount, destination, method) {
 
     sendWithdrawalSubmittedEmail(account, key, amount, dest, transfer.method);
     saveAccount(key, account);
+    recordAdminUserEvent(key, "withdrawal", "Withdrawal request submitted — " + dest, -amount);
     return { ok: true, transfer: transfer };
 }
 
@@ -1480,6 +1598,7 @@ function submitDepositRequest(userEmail, amount, method) {
 
     sendDepositSubmittedEmail(account, key, amount, method, payTo);
     saveAccount(key, account);
+    recordAdminUserEvent(key, "deposit", "Deposit request submitted — " + method, amount);
     return { ok: true, deposit: deposit, payTo: payTo };
 }
 

@@ -4,6 +4,7 @@
 
 let pendingAdjust = { email: "", action: "" };
 let pendingSupport = { email: "", ticketId: "" };
+let userSearchQuery = "";
 
 const HOLDING_LABELS = {
     btc: "Bitcoin", eth: "Ethereum", sol: "Solana", xrp: "XRP", gold: "Gold",
@@ -26,6 +27,38 @@ function isPositivePayment(type) {
 function formatTxAmount(amount) {
     const sign = amount < 0 ? "−" : "+";
     return sign + formatMoney(Math.abs(amount));
+}
+
+function formatUserStatus(user) {
+    const parts = [];
+    if (user.emailVerified) parts.push("Email verified");
+    else parts.push("Email pending");
+    parts.push(user.verificationStatus || "Pending");
+    return parts.join(" · ");
+}
+
+function formatLastLogin(user) {
+    if (!user.lastLoginAt) return "Never";
+    const when = new Date(user.lastLoginAt).toLocaleString();
+    return user.lastLoginDevice ? when + "<br><span class=\"admin-email\">" + user.lastLoginDevice + "</span>" : when;
+}
+
+function formatPendingSummary(user) {
+    const parts = [];
+    if (user.pendingDeposits) parts.push(user.pendingDeposits + " deposit" + (user.pendingDeposits === 1 ? "" : "s"));
+    if (user.pendingTransfers) parts.push(user.pendingTransfers + " transfer" + (user.pendingTransfers === 1 ? "" : "s"));
+    return parts.length ? parts.join(" · ") : "—";
+}
+
+function getFilteredUsers() {
+    const users = getAllUsersSummary();
+    if (!userSearchQuery) return users;
+    const q = userSearchQuery.toLowerCase();
+    return users.filter(function(u) {
+        return u.name.toLowerCase().indexOf(q) !== -1 ||
+            u.email.toLowerCase().indexOf(q) !== -1 ||
+            (u.phone && String(u.phone).toLowerCase().indexOf(q) !== -1);
+    });
 }
 
 function populateUserSelects() {
@@ -105,8 +138,12 @@ function openMonitorModal(email) {
     document.getElementById("monitorProfile").innerHTML =
         `<p><strong>Email:</strong> ${detail.email}</p>
          <p><strong>Phone:</strong> ${detail.profile.phone || "—"}</p>
+         <p><strong>Email verified:</strong> ${detail.emailVerified ? "Yes" : "No"}</p>
          <p><strong>Member since:</strong> ${detail.profile.memberSince
             ? new Date(detail.profile.memberSince).toLocaleDateString() : "—"}</p>
+         <p><strong>Last login:</strong> ${detail.profile.lastLoginAt
+            ? new Date(detail.profile.lastLoginAt).toLocaleString() : "Never"}</p>
+         <p><strong>Last device:</strong> ${detail.profile.lastLoginDevice || "—"}</p>
          <p><strong>Status:</strong> ${detail.profile.verificationStatus || "—"}</p>
          <p><strong>SSN on file:</strong> ${detail.profile.ssnLast4
             ? "***-**-" + detail.profile.ssnLast4 : "Not submitted"}</p>`;
@@ -162,6 +199,31 @@ function openMonitorModal(email) {
                 <div class="notif-time">${new Date(n.time).toLocaleString()}</div>
             </div>`;
         }).join("");
+    }
+
+    const pendingEl = document.getElementById("monitorPending");
+    const pendingParts = [];
+    if (detail.pendingDeposits && detail.pendingDeposits.length) {
+        pendingParts.push("<strong>Deposits:</strong><ul>" + detail.pendingDeposits.map(function(d) {
+            return "<li>" + formatMoney(d.amount) + " · " + d.method + " · " + d.date + "</li>";
+        }).join("") + "</ul>");
+    }
+    if (detail.pendingTransfers && detail.pendingTransfers.length) {
+        pendingParts.push("<strong>Transfers:</strong><ul>" + detail.pendingTransfers.map(function(t) {
+            return "<li>" + formatMoney(t.amount) + " → " + t.destination + " · " + t.date + "</li>";
+        }).join("") + "</ul>");
+    }
+    pendingEl.innerHTML = pendingParts.length
+        ? pendingParts.join("")
+        : '<p class="admin-empty">No pending requests</p>';
+
+    const supportEl = document.getElementById("monitorSupport");
+    if (!detail.supportItems || !detail.supportItems.length) {
+        supportEl.innerHTML = '<p class="admin-empty">No support tickets</p>';
+    } else {
+        supportEl.innerHTML = "<ul>" + detail.supportItems.slice(0, 8).map(function(item) {
+            return "<li><strong>" + item.subject + "</strong> · " + item.status + " · " + item.date + "</li>";
+        }).join("") + "</ul>";
     }
 
     document.getElementById("monitorModal").classList.remove("hidden");
@@ -356,7 +418,7 @@ function closeSupportModal() {
 
 function renderDashboard() {
     const admin = getAdminData();
-    const users = getAllUsersSummary();
+    const allUsers = getAllUsersSummary();
 
     let totalDeposits = 0;
     let totalWithdrawals = 0;
@@ -368,7 +430,7 @@ function renderDashboard() {
     document.getElementById("adminBalance").textContent = formatMoney(admin.balance);
     document.getElementById("adminBalance").className =
         "balance " + (admin.balance >= 0 ? "pl-positive" : "pl-negative");
-    document.getElementById("totalUsers").textContent = String(users.length);
+    document.getElementById("totalUsers").textContent = String(allUsers.length);
     document.getElementById("totalDeposits").textContent = formatMoney(totalDeposits);
     document.getElementById("totalWithdrawals").textContent = formatMoney(totalWithdrawals);
 
@@ -400,17 +462,30 @@ function renderDashboard() {
     }
 
     const usersBody = document.getElementById("usersBody");
+    const users = getFilteredUsers();
+    const countLabel = document.getElementById("userCountLabel");
+    const totalUsers = allUsers.length;
+
+    if (countLabel) {
+        countLabel.textContent = userSearchQuery
+            ? "Showing " + users.length + " of " + totalUsers + " registered users"
+            : "Showing all " + totalUsers + " registered users";
+    }
+
     if (!users.length) {
-        usersBody.innerHTML = '<tr><td colspan="7">No users registered yet.</td></tr>';
+        usersBody.innerHTML = '<tr><td colspan="9">' +
+            (totalUsers ? "No users match your search." : "No users registered yet.") +
+            '</td></tr>';
     } else {
         usersBody.innerHTML = users.map(function(u) {
             return `<tr>
                 <td>${u.name}</td>
-                <td><span class="admin-email">${u.email}</span></td>
+                <td><span class="admin-email">${u.email}</span><br><span class="admin-email">${u.phone}</span></td>
+                <td><span class="admin-status-chip">${formatUserStatus(u)}</span></td>
                 <td>${formatMoney(u.cash)}</td>
                 <td class="admin-holdings-cell">${u.holdingsSummary}</td>
-                <td><span class="admin-last-action">${u.lastActivity}</span><br>
-                    <span class="admin-email">${u.lastActivityDate}</span></td>
+                <td>${formatLastLogin(u)}</td>
+                <td>${formatPendingSummary(u)}</td>
                 <td>${u.transactionCount}</td>
                 <td class="admin-row-actions">
                     <button type="button" class="admin-mini-view" data-email="${u.email}">Monitor</button>
@@ -465,6 +540,11 @@ function closeAdjustModal() {
 }
 
 renderDashboard();
+
+document.getElementById("userSearchInput").addEventListener("input", function(e) {
+    userSearchQuery = e.target.value.trim();
+    renderDashboard();
+});
 
 document.getElementById("activityFilter").addEventListener("change", renderActivityFeed);
 
@@ -640,8 +720,10 @@ document.getElementById("adminLogoutBtn").addEventListener("click", function() {
     window.location.href = getLocalServerUrl("admin.html");
 });
 
-window.addEventListener("storage", function() {
-    renderDashboard();
+window.addEventListener("storage", function(e) {
+    if (!e.key || e.key === ACCOUNTS_KEY || e.key === ADMIN_DATA_KEY) {
+        renderDashboard();
+    }
 });
 
 setInterval(renderDashboard, 5000);
