@@ -26,16 +26,41 @@ module EmailVerification
     end
   end
 
-  def configured?
-    %w[SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RESEND_API_KEY].all? do |k|
-      ENV[k] && !ENV[k].strip.empty?
+  def supabase_admin_key
+    load_dotenv!
+    key = ENV["SUPABASE_SECRET_KEY"].to_s.strip
+    if key.empty? && ENV["SUPABASE_SECRET_KEYS"]
+      begin
+        keys = JSON.parse(ENV["SUPABASE_SECRET_KEYS"])
+        key = keys["default"].to_s.strip if keys.is_a?(Hash)
+        key = keys.values.find { |v| v.to_s.strip != "" }.to_s.strip if key.empty? && keys.is_a?(Hash)
+      rescue JSON::ParserError
+        key = ""
+      end
     end
+    key = ENV["SUPABASE_SERVICE_ROLE_KEY"].to_s.strip if key.empty?
+    key
+  end
+
+  def supabase_secret_key?
+    supabase_admin_key.start_with?("sb_secret_")
+  end
+
+  def configured?
+    ENV["SUPABASE_URL"].to_s.strip != "" &&
+      !supabase_admin_key.empty? &&
+      ENV["RESEND_API_KEY"].to_s.strip != ""
   end
 
   def missing_env
-    %w[SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY RESEND_API_KEY RESEND_FROM_EMAIL].reject do |k|
-      ENV[k] && !ENV[k].to_s.strip.empty?
+    missing = []
+    missing << "SUPABASE_URL" if ENV["SUPABASE_URL"].to_s.strip.empty?
+    if supabase_admin_key.empty?
+      missing << "SUPABASE_ADMIN_KEY (set SUPABASE_SECRET_KEY, SUPABASE_SECRET_KEYS, or SUPABASE_SERVICE_ROLE_KEY)"
     end
+    missing << "RESEND_API_KEY" if ENV["RESEND_API_KEY"].to_s.strip.empty?
+    missing << "RESEND_FROM_EMAIL" if ENV["RESEND_FROM_EMAIL"].to_s.strip.empty?
+    missing
   end
 
   def normalize_email(email)
@@ -59,8 +84,9 @@ module EmailVerification
       "DELETE" => Net::HTTP::Delete
     }[method]
     req = klass.new(uri)
-    req["apikey"] = ENV["SUPABASE_SERVICE_ROLE_KEY"]
-    req["Authorization"] = "Bearer #{ENV['SUPABASE_SERVICE_ROLE_KEY']}"
+    key = supabase_admin_key
+    req["apikey"] = key
+    req["Authorization"] = "Bearer #{key}" unless supabase_secret_key?
     req["Content-Type"] = "application/json"
     req["Prefer"] = "return=minimal"
     req.body = body.to_json if body

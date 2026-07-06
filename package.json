@@ -9,7 +9,7 @@
     "verify:send": "node scripts/verify-email-setup.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.1",
+    "@supabase/supabase-js": "^2.49.8",
     "resend": "^4.0.1"
   },
   "engines": {

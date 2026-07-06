@@ -52,7 +52,9 @@ Set in **Project Settings → Environment Variables** (never expose service keys
 | `RESEND_API_KEY` | Resend API key (already added) |
 | `RESEND_FROM_EMAIL` | Verified sender, e.g. `GlobalVest <noreply@yourdomain.com>` |
 | `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only) |
+| `SUPABASE_SECRET_KEY` | New secret API key (`sb_secret_...`, server-side only) |
+| `SUPABASE_SECRET_KEYS` | Optional JSON map of named secret keys, e.g. `{"default":"sb_secret_..."}` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Legacy service role JWT (alternative to secret key) |
 
 ### 3. Deploy
 
