@@ -1,15 +1,17 @@
 (function() {
-    const sections = [
-        { id: "section-dashboard", label: "Dashboard", icon: "📊" },
-        { id: "section-users", label: "Users", icon: "👤" },
-        { id: "section-activity", label: "Activity", icon: "📡" },
-        { id: "section-approvals", label: "Approvals", icon: "✅" },
-        { id: "section-support", label: "Support", icon: "💬" },
-        { id: "section-settings", label: "Settings", icon: "⚙️" }
+    "use strict";
+
+    var sections = [
+        { id: "section-dashboard", label: "Dashboard", icon: "📊", bottom: true },
+        { id: "section-users", label: "Users", icon: "👤", bottom: true },
+        { id: "section-activity", label: "Transactions", icon: "💳", bottom: true },
+        { id: "section-approvals", label: "Approvals", icon: "✅", bottom: false },
+        { id: "section-support", label: "Support", icon: "💬", bottom: false },
+        { id: "section-settings", label: "Settings", icon: "⚙️", bottom: true }
     ];
 
     function scrollToSection(id) {
-        const el = document.getElementById(id);
+        var el = document.getElementById(id);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         setActiveNav(id);
         closeSidebar();
@@ -22,42 +24,46 @@
     }
 
     function closeSidebar() {
-        const sidebar = document.getElementById("adminSidebar");
-        const overlay = document.getElementById("adminSidebarOverlay");
+        var sidebar = document.getElementById("adminSidebar");
+        var overlay = document.getElementById("adminSidebarOverlay");
         if (sidebar) sidebar.classList.remove("open");
         if (overlay) overlay.classList.remove("open");
     }
 
     function openSidebar() {
-        const sidebar = document.getElementById("adminSidebar");
-        const overlay = document.getElementById("adminSidebarOverlay");
+        var sidebar = document.getElementById("adminSidebar");
+        var overlay = document.getElementById("adminSidebarOverlay");
         if (sidebar) sidebar.classList.add("open");
         if (overlay) overlay.classList.add("open");
     }
 
     function updateBadges() {
-        const pendingTransfers = document.getElementById("pendingTransferCount");
-        const pendingDeposits = document.getElementById("pendingDepositCount");
-        const openSupport = document.getElementById("openSupportCount");
-        let total = 0;
+        var pendingTransfers = document.getElementById("pendingTransferCount");
+        var pendingDeposits = document.getElementById("pendingDepositCount");
+        var openSupport = document.getElementById("openSupportCount");
+        var total = 0;
         if (pendingTransfers) total += parseInt(pendingTransfers.textContent, 10) || 0;
         if (pendingDeposits) total += parseInt(pendingDeposits.textContent, 10) || 0;
         if (openSupport) total += parseInt(openSupport.textContent, 10) || 0;
 
-        const badge = document.getElementById("adminApprovalsBadge");
+        var badge = document.getElementById("adminApprovalsBadge");
         if (badge) {
             badge.textContent = String(total);
             badge.style.display = total > 0 ? "inline-block" : "none";
         }
+
+        var notifDot = document.getElementById("adminNotifDot");
+        if (notifDot) {
+            notifDot.classList.toggle("visible", total > 0);
+        }
     }
 
-    function buildNav() {
-        const sidebarNav = document.getElementById("adminSidebarNav");
-        const bottomNav = document.getElementById("adminBottomNav");
-        if (!sidebarNav || !bottomNav) return;
+    function buildSidebarNav() {
+        var sidebarNav = document.getElementById("adminSidebarNav");
+        if (!sidebarNav) return;
 
         sections.forEach(function(s) {
-            const sideBtn = document.createElement("button");
+            var sideBtn = document.createElement("button");
             sideBtn.type = "button";
             sideBtn.className = "admin-nav-btn" + (s.id === "section-dashboard" ? " active" : "");
             sideBtn.dataset.section = s.id;
@@ -67,46 +73,246 @@
             }
             sideBtn.addEventListener("click", function() { scrollToSection(s.id); });
             sidebarNav.appendChild(sideBtn);
-
-            const bottomBtn = document.createElement("button");
-            bottomBtn.type = "button";
-            bottomBtn.className = "admin-bottom-btn" + (s.id === "section-dashboard" ? " active" : "");
-            bottomBtn.dataset.section = s.id;
-            bottomBtn.innerHTML = '<span class="admin-bottom-icon">' + s.icon + '</span><span>' + s.label + "</span>";
-            bottomBtn.addEventListener("click", function() { scrollToSection(s.id); });
-            bottomNav.appendChild(bottomBtn);
         });
     }
 
-    document.addEventListener("DOMContentLoaded", function() {
-        buildNav();
+    function buildBottomNav() {
+        var bottomNav = document.getElementById("adminBottomNav");
+        if (!bottomNav) return;
 
-        const menuBtn = document.getElementById("adminMenuBtn");
-        const overlay = document.getElementById("adminSidebarOverlay");
+        bottomNav.className = "admin-bottom-nav luxury-bottom-nav";
+        bottomNav.innerHTML = "";
+
+        var bottomItems = [
+            { id: "section-dashboard", label: "Dashboard", icon: "📊" },
+            { id: "section-users", label: "Users", icon: "👤" },
+            null,
+            { id: "section-activity", label: "Transactions", icon: "💳" },
+            { id: "section-settings", label: "Settings", icon: "⚙️" }
+        ];
+
+        bottomItems.forEach(function(item, index) {
+            if (item === null) {
+                var wrap = document.createElement("div");
+                wrap.className = "admin-bottom-fab-wrap";
+                wrap.innerHTML =
+                    '<button type="button" class="admin-bottom-fab" id="adminQuickFab" aria-label="Quick actions">+</button>' +
+                    '<span class="admin-bottom-fab-label">Quick</span>';
+                bottomNav.appendChild(wrap);
+                return;
+            }
+
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "admin-bottom-btn" + (item.id === "section-dashboard" ? " active" : "");
+            btn.dataset.section = item.id;
+            btn.innerHTML = '<span class="admin-bottom-icon">' + item.icon + '</span><span>' + item.label + "</span>";
+            btn.addEventListener("click", function() { scrollToSection(item.id); });
+            bottomNav.appendChild(btn);
+        });
+
+        var fab = document.getElementById("adminQuickFab");
+        if (fab) {
+            fab.addEventListener("click", function() {
+                var quick = document.getElementById("adminQuickActions");
+                if (quick) quick.scrollIntoView({ behavior: "smooth", block: "center" });
+            });
+        }
+    }
+
+    function getUserStatusBadge(user) {
+        if (user.withdrawalsFrozen) {
+            return { label: "Suspended", cls: "suspended" };
+        }
+        if (user.emailVerified && user.verificationStatus === "Verified") {
+            return { label: "Verified", cls: "verified" };
+        }
+        if (!user.accountComplete || !user.emailVerified || user.verificationStatus === "Pending") {
+            return { label: "Pending", cls: "pending" };
+        }
+        return { label: "Active", cls: "active" };
+    }
+
+    function formatJoinDate(user) {
+        if (user.memberSince) {
+            try {
+                return new Date(user.memberSince).toLocaleDateString(undefined, {
+                    month: "short", day: "numeric", year: "numeric"
+                });
+            } catch (e) { /* ignore */ }
+        }
+        if (user.lastLoginAt) {
+            try {
+                return new Date(user.lastLoginAt).toLocaleDateString(undefined, {
+                    month: "short", day: "numeric", year: "numeric"
+                });
+            } catch (e) { /* ignore */ }
+        }
+        return "—";
+    }
+
+    function getInitials(name, email) {
+        var source = (name || email || "U").trim();
+        var parts = source.split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+        return source.charAt(0).toUpperCase();
+    }
+
+    function escapeHtml(text) {
+        return String(text || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    function renderRecentUsers() {
+        var list = document.getElementById("adminRecentUsersList");
+        if (!list || typeof getAllUsersSummary !== "function") return;
+
+        var users = getAllUsersSummary().slice().sort(function(a, b) {
+            var aTime = a.memberSince ? new Date(a.memberSince).getTime() : 0;
+            var bTime = b.memberSince ? new Date(b.memberSince).getTime() : 0;
+            return bTime - aTime;
+        }).slice(0, 5);
+
+        if (!users.length) {
+            list.innerHTML = '<div class="admin-recent-empty">No registered users yet.</div>';
+            return;
+        }
+
+        list.innerHTML = users.map(function(user) {
+            var badge = getUserStatusBadge(user);
+            return (
+                '<div class="admin-recent-row">' +
+                '<div class="admin-recent-avatar">' + escapeHtml(getInitials(user.name, user.email)) + '</div>' +
+                '<div class="admin-recent-info">' +
+                '<strong>' + escapeHtml(user.name) + '</strong>' +
+                '<span>' + escapeHtml(user.email) + '</span>' +
+                '</div>' +
+                '<span class="admin-recent-date">' + escapeHtml(formatJoinDate(user)) + '</span>' +
+                '<span class="admin-status-badge ' + badge.cls + '">' + badge.label + '</span>' +
+                '</div>'
+            );
+        }).join("");
+    }
+
+    function initGlobalSearch() {
+        var globalSearch = document.getElementById("adminGlobalSearch");
+        var userSearch = document.getElementById("userSearchInput");
+        if (!globalSearch || !userSearch) return;
+
+        globalSearch.addEventListener("input", function() {
+            userSearch.value = globalSearch.value;
+            userSearch.dispatchEvent(new Event("input", { bubbles: true }));
+            if (globalSearch.value.trim()) {
+                scrollToSection("section-users");
+            }
+        });
+
+        userSearch.addEventListener("input", function() {
+            if (globalSearch.value !== userSearch.value) {
+                globalSearch.value = userSearch.value;
+            }
+        });
+
+        var filterBtn = document.getElementById("adminSearchFilter");
+        if (filterBtn) {
+            filterBtn.addEventListener("click", function() {
+                scrollToSection("section-users");
+                userSearch.focus();
+            });
+        }
+    }
+
+    function initQuickActions() {
+        document.querySelectorAll(".admin-quick-card[data-section]").forEach(function(card) {
+            card.addEventListener("click", function() {
+                scrollToSection(card.dataset.section);
+            });
+        });
+
+        var viewAll = document.getElementById("adminViewAllUsers");
+        if (viewAll) {
+            viewAll.addEventListener("click", function() {
+                scrollToSection("section-users");
+            });
+        }
+    }
+
+    function initNotifications() {
+        var btn = document.getElementById("adminNotifBtn");
+        if (!btn) return;
+        btn.addEventListener("click", function() {
+            var pending = (parseInt(document.getElementById("pendingDepositCount").textContent, 10) || 0) +
+                (parseInt(document.getElementById("pendingTransferCount").textContent, 10) || 0);
+            if (pending > 0) {
+                scrollToSection("section-approvals");
+            } else {
+                scrollToSection("section-settings");
+            }
+        });
+    }
+
+    function animateStatCards() {
+        document.querySelectorAll(".admin-overview-grid .balance").forEach(function(el) {
+            el.classList.remove("adm-counted");
+            void el.offsetWidth;
+            el.classList.add("adm-counted");
+        });
+    }
+
+    function initDashboardRefresh() {
+        renderRecentUsers();
+        updateBadges();
+        animateStatCards();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        buildSidebarNav();
+        buildBottomNav();
+
+        var menuBtn = document.getElementById("adminMenuBtn");
+        var overlay = document.getElementById("adminSidebarOverlay");
         if (menuBtn) menuBtn.addEventListener("click", openSidebar);
         if (overlay) overlay.addEventListener("click", closeSidebar);
 
-        updateBadges();
-        setInterval(updateBadges, 3000);
+        initGlobalSearch();
+        initQuickActions();
+        initNotifications();
+        initDashboardRefresh();
+
+        setInterval(function() {
+            updateBadges();
+        }, 3000);
+
+        setInterval(function() {
+            renderRecentUsers();
+        }, 4000);
+
+        window.addEventListener("globalvest-accounts-changed", initDashboardRefresh);
+        window.addEventListener("globalvest-registry-synced", initDashboardRefresh);
 
         if ("IntersectionObserver" in window) {
-            const observer = new IntersectionObserver(function(entries) {
+            var observer = new IntersectionObserver(function(entries) {
                 entries.forEach(function(entry) {
                     if (entry.isIntersecting) setActiveNav(entry.target.id);
                 });
             }, { rootMargin: "-30% 0px -55% 0px", threshold: 0.01 });
 
             sections.forEach(function(s) {
-                const el = document.getElementById(s.id);
+                var el = document.getElementById(s.id);
                 if (el) observer.observe(el);
             });
         }
     });
 
     window.showAdminToast = function(message, type) {
-        const existing = document.querySelector(".admin-toast");
+        var existing = document.querySelector(".admin-toast");
         if (existing) existing.remove();
-        const toast = document.createElement("div");
+        var toast = document.createElement("div");
         toast.className = "admin-toast " + (type || "info");
         toast.textContent = message;
         document.body.appendChild(toast);

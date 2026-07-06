@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#070B18">
+<meta name="theme-color" content="#081321">
 <meta name="robots" content="noindex, nofollow">
 <title>GlobalVest — Admin Dashboard</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="css/admin.css">
 <link rel="stylesheet" href="css/admin-premium.css">
 <link rel="stylesheet" href="css/luxury.css">
+<link rel="stylesheet" href="css/admin-luxury.css">
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
@@ -25,7 +26,7 @@
 <aside id="adminSidebar" class="admin-sidebar">
     <div class="admin-sidebar-brand">
         <img src="assets/globalvest-logo-light.svg" alt="GlobalVest">
-        <p>Admin Console</p>
+        <p>Admin Panel</p>
     </div>
     <nav id="adminSidebarNav"></nav>
 </aside>
@@ -33,14 +34,32 @@
 <div class="admin-shell">
 <div class="admin-main">
 
-<header class="admin-header">
-    <div class="header-left admin-brand-header">
+<header class="admin-header admin-top-header">
+    <div class="admin-header-top">
         <button type="button" class="admin-menu-btn" id="adminMenuBtn" aria-label="Open menu">☰</button>
-        <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
-        <div>
-            <h2>Admin Dashboard</h2>
-            <p>Payment & user overview</p>
+        <div class="admin-header-brand">
+            <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
+            <span>Admin Panel</span>
         </div>
+        <div class="admin-header-tools">
+            <button type="button" class="admin-icon-btn" id="adminNotifBtn" aria-label="Notifications">
+                🔔
+                <span class="admin-notif-dot" id="adminNotifDot"></span>
+            </button>
+            <div class="admin-avatar-wrap" title="Admin online">
+                <span class="admin-avatar">A</span>
+                <span class="admin-online-dot"></span>
+            </div>
+        </div>
+    </div>
+    <div class="admin-welcome-block">
+        <h1>Welcome back,<br>Admin 👋</h1>
+        <p>Here's what's happening today.</p>
+    </div>
+    <div class="admin-search-bar">
+        <span class="admin-search-icon" aria-hidden="true">🔍</span>
+        <input id="adminGlobalSearch" type="search" placeholder="Search users, transactions, support…" autocomplete="off">
+        <button type="button" class="admin-search-filter" id="adminSearchFilter" aria-label="Open user filters">⚙</button>
     </div>
     <div class="header-right admin-header-actions">
         <a href="login.html" class="nav-link">User Site</a>
@@ -52,24 +71,44 @@
 <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
 <section id="section-dashboard" class="admin-panel-section">
-<div class="cards admin-stats">
-    <div class="card admin-balance-card">
-        <h3>💰 Admin Account Balance</h3>
-        <div class="balance" id="adminBalance">$0.00</div>
-        <p class="admin-sub">Funds from user deposits minus withdrawals</p>
-    </div>
-    <div class="card">
-        <h3>👥 Total Users</h3>
-        <div class="balance admin-stat" id="totalUsers">0</div>
-    </div>
-    <div class="card">
-        <h3>📥 Total Deposits</h3>
-        <div class="balance admin-stat pl-positive" id="totalDeposits">$0.00</div>
-    </div>
-    <div class="card">
-        <h3>📤 Total Withdrawals</h3>
-        <div class="balance admin-stat pl-negative" id="totalWithdrawals">$0.00</div>
-    </div>
+
+<h2 class="admin-section-heading">Overview</h2>
+<div class="admin-overview-grid">
+    <article class="card admin-stat-card">
+        <div class="admin-stat-icon users" aria-hidden="true">👥</div>
+        <div>
+            <p class="admin-stat-label">Total Users</p>
+            <div class="balance admin-stat-value" id="totalUsers">0</div>
+            <p class="admin-stat-meta">Registered accounts</p>
+        </div>
+    </article>
+    <article class="card admin-stat-card">
+        <div class="admin-stat-icon deposits" aria-hidden="true">📥</div>
+        <div>
+            <p class="admin-stat-label">Total Deposits</p>
+            <div class="balance admin-stat-value pl-positive" id="totalDeposits">$0.00</div>
+            <p class="admin-stat-meta">Approved inflows</p>
+        </div>
+    </article>
+    <article class="card admin-stat-card">
+        <div class="admin-stat-icon withdrawals" aria-hidden="true">📤</div>
+        <div>
+            <p class="admin-stat-label">Total Withdrawals</p>
+            <div class="balance admin-stat-value pl-negative" id="totalWithdrawals">$0.00</div>
+            <p class="admin-stat-meta">Processed outflows</p>
+        </div>
+    </article>
+    <article class="card admin-stat-card admin-balance-card">
+        <div class="admin-stat-icon profit" aria-hidden="true">📈</div>
+        <div>
+            <p class="admin-stat-label">Total Profit</p>
+            <div class="balance admin-stat-value" id="adminBalance">$0.00</div>
+            <p class="admin-stat-meta">Net platform balance</p>
+        </div>
+    </article>
+</div>
+
+<div class="admin-pending-strip cards admin-stats">
     <div class="card admin-pending-card">
         <h3>⏳ Pending Transfers</h3>
         <div class="balance admin-stat" id="pendingTransferCount">0</div>
@@ -83,6 +122,48 @@
         <div class="balance admin-stat" id="openSupportCount">0</div>
     </div>
 </div>
+
+<div class="admin-recent-card card">
+    <div class="admin-recent-head">
+        <h3>Recent Users</h3>
+        <button type="button" class="admin-view-all" id="adminViewAllUsers">View All</button>
+    </div>
+    <div id="adminRecentUsersList" class="admin-recent-list">
+        <div class="admin-recent-empty">Loading users…</div>
+    </div>
+</div>
+
+<div class="admin-quick-grid" id="adminQuickActions">
+    <button type="button" class="admin-quick-card" data-section="section-users">
+        <div class="admin-quick-icon">👤</div>
+        <span>Users</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-approvals">
+        <div class="admin-quick-icon">📥</div>
+        <span>Deposits</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-approvals">
+        <div class="admin-quick-icon">📤</div>
+        <span>Withdrawals</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-users">
+        <div class="admin-quick-icon">📈</div>
+        <span>Investments</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-support">
+        <div class="admin-quick-icon">💬</div>
+        <span>Support</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-activity">
+        <div class="admin-quick-icon">💳</div>
+        <span>Transactions</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-settings">
+        <div class="admin-quick-icon">⚙️</div>
+        <span>Settings</span>
+    </button>
+</div>
+
 </section>
 
 <section id="section-users" class="admin-panel-section">
