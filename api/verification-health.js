@@ -19,7 +19,15 @@ module.exports = async function handler(req, res) {
     const checks = {
         SUPABASE_URL: supabaseChecks.SUPABASE_URL,
         SUPABASE_ADMIN_KEY: supabaseChecks.SUPABASE_ADMIN_KEY,
-        POSTGRES_URL: { set: !!(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL) },
+        POSTGRES_URL: {
+            set: !!(
+                process.env.POSTGRES_URL ||
+                process.env.POSTGRES_URL_NON_POOLING ||
+                process.env.DATABASE_URL ||
+                ((process.env.POSTGRES_HOST || process.env.SUPABASE_DB_HOST) &&
+                    (process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD))
+            )
+        },
         RESEND_API_KEY: envStatus("RESEND_API_KEY"),
         RESEND_FROM_EMAIL: envStatus("RESEND_FROM_EMAIL")
     };

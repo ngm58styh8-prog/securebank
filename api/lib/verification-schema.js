@@ -15,13 +15,28 @@ function getMigrationSql() {
 }
 
 function getDatabaseUrl() {
-    return (
+    const direct = (
         process.env.POSTGRES_URL_NON_POOLING ||
         process.env.POSTGRES_URL ||
         process.env.SUPABASE_DB_URL ||
         process.env.DATABASE_URL ||
         ""
     ).trim();
+
+    if (direct) return direct;
+
+    const host = (process.env.POSTGRES_HOST || process.env.SUPABASE_DB_HOST || "").trim();
+    const user = (process.env.POSTGRES_USER || process.env.SUPABASE_DB_USER || "postgres").trim();
+    const password = (process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || "").trim();
+    const database = (process.env.POSTGRES_DATABASE || process.env.SUPABASE_DB_NAME || "postgres").trim();
+    const port = (process.env.POSTGRES_PORT || "5432").trim();
+
+    if (host && password) {
+        return "postgresql://" + encodeURIComponent(user) + ":" + encodeURIComponent(password) +
+            "@" + host + ":" + port + "/" + database + "?sslmode=require";
+    }
+
+    return "";
 }
 
 async function ensureVerificationSchema() {
@@ -34,7 +49,6 @@ async function ensureVerificationSchema() {
             schemaReady = true;
             return;
         }
-
         let Client;
         try {
             Client = require("pg").Client;
@@ -66,6 +80,7 @@ async function ensureVerificationSchema() {
 
 module.exports = {
     ensureVerificationSchema,
+    getDatabaseUrl,
     resetVerificationSchemaCache: function() {
         schemaReady = false;
         schemaPromise = null;

@@ -1,5 +1,9 @@
 const { setCors, handleOptions } = require("./lib/cors");
-const { ensureVerificationSchema, resetVerificationSchemaCache } = require("./lib/verification-schema");
+const {
+    ensureVerificationSchema,
+    resetVerificationSchemaCache,
+    getDatabaseUrl
+} = require("./lib/verification-schema");
 const fs = require("fs");
 const path = require("path");
 
@@ -13,6 +17,10 @@ module.exports = async function handler(req, res) {
     }
 
     try {
+        if (!getDatabaseUrl()) {
+            throw new Error("Database connection is not configured on Vercel.");
+        }
+
         resetVerificationSchemaCache();
         await ensureVerificationSchema();
 
@@ -27,7 +35,7 @@ module.exports = async function handler(req, res) {
         res.status(500).json({
             ok: false,
             error: err.message || "Failed to apply verification database policy.",
-            postgresConfigured: !!(process.env.POSTGRES_URL || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL),
+            postgresConfigured: !!getDatabaseUrl(),
             manualSql: sql
         });
     }
