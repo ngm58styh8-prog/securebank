@@ -12,6 +12,88 @@ Demo online banking app (static frontend + local Python server).
 - Sign in: http://localhost:8765/login.html
 - Admin login: http://localhost:8765/admin.html (direct URL only — not linked from the user site)
 
+**Important:** Run the app with `./start.sh` so accounts sync to the server registry at `data/accounts.json`. Registration and admin both read from this shared registry (plus browser cache). Do not open HTML files directly via `file://`.
+
+## Back up before moving to a new host
+
+```bash
+./backup.sh
+```
+
+Creates `backups/globalvest-YYYYMMDD-HHMMSS/` with:
+
+- `accounts.json` — all user accounts
+- `admin.json` — admin settings, pending deposits/transfers, activity log
+- `email.config.json` — SMTP settings (if present)
+
+On the **new host**, copy the project and backup folder, then:
+
+```bash
+./restore.sh backups/globalvest-YYYYMMDD-HHMMSS
+./start.sh
+```
+
+Open http://localhost:8765/admin.html — all users and admin data load from the restored server files.
+
+## Email verification (Resend + Supabase on Vercel)
+
+Signup sends a real 6-digit verification code via **Resend**. Codes are stored in **Supabase** and expire after 10 minutes.
+
+### 1. Supabase migration
+
+Run the SQL in [supabase/migrations/001_email_verifications.sql](supabase/migrations/001_email_verifications.sql) in the Supabase SQL Editor (creates `email_verifications` table).
+
+### 2. Vercel environment variables
+
+Set in **Project Settings → Environment Variables** (never expose service keys to the frontend):
+
+| Variable | Description |
+|----------|-------------|
+| `RESEND_API_KEY` | Resend API key (already added) |
+| `RESEND_FROM_EMAIL` | Verified sender, e.g. `GlobalVest <noreply@yourdomain.com>` |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only) |
+
+### 3. Deploy
+
+```bash
+npm install
+vercel deploy
+```
+
+Or connect the GitHub repo to Vercel for automatic deploys.
+
+### 4. Local API testing
+
+```bash
+cp .env.example .env.local   # fill in Supabase + Resend values
+npm install
+./start.sh                   # Ruby server now includes /api/send-verification routes
+# OR
+npx vercel dev
+```
+
+Check configuration:
+
+```bash
+curl http://localhost:8765/api/verification-health
+npm run verify:check
+```
+
+Send a test code:
+
+```bash
+node scripts/verify-email-setup.mjs you@example.com
+# then verify:
+node scripts/verify-email-setup.mjs you@example.com 123456
+```
+
+API routes (server-only — `RESEND_API_KEY` never sent to browser):
+
+- `POST /api/send-verification` — send code on signup
+- `POST /api/resend-verification` — resend with 60s cooldown
+- `POST /api/verify-email` — validate code
+
 ## Email notifications (deposits & withdrawals)
 
 Users receive real emails (and in-app Profile inbox copies) when:

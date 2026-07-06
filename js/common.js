@@ -1,8 +1,19 @@
 const CURRENCY_SYMBOLS = { USD: "$", EUR: "€", GBP: "£" };
 const LOCAL_SERVER_PORT = 8765;
 
-(function enforceLocalDevOrigin() {
+(function enforceCanonicalAppOrigin() {
     if (typeof window === "undefined") return;
+
+    if (window.location.protocol === "file:") {
+        const page = window.location.pathname.split("/").pop() || "index.html";
+        window.location.replace(
+            "http://localhost:" + LOCAL_SERVER_PORT + "/" + page +
+            window.location.search +
+            window.location.hash
+        );
+        return;
+    }
+
     if (window.location.protocol !== "http:" && window.location.protocol !== "https:") return;
 
     const port = window.location.port;
@@ -19,6 +30,19 @@ const LOCAL_SERVER_PORT = 8765;
         );
     }
 })();
+
+function getCanonicalAppOrigin() {
+    return "http://localhost:" + LOCAL_SERVER_PORT;
+}
+
+function isCanonicalAppOrigin() {
+    if (typeof window === "undefined") return true;
+    if (window.location.protocol === "file:") return false;
+    const host = window.location.hostname;
+    const port = window.location.port || (window.location.protocol === "https:" ? "443" : "80");
+    return (host === "localhost" || host === "127.0.0.1") &&
+        String(port) === String(LOCAL_SERVER_PORT);
+}
 
 function isLocalServerHost() {
     const host = window.location.hostname;
@@ -60,6 +84,37 @@ function showAdminServerHint() {
 }
 
 showAdminServerHint();
+
+if (typeof repairAccountsStorage === "function") {
+    repairAccountsStorage();
+}
+
+if (typeof pullAccountsFromServer === "function") {
+    pullAccountsFromServer()
+        .then(function() {
+            if (typeof pullAdminFromServer === "function") {
+                return pullAdminFromServer();
+            }
+        })
+        .then(function() {
+            if (typeof repairAccountsStorage === "function") {
+                repairAccountsStorage();
+            }
+            if (typeof importLocalAccountsToServer === "function") {
+                return importLocalAccountsToServer();
+            }
+        })
+        .then(function() {
+            if (typeof importLocalAdminToServer === "function") {
+                return importLocalAdminToServer();
+            }
+        })
+        .then(function() {
+            try {
+                window.dispatchEvent(new CustomEvent("globalvest-registry-synced"));
+            } catch (e) { /* ignore */ }
+        });
+}
 
 function formatMoney(amount, currency) {
     currency = currency || "USD";

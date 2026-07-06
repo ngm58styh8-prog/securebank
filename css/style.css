@@ -622,7 +622,29 @@ body[data-theme="dark"] .float-field select:focus {
     color: var(--auth-success);
 }
 
-.auth-message.hidden,
+.auth-message.hidden {
+    display: none;
+}
+
+.auth-resend-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+
+.auth-resend-cooldown {
+    font-size: 0.82rem;
+    color: var(--text-muted, #64748b);
+}
+
+.link-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .hidden {
     display: none !important;
 }

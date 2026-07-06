@@ -31,6 +31,7 @@ function formatTxAmount(amount) {
 
 function formatUserStatus(user) {
     const parts = [];
+    if (!user.accountComplete) parts.push("Incomplete profile");
     if (user.emailVerified) parts.push("Email verified");
     else parts.push("Email pending");
     parts.push(user.verificationStatus || "Pending");
@@ -438,14 +439,29 @@ function renderUsersTable(admin, allUsers) {
 
     let hintEl = document.getElementById("adminUserStorageHint");
     if (hintEl) {
+        const canonicalHint = typeof isCanonicalAppOrigin === "function" && !isCanonicalAppOrigin()
+            ? " Warning: open admin at http://localhost:8765/admin.html so it shares browser storage with user registration."
+            : "";
         if (storedCount === 0) {
             hintEl.innerHTML = "No accounts in this browser yet. Users must register at " +
-                "<code>http://localhost:8765/login.html</code> (use localhost, not 127.0.0.1 or file://).";
+                "<code>http://localhost:8765/login.html</code> via <code>./start.sh</code> " +
+                "(accounts sync to the server registry automatically)." + canonicalHint;
         } else if (userSearchQuery && !users.length) {
-            hintEl.textContent = "No users match your search. Click Clear search to see all accounts.";
+            const diagnosis = typeof diagnoseAccountEmail === "function"
+                ? diagnoseAccountEmail(userSearchQuery)
+                : null;
+            if (diagnosis && diagnosis.found) {
+                hintEl.textContent = "Account found in storage but filtered out. Click Clear search.";
+            } else if (diagnosis && !diagnosis.found && isValidEmail(normalizeEmail(userSearchQuery))) {
+                hintEl.textContent = "No account for \"" + userSearchQuery + "\" in this browser at " +
+                    window.location.origin + ". Registration and admin must use the same origin." + canonicalHint;
+            } else {
+                hintEl.textContent = "No users match your search. Click Clear search to see all accounts.";
+            }
         } else {
             hintEl.textContent = "Storage: " + window.location.origin +
-                " · " + storedCount + " registered account" + (storedCount === 1 ? "" : "s");
+                " · " + storedCount + " account" + (storedCount === 1 ? "" : "s") +
+                " (server + browser registry)" + canonicalHint;
         }
     }
 
@@ -478,8 +494,10 @@ function renderUsersTable(admin, allUsers) {
 }
 
 function renderDashboard() {
-    const admin = getAdminData();
-    const allUsers = getAllUsersSummary();
+    const doRender = function() {
+        repairAccountsStorage();
+        const admin = getAdminData();
+        const allUsers = getAllUsersSummary();
 
     document.getElementById("totalUsers").textContent = String(allUsers.length);
     renderUsersTable(admin, allUsers);
@@ -524,6 +542,14 @@ function renderDashboard() {
             </tr>`;
         }).join("");
     }
+    };
+
+    if (typeof pullAccountsFromServer !== "function") {
+        doRender();
+        return;
+    }
+
+    pullAccountsFromServer().then(doRender).catch(doRender);
 }
 
 function runAdjustment(email, action, amount, note) {
@@ -582,9 +608,51 @@ document.getElementById("clearUserSearchBtn").addEventListener("click", function
 });
 
 document.getElementById("refreshUsersBtn").addEventListener("click", function() {
-    getAdminData();
-    renderDashboard();
+    const finish = function() {
+        const report = repairAccountsStorage();
+        getAdminData();
+        renderDashboard();
+        if (report.repaired.length || report.removed.length || report.merged.length) {
+            alert("Account registry repaired.\n" +
+                (report.repaired.length ? "Fixed: " + report.repaired.join(", ") + "\n" : "") +
+                (report.merged.length ? "Merged: " + report.merged.join(", ") + "\n" : "") +
+                (report.removed.length ? "Removed invalid: " + report.removed.join(", ") : ""));
+        }
+    };
+    if (typeof pullAccountsFromServer === "function") {
+        pullAccountsFromServer().then(finish).catch(finish);
+    } else {
+        finish();
+    }
 });
+
+const repairUsersBtn = document.getElementById("repairUsersBtn");
+if (repairUsersBtn) {
+    repairUsersBtn.addEventListener("click", function() {
+        const finish = function() {
+            const report = repairAccountsStorage();
+            if (typeof importLocalAccountsToServer === "function") {
+                importLocalAccountsToServer().then(function() {
+                    getAdminData();
+                    renderDashboard();
+                    alert("Repair complete.\nAccounts: " + getRegisteredAccountCount() +
+                        (report.incomplete.length ? "\nIncomplete: " + report.incomplete.join(", ") : ""));
+                });
+                return;
+            }
+            getAdminData();
+            renderDashboard();
+            alert("Repair complete.\nAccounts: " + getRegisteredAccountCount());
+        };
+        if (typeof pullAccountsFromServer === "function") {
+            pullAccountsFromServer().then(finish).catch(finish);
+        } else {
+            finish();
+        }
+    });
+}
+
+window.addEventListener("globalvest-registry-synced", renderDashboard);
 
 document.getElementById("activityFilter").addEventListener("change", renderActivityFeed);
 

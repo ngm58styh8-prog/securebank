@@ -1,3 +1,9 @@
 .DS_Store
 secure/
 email.config.json
+data/accounts.json
+data/admin.json
+backups/
+.env
+.env.local
+node_modules/

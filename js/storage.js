@@ -106,6 +106,9 @@ function sendEmailVerificationEmail(account, email, fullName, code) {
 }
 
 function verifyEmailCode(email, code) {
+    if (typeof markEmailVerifiedLocally === "function") {
+        return verifyEmailCodeLocalFallback(email, code);
+    }
     const key = normalizeEmail(email);
     const account = getAccount(key);
     if (!account) return { ok: false, error: "Account not found." };
@@ -124,6 +127,18 @@ function verifyEmailCode(email, code) {
     });
     saveAccount(key, account);
     return { ok: true };
+}
+
+function verifyEmailCodeLocalFallback(email, code) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account) return { ok: false, error: "Account not found." };
+    if (account.emailVerified) return { ok: true };
+    const expected = String(account.emailVerificationCode || "").trim();
+    if (!expected || String(code || "").trim() !== expected) {
+        return { ok: false, error: "Invalid verification code." };
+    }
+    return markEmailVerifiedLocally(key);
 }
 
 function sendPasswordResetEmail(account, email) {
@@ -472,6 +487,178 @@ function normalizeEmail(email) {
     return String(email || "").trim().toLowerCase();
 }
 
+function isCompleteAccount(account) {
+    return !!(account &&
+        typeof account === "object" &&
+        account.password &&
+        account.profile &&
+        typeof account.profile === "object");
+}
+
+function findAccountKey(email) {
+    const target = normalizeEmail(email);
+    if (!target) return null;
+
+    const accounts = getAllAccountsUncached();
+    if (accounts[target]) return target;
+
+    return Object.keys(accounts).find(function(key) {
+        return normalizeEmail(key) === target;
+    }) || null;
+}
+
+function getAllAccountsUncached() {
+    try {
+        const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+            return {};
+        }
+
+        const normalized = {};
+        Object.keys(raw).forEach(function(key) {
+            const entry = raw[key];
+            if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+            const emailKey = normalizeEmail(key);
+            if (!emailKey || !isValidEmail(emailKey)) return;
+            if (normalized[emailKey]) {
+                normalized[emailKey] = Object.assign({}, normalized[emailKey], entry);
+            } else {
+                normalized[emailKey] = entry;
+            }
+        });
+        return normalized;
+    } catch (e) {
+        return {};
+    }
+}
+
+function repairAccountsStorage(options) {
+    options = options || {};
+    const report = {
+        repaired: [],
+        removed: [],
+        merged: [],
+        incomplete: []
+    };
+
+    let raw;
+    try {
+        raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+    } catch (e) {
+        raw = null;
+    }
+
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+        if (raw != null) {
+            localStorage.removeItem(ACCOUNTS_KEY);
+            report.removed.push("(invalid registry root)");
+            notifyAccountsChanged();
+        }
+        return report;
+    }
+
+    const accounts = {};
+    let changed = false;
+
+    Object.keys(raw).forEach(function(key) {
+        let entry = raw[key];
+        const emailKey = normalizeEmail(key);
+
+        if (!emailKey || !isValidEmail(emailKey)) {
+            report.removed.push(String(key));
+            changed = true;
+            return;
+        }
+
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+            report.removed.push(emailKey);
+            changed = true;
+            return;
+        }
+
+        if (accounts[emailKey]) {
+            entry = Object.assign({}, accounts[emailKey], entry);
+            report.merged.push(emailKey);
+            changed = true;
+        }
+
+        if (!entry.profile || typeof entry.profile !== "object") {
+            entry.profile = getDefaultProfile(
+                emailKey,
+                entry.profile && entry.profile.fullName ? entry.profile.fullName : null
+            );
+            report.repaired.push(emailKey + ":profile");
+            changed = true;
+        } else if (!entry.profile.email) {
+            entry.profile.email = emailKey;
+            report.repaired.push(emailKey + ":profile-email");
+            changed = true;
+        }
+
+        if (ensureHoldings(entry)) {
+            report.repaired.push(emailKey + ":holdings");
+            changed = true;
+        }
+        ensureNotifications(entry);
+
+        if (!entry.settings) {
+            entry.settings = {
+                theme: entry.theme || "light",
+                currency: "USD",
+                language: "en",
+                twoFactorEnabled: false
+            };
+            report.repaired.push(emailKey + ":settings");
+            changed = true;
+        }
+
+        if (!entry.analytics) {
+            entry.analytics = {
+                dayStartDate: null,
+                dayStartValue: null,
+                monthStartMonth: null,
+                monthStartValue: null
+            };
+            report.repaired.push(emailKey + ":analytics");
+            changed = true;
+        }
+
+        if (!isCompleteAccount(entry)) {
+            report.incomplete.push(emailKey);
+        }
+
+        accounts[emailKey] = entry;
+        if (emailKey !== key) changed = true;
+    });
+
+    if (changed) {
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        notifyAccountsChanged();
+        syncAdminRegisteredUsers(getAdminData());
+    }
+
+    return report;
+}
+
+function diagnoseAccountEmail(email) {
+    const key = normalizeEmail(email);
+    const accountKey = findAccountKey(key);
+    const account = accountKey ? getAllAccountsUncached()[accountKey] : null;
+
+    return {
+        query: key,
+        origin: typeof window !== "undefined" ? window.location.origin : "unknown",
+        canonical: typeof isCanonicalAppOrigin === "function" ? isCanonicalAppOrigin() : true,
+        found: !!account,
+        accountKey: accountKey,
+        complete: isCompleteAccount(account),
+        hasPassword: !!(account && account.password),
+        hasProfile: !!(account && account.profile),
+        profileName: account && account.profile ? account.profile.fullName : null,
+        registeredCount: Object.keys(getAllAccountsUncached()).length
+    };
+}
+
 function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -540,9 +727,9 @@ function getAllAccounts() {
 
         Object.keys(raw).forEach(function(key) {
             const entry = raw[key];
-            if (!entry || typeof entry !== "object") return;
+            if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
             const emailKey = normalizeEmail(key);
-            if (!emailKey || emailKey.indexOf("@") === -1) return;
+            if (!emailKey || !isValidEmail(emailKey)) return;
             if (normalized[emailKey]) {
                 normalized[emailKey] = Object.assign({}, normalized[emailKey], entry);
             } else {
@@ -579,7 +766,7 @@ function ensureHoldings(account) {
 }
 
 function getAccount(email) {
-    const key = normalizeEmail(email);
+    const key = findAccountKey(email) || normalizeEmail(email);
     const accounts = getAllAccounts();
     const account = accounts[key];
     if (!account) return null;
@@ -588,22 +775,42 @@ function getAccount(email) {
         accounts[key] = account;
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     }
+    if (!account.profile || typeof account.profile !== "object") {
+        account.profile = getDefaultProfile(key);
+        accounts[key] = account;
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        notifyAccountsChanged();
+    }
     return account;
 }
 
 function accountExists(email) {
-    return !!getAllAccounts()[normalizeEmail(email)];
+    const account = getAccount(email);
+    return isCompleteAccount(account);
+}
+
+function accountStubExists(email) {
+    const key = findAccountKey(email);
+    return !!key;
 }
 
 function createAccount(email, password, fullName, phone, extras) {
     extras = extras || {};
+    repairAccountsStorage();
     const key = normalizeEmail(email);
     if (!isValidEmail(key)) {
         return { ok: false, error: "Please enter a valid email address." };
     }
-    if (accountExists(key)) {
-        return { ok: false, error: "An account with this email already exists." };
+
+    const existing = getAccount(key);
+    if (existing && isCompleteAccount(existing)) {
+        return {
+            ok: false,
+            error: "An account with this email already exists. Please sign in instead.",
+            existing: true
+        };
     }
+
     if (!password || password.length < 6) {
         return { ok: false, error: "Password must be at least 6 characters." };
     }
@@ -617,7 +824,7 @@ function createAccount(email, password, fullName, phone, extras) {
     const account = getStarterAccount(fullName.trim(), key, phone.trim(), extras);
     account.password = password;
     account.emailVerified = false;
-    account.emailVerificationCode = generateVerificationCode();
+    account.emailVerificationCode = null;
     account.knownDevices = [];
     account.settings = {
         theme: "light",
@@ -627,10 +834,10 @@ function createAccount(email, password, fullName, phone, extras) {
     };
     sendWelcomeEmail(account, key, fullName.trim());
     sendSsnVerificationEmail(account, key, fullName.trim());
-    sendEmailVerificationEmail(account, key, fullName.trim(), account.emailVerificationCode);
     saveAccount(key, account);
     recordAdminUserEvent(key, "signup", "New account registered", 0);
-    return { ok: true, verificationCode: account.emailVerificationCode };
+    syncAdminRegisteredUsers(getAdminData());
+    return { ok: true };
 }
 
 function authenticate(email, password) {
@@ -668,7 +875,7 @@ function syncAccountNotifications(email, account) {
 
 function saveAccount(email, account) {
     const accounts = getAllAccounts();
-    const key = normalizeEmail(email);
+    const key = findAccountKey(email) || normalizeEmail(email);
     const existing = accounts[key];
     if (existing && Array.isArray(existing.notifications)) {
         account.notifications = mergeNotificationLists(
@@ -681,6 +888,7 @@ function saveAccount(email, account) {
     accounts[key] = account;
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     notifyAccountsChanged();
+    syncAccountToServer(key, account);
 }
 
 function notifyAccountsChanged() {
@@ -692,14 +900,184 @@ function notifyAccountsChanged() {
     } catch (e) { /* ignore */ }
 }
 
+function isServerSyncAvailable() {
+    if (typeof window === "undefined") return false;
+    if (window.location.protocol !== "http:" && window.location.protocol !== "https:") return false;
+    const host = window.location.hostname;
+    return host === "localhost" || host === "127.0.0.1";
+}
+
+function mergeAccountRecords(serverAcct, localAcct) {
+    if (!serverAcct) return localAcct;
+    if (!localAcct) return serverAcct;
+
+    const merged = Object.assign({}, serverAcct, localAcct);
+    merged.profile = Object.assign({}, serverAcct.profile || {}, localAcct.profile || {});
+    merged.settings = Object.assign({}, serverAcct.settings || {}, localAcct.settings || {});
+    merged.holdings = Object.assign({}, serverAcct.holdings || {}, localAcct.holdings || {});
+    merged.notifications = mergeNotificationLists(
+        localAcct.notifications || [],
+        serverAcct.notifications || []
+    );
+
+    const localTx = localAcct.transactions || [];
+    const serverTx = serverAcct.transactions || [];
+    merged.transactions = localTx.length >= serverTx.length ? localTx : serverTx;
+    merged.password = localAcct.password || serverAcct.password;
+    merged.emailVerified = localAcct.emailVerified != null ? localAcct.emailVerified : serverAcct.emailVerified;
+    return merged;
+}
+
+function syncAccountToServer(email, account) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    const key = normalizeEmail(email);
+    return fetch("/api/accounts", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: key, account: account })
+    })
+        .then(function(response) { return response.json(); })
+        .catch(function() { return { ok: false }; });
+}
+
+function pullAccountsFromServer() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, accounts: {} });
+    }
+
+    return fetch("/api/accounts", { cache: "no-store" })
+        .then(function(response) {
+            if (!response.ok) throw new Error("Registry unavailable");
+            return response.json();
+        })
+        .then(function(payload) {
+            if (!payload.ok || !payload.accounts) {
+                return { ok: false, accounts: {} };
+            }
+
+            const serverAccounts = payload.accounts;
+            const local = getAllAccounts();
+            let changed = false;
+
+            Object.keys(serverAccounts).forEach(function(email) {
+                const key = normalizeEmail(email);
+                const serverAcct = serverAccounts[email];
+                if (!serverAcct || typeof serverAcct !== "object") return;
+
+                if (local[key]) {
+                    const merged = mergeAccountRecords(serverAcct, local[key]);
+                    if (JSON.stringify(merged) !== JSON.stringify(local[key])) {
+                        local[key] = merged;
+                        changed = true;
+                    }
+                } else {
+                    local[key] = serverAcct;
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(local));
+                notifyAccountsChanged();
+                syncAdminRegisteredUsers(getAdminData());
+            }
+
+            return { ok: true, accounts: serverAccounts, merged: changed, count: payload.count || 0 };
+        })
+        .catch(function(err) {
+            return { ok: false, accounts: {}, error: String(err) };
+        });
+}
+
+function importLocalAccountsToServer() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, imported: 0 });
+    }
+
+    const local = getAllAccounts();
+    const emails = Object.keys(local);
+    if (!emails.length) {
+        return Promise.resolve({ ok: true, imported: 0 });
+    }
+
+    return Promise.all(emails.map(function(email) {
+        return syncAccountToServer(email, local[email]);
+    })).then(function() {
+        return { ok: true, imported: emails.length };
+    });
+}
+
+function syncAdminToServer(admin) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return fetch("/api/admin-data", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin: admin })
+    })
+        .then(function(response) { return response.json(); })
+        .catch(function() { return { ok: false }; });
+}
+
+function pullAdminFromServer() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false });
+    }
+
+    return fetch("/api/admin-data", { cache: "no-store" })
+        .then(function(response) {
+            if (!response.ok) throw new Error("Admin registry unavailable");
+            return response.json();
+        })
+        .then(function(payload) {
+            if (!payload.ok || !payload.admin || !payload.admin.email) {
+                return { ok: false };
+            }
+
+            const admin = ensureAdminDataShape(migrateAdminBranding(payload.admin));
+            localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+            syncAdminRegisteredUsers(admin);
+            return { ok: true };
+        })
+        .catch(function() {
+            return { ok: false };
+        });
+}
+
+function importLocalAdminToServer() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false });
+    }
+
+    let local;
+    try {
+        local = JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
+    } catch (e) {
+        local = null;
+    }
+
+    if (!local || !local.email) {
+        return Promise.resolve({ ok: false });
+    }
+
+    return syncAdminToServer(ensureAdminDataShape(local));
+}
+
 function requireAuth() {
+    repairAccountsStorage();
     const session = getSession();
     const email = session && (session.email || session.username);
     if (!email) {
         window.location.href = "login.html";
         return null;
     }
-    if (!getAccount(email)) {
+    const account = getAccount(email);
+    if (!account || !isCompleteAccount(account)) {
         clearSession();
         window.location.href = "login.html";
         return null;
@@ -786,6 +1164,7 @@ function getAdminData() {
 
 function saveAdminData(data) {
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(data));
+    syncAdminToServer(data);
 }
 
 function authenticateAdmin(email, password) {
@@ -985,6 +1364,7 @@ function getHoldingsSummary(holdings) {
 }
 
 function getAllUsersSummary() {
+    repairAccountsStorage();
     getAdminData();
     const accounts = getAllAccounts();
     const pendingDeposits = getPendingDeposits();
@@ -1020,7 +1400,8 @@ function getAllUsersSummary() {
                 verificationStatus: profile.verificationStatus || "Pending",
                 emailVerified: !!acct.emailVerified,
                 pendingDeposits: depositCount,
-                pendingTransfers: transferCount
+                pendingTransfers: transferCount,
+                accountComplete: isCompleteAccount(acct)
             };
         } catch (e) {
             return null;

@@ -195,6 +195,10 @@
                         <label for="emailVerifyCode">Verification code</label>
                     </div>
                     <button type="button" class="auth-submit" id="emailVerifySubmit">Verify Email</button>
+                    <div class="auth-resend-row">
+                        <button type="button" class="link-btn" id="emailVerifyResend">Resend code</button>
+                        <span class="auth-resend-cooldown hidden" id="emailVerifyResendCooldown"></span>
+                    </div>
                     <p class="auth-message hidden" id="emailVerifyMessage"></p>
                 </div>
             </div>
@@ -226,6 +230,7 @@
 
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
+<script src="js/verification-api.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

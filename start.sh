@@ -25,6 +25,8 @@ else
   echo ""
 fi
 
+echo "  Backup: run ./backup.sh before moving to a new host."
+echo ""
 echo "Press Ctrl+C to stop."
 echo ""
 

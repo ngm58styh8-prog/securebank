@@ -10,6 +10,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let pendingLoginEmail = null;
     let pendingSignupEmail = null;
+    let resendCooldownTimer = null;
+    let resendCooldownSeconds = 0;
+
+    const emailVerifyResendBtn = document.getElementById("emailVerifyResend");
+    const emailVerifyResendCooldown = document.getElementById("emailVerifyResendCooldown");
 
     applyWebsiteSettings();
 
@@ -94,6 +99,58 @@ document.addEventListener("DOMContentLoaded", function() {
         if (el) el.classList.add("hidden");
     }
 
+    function startResendCooldown(seconds) {
+        resendCooldownSeconds = seconds;
+        if (!emailVerifyResendBtn || !emailVerifyResendCooldown) return;
+
+        emailVerifyResendBtn.disabled = true;
+        emailVerifyResendCooldown.classList.remove("hidden");
+        emailVerifyResendCooldown.textContent = "Resend available in " + resendCooldownSeconds + "s";
+
+        if (resendCooldownTimer) clearInterval(resendCooldownTimer);
+        resendCooldownTimer = setInterval(function() {
+            resendCooldownSeconds -= 1;
+            if (resendCooldownSeconds <= 0) {
+                clearInterval(resendCooldownTimer);
+                resendCooldownTimer = null;
+                emailVerifyResendBtn.disabled = false;
+                emailVerifyResendCooldown.classList.add("hidden");
+                return;
+            }
+            emailVerifyResendCooldown.textContent = "Resend available in " + resendCooldownSeconds + "s";
+        }, 1000);
+    }
+
+    function showEmailVerifyPanel(email, message) {
+        pendingSignupEmail = email;
+        pendingLoginEmail = email;
+        document.getElementById("emailVerifyDesc").textContent = message ||
+            ("We sent a 6-digit code to " + email + ". Check your inbox to continue.");
+        document.getElementById("emailVerifyCode").value = "";
+        hideMessage(document.getElementById("emailVerifyMessage"));
+        showPanel(emailVerifyStep);
+        startResendCooldown(60);
+    }
+
+    function sendVerificationForEmail(email) {
+        const verifyMsg = document.getElementById("emailVerifyMessage");
+        if (typeof requestVerificationEmail !== "function") {
+            showMessage(verifyMsg, "Verification service unavailable.", "error");
+            return Promise.resolve({ ok: false });
+        }
+
+        return requestVerificationEmail(email).then(function(result) {
+            if (!result.ok) {
+                showMessage(verifyMsg, result.error || "Could not send verification email.", "error");
+                if (result.retryAfter) startResendCooldown(result.retryAfter);
+            }
+            return result;
+        }).catch(function() {
+            showMessage(verifyMsg, "Could not send verification email. Try again.", "error");
+            return { ok: false };
+        });
+    }
+
     function finalizeLogin(email) {
         const loginMeta = recordSuccessfulLogin(email);
         setSession(email);
@@ -174,13 +231,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const account = getAccount(email);
         if (account.emailVerified === false) {
-            pendingSignupEmail = email;
-            pendingLoginEmail = email;
-            document.getElementById("emailVerifyDesc").textContent =
-                "Your email is not verified yet. Enter the 6-digit code we sent to " + email + ".";
-            document.getElementById("emailVerifyCode").value = "";
-            hideMessage(document.getElementById("emailVerifyMessage"));
-            showPanel(emailVerifyStep);
+            showEmailVerifyPanel(email,
+                "Your email is not verified yet. Enter the 6-digit code we sent to " + email + ".");
+            sendVerificationForEmail(email);
             return;
         }
 
@@ -209,20 +262,80 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("emailVerifySubmit").addEventListener("click", function() {
         const email = pendingSignupEmail || pendingLoginEmail;
         const code = document.getElementById("emailVerifyCode").value.trim();
-        const result = verifyEmailCode(email, code);
-        if (!result.ok) {
-            showMessage(document.getElementById("emailVerifyMessage"), result.error, "error");
+        const verifyMsg = document.getElementById("emailVerifyMessage");
+        const submitBtn = document.getElementById("emailVerifySubmit");
+
+        if (!email) {
+            showMessage(verifyMsg, "Session expired. Please sign in again.", "error");
             return;
         }
-        showMessage(document.getElementById("emailVerifyMessage"), "Email verified! Signing you in…", "success");
-        setTimeout(function() {
-            if (pendingLoginEmail && getSettings(getAccount(pendingLoginEmail)).twoFactorEnabled) {
-                beginLoginFlow(pendingLoginEmail);
-            } else {
-                finalizeLogin(email);
+
+        if (!/^\d{6}$/.test(code)) {
+            showMessage(verifyMsg, "Enter a valid 6-digit verification code.", "error");
+            return;
+        }
+
+        submitBtn.disabled = true;
+        showMessage(verifyMsg, "Verifying…", "success");
+
+        const finish = function(result) {
+            submitBtn.disabled = false;
+            if (!result.ok) {
+                showMessage(verifyMsg, result.error || "Invalid verification code.", "error");
+                return;
             }
-        }, 600);
+            showMessage(verifyMsg, "Email verified! Signing you in…", "success");
+            setTimeout(function() {
+                if (pendingLoginEmail && getSettings(getAccount(pendingLoginEmail)).twoFactorEnabled) {
+                    beginLoginFlow(pendingLoginEmail);
+                } else {
+                    finalizeLogin(email);
+                }
+            }, 600);
+        };
+
+        if (typeof verifyEmailWithBackend === "function") {
+            verifyEmailWithBackend(email, code).then(finish);
+        } else {
+            finish(verifyEmailCode(email, code));
+        }
     });
+
+    if (emailVerifyResendBtn) {
+        emailVerifyResendBtn.addEventListener("click", function() {
+            const email = pendingSignupEmail || pendingLoginEmail;
+            const verifyMsg = document.getElementById("emailVerifyMessage");
+            if (!email) {
+                showMessage(verifyMsg, "Session expired. Please sign in again.", "error");
+                return;
+            }
+            if (emailVerifyResendBtn.disabled) return;
+
+            emailVerifyResendBtn.disabled = true;
+            hideMessage(verifyMsg);
+
+            const handler = typeof resendVerificationEmail === "function"
+                ? resendVerificationEmail(email)
+                : requestVerificationEmail(email);
+
+            handler.then(function(result) {
+                if (result.ok) {
+                    showMessage(verifyMsg, "A new verification code was sent to " + email + ".", "success");
+                    startResendCooldown(60);
+                    return;
+                }
+                showMessage(verifyMsg, result.error || "Could not resend code.", "error");
+                if (result.retryAfter) {
+                    startResendCooldown(result.retryAfter);
+                } else {
+                    emailVerifyResendBtn.disabled = false;
+                }
+            }).catch(function() {
+                showMessage(verifyMsg, "Could not resend code. Try again.", "error");
+                emailVerifyResendBtn.disabled = false;
+            });
+        });
+    }
 
     signUpForm.addEventListener("submit", function(e) {
         e.preventDefault();
@@ -251,26 +364,33 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
-        const result = createAccount(email, password, fullName, phone, {
-            country: country,
-            dateOfBirth: "",
-            referralCode: "",
-            currency: "USD",
-            agreedToTerms: agreedToTerms
-        });
+        const submitSignup = function() {
+            const result = createAccount(email, password, fullName, phone, {
+                country: country,
+                dateOfBirth: "",
+                referralCode: "",
+                currency: "USD",
+                agreedToTerms: agreedToTerms
+            });
 
-        if (!result.ok) {
-            showMessage(document.getElementById("signUpMessage"), result.error, "error");
-            return;
+            if (!result.ok) {
+                const message = result.existing
+                    ? result.error + " Use the Sign In tab if you already registered."
+                    : result.error;
+                showMessage(document.getElementById("signUpMessage"), message, "error");
+                return;
+            }
+
+            showEmailVerifyPanel(email,
+                "We sent a 6-digit code to " + email + ". Check your inbox to continue.");
+            sendVerificationForEmail(email);
+        };
+
+        if (typeof pullAccountsFromServer === "function") {
+            pullAccountsFromServer().then(submitSignup).catch(submitSignup);
+        } else {
+            submitSignup();
         }
-
-        pendingSignupEmail = email;
-        pendingLoginEmail = email;
-        document.getElementById("emailVerifyDesc").textContent =
-            "We sent a 6-digit code to " + email + ". Check your inbox to continue.";
-        document.getElementById("emailVerifyCode").value = "";
-        hideMessage(document.getElementById("emailVerifyMessage"));
-        showPanel(emailVerifyStep);
     });
 
     document.getElementById("forgotPasswordBtn").addEventListener("click", function() {

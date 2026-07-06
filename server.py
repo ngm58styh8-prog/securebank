@@ -11,7 +11,81 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "email.config.json"
+ACCOUNTS_REGISTRY_PATH = ROOT / "data" / "accounts.json"
+ADMIN_REGISTRY_PATH = ROOT / "data" / "admin.json"
 PORT = int(os.environ.get("PORT", "8765"))
+
+
+def normalize_registry_email(email):
+    return str(email or "").strip().lower()
+
+
+def ensure_accounts_registry_dir():
+    ACCOUNTS_REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def load_accounts_registry():
+    ensure_accounts_registry_dir()
+    if not ACCOUNTS_REGISTRY_PATH.exists():
+        return {}
+
+    try:
+        with open(ACCOUNTS_REGISTRY_PATH, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    normalized = {}
+    for key, entry in data.items():
+        if not isinstance(entry, dict):
+            continue
+        email_key = normalize_registry_email(key)
+        if not email_key or "@" not in email_key:
+            continue
+        if email_key in normalized:
+            normalized[email_key] = {**normalized[email_key], **entry}
+        else:
+            normalized[email_key] = entry
+    return normalized
+
+
+def save_accounts_registry(accounts):
+    ensure_accounts_registry_dir()
+    with open(ACCOUNTS_REGISTRY_PATH, "w", encoding="utf-8") as handle:
+        json.dump(accounts, handle, indent=2)
+
+
+def load_admin_registry():
+    ensure_accounts_registry_dir()
+    if not ADMIN_REGISTRY_PATH.exists():
+        return None
+    try:
+        with open(ADMIN_REGISTRY_PATH, encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def save_admin_registry(admin):
+    ensure_accounts_registry_dir()
+    with open(ADMIN_REGISTRY_PATH, "w", encoding="utf-8") as handle:
+        json.dump(admin, handle, indent=2)
+
+
+def send_api_json(handler, status, payload):
+    data = json.dumps(payload).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Access-Control-Allow-Origin", "*")
+    handler.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
+    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+    handler.send_header("Content-Length", str(len(data)))
+    handler.end_headers()
+    handler.wfile.write(data)
 
 
 def load_email_config():
@@ -67,16 +141,42 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def do_OPTIONS(self):
-        if self.path == "/api/send-email":
+        if self.path in ("/api/send-email", "/api/accounts", "/api/admin-data"):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
             return
         self.send_error(404)
 
+    def do_GET(self):
+        if self.path == "/api/accounts":
+            accounts = load_accounts_registry()
+            send_api_json(self, 200, {"ok": True, "accounts": accounts, "count": len(accounts)})
+            return
+        if self.path == "/api/admin-data":
+            admin = load_admin_registry()
+            send_api_json(self, 200, {"ok": True, "admin": admin})
+            return
+        super().do_GET()
+
+    def do_PUT(self):
+        if self.path == "/api/accounts":
+            self._handle_accounts_write()
+            return
+        if self.path == "/api/admin-data":
+            self._handle_admin_write()
+            return
+        self.send_error(404)
+
     def do_POST(self):
+        if self.path == "/api/accounts":
+            self._handle_accounts_write()
+            return
+        if self.path == "/api/admin-data":
+            self._handle_admin_write()
+            return
         if self.path != "/api/send-email":
             self.send_error(404)
             return
@@ -98,6 +198,50 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
             self._json(400, {"ok": False, "error": "Invalid JSON body."})
         except Exception as exc:
             self._json(500, {"ok": False, "error": str(exc)})
+
+    def _handle_accounts_write(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            email = normalize_registry_email(payload.get("email", ""))
+            account = payload.get("account")
+
+            if not email or "@" not in email or not isinstance(account, dict):
+                send_api_json(self, 400, {"ok": False, "error": "Missing or invalid email/account payload."})
+                return
+
+            accounts = load_accounts_registry()
+            if email in accounts and isinstance(accounts[email], dict):
+                account = {**accounts[email], **account}
+            account["serverSyncedAt"] = __import__("datetime").datetime.utcnow().isoformat() + "Z"
+            accounts[email] = account
+            save_accounts_registry(accounts)
+            send_api_json(self, 200, {"ok": True, "email": email, "count": len(accounts)})
+        except json.JSONDecodeError:
+            send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})
+        except Exception as exc:
+            send_api_json(self, 500, {"ok": False, "error": str(exc)})
+
+    def _handle_admin_write(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            admin = payload.get("admin")
+
+            if not isinstance(admin, dict) or not admin.get("email"):
+                send_api_json(self, 400, {"ok": False, "error": "Missing or invalid admin payload."})
+                return
+
+            existing = load_admin_registry()
+            if isinstance(existing, dict):
+                admin = {**existing, **admin}
+            admin["serverSyncedAt"] = __import__("datetime").datetime.utcnow().isoformat() + "Z"
+            save_admin_registry(admin)
+            send_api_json(self, 200, {"ok": True, "email": admin["email"]})
+        except json.JSONDecodeError:
+            send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})
+        except Exception as exc:
+            send_api_json(self, 500, {"ok": False, "error": str(exc)})
 
     def _json(self, status, payload):
         data = json.dumps(payload).encode("utf-8")
