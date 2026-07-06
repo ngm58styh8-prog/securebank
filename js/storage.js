@@ -925,6 +925,10 @@ function mergeAccountRecords(serverAcct, localAcct) {
     merged.transactions = localTx.length >= serverTx.length ? localTx : serverTx;
     merged.password = localAcct.password || serverAcct.password;
     merged.emailVerified = localAcct.emailVerified != null ? localAcct.emailVerified : serverAcct.emailVerified;
+    if (localAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = localAcct.withdrawalsFrozen;
+    else if (serverAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = serverAcct.withdrawalsFrozen;
+    merged.withdrawalsFrozenReason = localAcct.withdrawalsFrozenReason || serverAcct.withdrawalsFrozenReason || "";
+    merged.withdrawalsFrozenAt = localAcct.withdrawalsFrozenAt || serverAcct.withdrawalsFrozenAt || null;
     return merged;
 }
 
@@ -938,6 +942,21 @@ function syncAccountToServer(email, account) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: key, account: account })
+    })
+        .then(function(response) { return response.json(); })
+        .catch(function() { return { ok: false }; });
+}
+
+function deleteAccountFromServer(email) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    const key = normalizeEmail(email);
+    return fetch("/api/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: key })
     })
         .then(function(response) { return response.json(); })
         .catch(function() { return { ok: false }; });
@@ -1260,6 +1279,7 @@ function syncAdminRegisteredUsers(admin) {
             lastLoginDevice: profile.lastLoginDevice || null,
             emailVerified: !!acct.emailVerified,
             verificationStatus: profile.verificationStatus || "Pending",
+            withdrawalsFrozen: !!acct.withdrawalsFrozen,
             linkedAt: existing && existing.linkedAt ? existing.linkedAt : now,
             updatedAt: now
         };
@@ -1289,7 +1309,8 @@ function syncAdminRegisteredUsers(admin) {
             existing.name !== entry.name ||
             existing.lastLoginAt !== entry.lastLoginAt ||
             existing.emailVerified !== entry.emailVerified ||
-            existing.verificationStatus !== entry.verificationStatus
+            existing.verificationStatus !== entry.verificationStatus ||
+            existing.withdrawalsFrozen !== entry.withdrawalsFrozen
         ) {
             admin.registeredUsers[key] = Object.assign({}, existing, entry);
             changed = true;
@@ -1399,6 +1420,8 @@ function getAllUsersSummary() {
                 lastLoginDevice: profile.lastLoginDevice || null,
                 verificationStatus: profile.verificationStatus || "Pending",
                 emailVerified: !!acct.emailVerified,
+                withdrawalsFrozen: !!acct.withdrawalsFrozen,
+                withdrawalsFrozenReason: acct.withdrawalsFrozenReason || "",
                 pendingDeposits: depositCount,
                 pendingTransfers: transferCount,
                 accountComplete: isCompleteAccount(acct)
@@ -1428,6 +1451,9 @@ function getUserDetailForAdmin(email) {
         notifications: account.notifications || [],
         transactionCount: (account.transactions || []).length,
         emailVerified: !!account.emailVerified,
+        withdrawalsFrozen: !!account.withdrawalsFrozen,
+        withdrawalsFrozenReason: account.withdrawalsFrozenReason || "",
+        withdrawalsFrozenAt: account.withdrawalsFrozenAt || null,
         pendingDeposits: getUserPendingDeposits(email),
         pendingTransfers: getUserPendingTransfers(email),
         supportItems: getAllSupportItems("all").filter(function(item) {
@@ -1543,6 +1569,110 @@ function adminAdjustUserBalance(userEmail, action, amount, note) {
     return { ok: true };
 }
 
+function adminSetWithdrawalsFrozen(userEmail, frozen, reason) {
+    const key = normalizeEmail(userEmail);
+    const account = getAccount(key);
+    if (!account) {
+        return { ok: false, error: "User not found." };
+    }
+
+    const admin = getAdminData();
+    const userName = account.profile ? account.profile.fullName : key;
+    const now = new Date().toISOString();
+    const note = String(reason || "").trim();
+
+    account.withdrawalsFrozen = !!frozen;
+    account.withdrawalsFrozenReason = frozen ? note : "";
+    account.withdrawalsFrozenAt = frozen ? now : null;
+
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: frozen
+            ? "Withdrawals have been frozen on your account" + (note ? ": " + note : ".")
+            : "Withdrawal restrictions have been lifted on your account.",
+        time: now,
+        read: false
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+
+    account.transactions.unshift({
+        date: new Date().toLocaleString(),
+        description: frozen
+            ? "Withdrawals frozen by admin" + (note ? " — " + note : "")
+            : "Withdrawals unfrozen by admin",
+        amount: 0
+    });
+
+    saveAccount(key, account);
+
+    recordAdminUserEvent(
+        key,
+        frozen ? "admin-freeze" : "admin-unfreeze",
+        (frozen ? "Withdrawals frozen" : "Withdrawals unfrozen") + (note ? " — " + note : ""),
+        0
+    );
+
+    if (admin.registeredUsers && admin.registeredUsers[key]) {
+        admin.registeredUsers[key].withdrawalsFrozen = !!frozen;
+        saveAdminData(admin);
+    }
+
+    return { ok: true, email: key, userName: userName, frozen: !!frozen };
+}
+
+function adminRejectPendingForUser(userEmail, reason) {
+    const key = normalizeEmail(userEmail);
+    const rejectNote = reason || "Account removed by admin";
+
+    (getAdminData().pendingTransfers || []).filter(function(t) {
+        return normalizeEmail(t.userEmail) === key && t.status === "pending";
+    }).forEach(function(t) {
+        rejectTransfer(t.id, rejectNote);
+    });
+
+    (getAdminData().pendingDeposits || []).filter(function(d) {
+        return normalizeEmail(d.userEmail) === key && d.status === "pending";
+    }).forEach(function(d) {
+        rejectDeposit(d.id, rejectNote);
+    });
+}
+
+function adminDeleteUser(userEmail) {
+    const key = normalizeEmail(userEmail);
+    if (!key || key.indexOf("@") === -1) {
+        return { ok: false, error: "Invalid email." };
+    }
+    if (isLegacyAdminEmail(key) || key === normalizeEmail(DEFAULT_ADMIN.email)) {
+        return { ok: false, error: "Cannot delete the admin account." };
+    }
+
+    const account = getAccount(key);
+    if (!account) {
+        return { ok: false, error: "User not found." };
+    }
+
+    const userName = account.profile ? account.profile.fullName : key;
+    adminRejectPendingForUser(key, "Account deleted by admin");
+
+    const accounts = getAllAccounts();
+    delete accounts[key];
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    notifyAccountsChanged();
+
+    const admin = getAdminData();
+    if (admin.registeredUsers && admin.registeredUsers[key]) {
+        delete admin.registeredUsers[key];
+    }
+    recordAdminUserEvent(key, "admin-delete", "Account deleted by admin — " + userName, 0);
+    saveAdminData(admin);
+
+    deleteAccountFromServer(key);
+
+    return { ok: true, email: key, userName: userName };
+}
+
 function getUserPendingTransferTotal(userEmail) {
     const admin = getAdminData();
     return (admin.pendingTransfers || [])
@@ -1564,11 +1694,28 @@ function getUserPendingTransfers(userEmail) {
     });
 }
 
+function isWithdrawalsFrozen(userEmail) {
+    const account = getAccount(userEmail);
+    return !!(account && account.withdrawalsFrozen);
+}
+
+function getWithdrawalsFrozenMessage(userEmail) {
+    const account = getAccount(userEmail);
+    if (!account || !account.withdrawalsFrozen) return "";
+    return account.withdrawalsFrozenReason
+        ? "Withdrawals are frozen: " + account.withdrawalsFrozenReason
+        : "Withdrawals are temporarily frozen on this account. Contact support for assistance.";
+}
+
 function submitTransferRequest(userEmail, amount, destination, method) {
     const key = normalizeEmail(userEmail);
     const account = getAccount(key);
     if (!account) {
         return { ok: false, error: "Account not found." };
+    }
+
+    if (account.withdrawalsFrozen) {
+        return { ok: false, error: getWithdrawalsFrozenMessage(key) };
     }
 
     amount = parseFloat(amount);

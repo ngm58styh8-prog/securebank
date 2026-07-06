@@ -4,6 +4,7 @@
 
 let pendingAdjust = { email: "", action: "" };
 let pendingSupport = { email: "", ticketId: "" };
+let monitorEmail = "";
 let userSearchQuery = "";
 
 const HOLDING_LABELS = {
@@ -31,11 +32,16 @@ function formatTxAmount(amount) {
 
 function formatUserStatus(user) {
     const parts = [];
+    if (user.withdrawalsFrozen) parts.push("Withdrawals frozen");
     if (!user.accountComplete) parts.push("Incomplete profile");
     if (user.emailVerified) parts.push("Email verified");
     else parts.push("Email pending");
     parts.push(user.verificationStatus || "Pending");
     return parts.join(" · ");
+}
+
+function userStatusClass(user) {
+    return user.withdrawalsFrozen ? "admin-status-chip frozen" : "admin-status-chip";
 }
 
 function formatLastLogin(user) {
@@ -134,6 +140,7 @@ function openMonitorModal(email) {
     const detail = getUserDetailForAdmin(email);
     if (!detail) return;
 
+    monitorEmail = detail.email;
     document.getElementById("monitorTitle").textContent = detail.profile.fullName + " — Account Monitor";
 
     document.getElementById("monitorProfile").innerHTML =
@@ -146,8 +153,11 @@ function openMonitorModal(email) {
             ? new Date(detail.profile.lastLoginAt).toLocaleString() : "Never"}</p>
          <p><strong>Last device:</strong> ${detail.profile.lastLoginDevice || "—"}</p>
          <p><strong>Status:</strong> ${detail.profile.verificationStatus || "—"}</p>
+         <p><strong>Withdrawals:</strong> ${detail.withdrawalsFrozen ? "Frozen" : "Active"}</p>
          <p><strong>SSN on file:</strong> ${detail.profile.ssnLast4
             ? "***-**-" + detail.profile.ssnLast4 : "Not submitted"}</p>`;
+
+    updateMonitorAccountControls(detail);
 
     document.getElementById("monitorBalances").innerHTML =
         `<div class="admin-balance-row">
@@ -232,6 +242,91 @@ function openMonitorModal(email) {
 
 function closeMonitorModal() {
     document.getElementById("monitorModal").classList.add("hidden");
+    monitorEmail = "";
+}
+
+function updateMonitorAccountControls(detail) {
+    const statusEl = document.getElementById("monitorFreezeStatus");
+    const reasonInput = document.getElementById("monitorFreezeReason");
+    const freezeBtn = document.getElementById("monitorFreezeBtn");
+
+    if (!statusEl || !reasonInput || !freezeBtn) return;
+
+    if (detail.withdrawalsFrozen) {
+        statusEl.className = "admin-freeze-status frozen";
+        const since = detail.withdrawalsFrozenAt
+            ? " since " + new Date(detail.withdrawalsFrozenAt).toLocaleString()
+            : "";
+        const reason = detail.withdrawalsFrozenReason
+            ? " — " + detail.withdrawalsFrozenReason
+            : "";
+        statusEl.textContent = "Withdrawals are frozen" + since + reason + ".";
+        reasonInput.value = detail.withdrawalsFrozenReason || "";
+        freezeBtn.textContent = "Unfreeze Withdrawals";
+        freezeBtn.classList.add("is-frozen");
+    } else {
+        statusEl.className = "admin-freeze-status";
+        statusEl.textContent = "Withdrawals are active. User can submit transfer requests.";
+        reasonInput.value = "";
+        freezeBtn.textContent = "Freeze Withdrawals";
+        freezeBtn.classList.remove("is-frozen");
+    }
+}
+
+function toggleUserWithdrawalsFrozen(email, currentlyFrozen, reason) {
+    const key = normalizeEmail(email);
+    if (!currentlyFrozen) {
+        const result = adminSetWithdrawalsFrozen(key, true, reason || "");
+        if (!result.ok) {
+            alert(result.error);
+            return false;
+        }
+        alert("Withdrawals frozen for " + result.userName + ".");
+    } else {
+        if (!confirm("Unfreeze withdrawals for " + key + "?")) return false;
+        const result = adminSetWithdrawalsFrozen(key, false, "");
+        if (!result.ok) {
+            alert(result.error);
+            return false;
+        }
+        alert("Withdrawals unfrozen for " + result.userName + ".");
+    }
+
+    if (monitorEmail === key) {
+        const detail = getUserDetailForAdmin(key);
+        if (detail) updateMonitorAccountControls(detail);
+    }
+    renderDashboard();
+    return true;
+}
+
+function confirmDeleteUser(email, name) {
+    const key = normalizeEmail(email);
+    if (!confirm(
+        "Permanently delete " + name + " (" + key + ")?\n\n" +
+        "This removes the account from browser storage and the server registry. " +
+        "Pending deposits and transfers will be rejected."
+    )) {
+        return false;
+    }
+
+    const typed = prompt("Type the user's email to confirm deletion:");
+    if (typed === null) return false;
+    if (normalizeEmail(typed) !== key) {
+        alert("Email confirmation did not match.");
+        return false;
+    }
+
+    const result = adminDeleteUser(key);
+    if (!result.ok) {
+        alert(result.error);
+        return false;
+    }
+
+    alert("Account deleted: " + result.userName);
+    closeMonitorModal();
+    renderDashboard();
+    return true;
 }
 
 function renderPendingTransfersAdmin() {
@@ -475,10 +570,12 @@ function renderUsersTable(admin, allUsers) {
     }
 
     usersBody.innerHTML = users.map(function(u) {
+        const freezeLabel = u.withdrawalsFrozen ? "Unfreeze" : "Freeze";
+        const freezeClass = u.withdrawalsFrozen ? "admin-mini-freeze is-frozen" : "admin-mini-freeze";
         return `<tr>
             <td>${u.name}</td>
             <td><span class="admin-email">${u.email}</span><br><span class="admin-email">${u.phone}</span></td>
-            <td><span class="admin-status-chip">${formatUserStatus(u)}</span></td>
+            <td><span class="${userStatusClass(u)}">${formatUserStatus(u)}</span></td>
             <td>${formatMoney(u.cash)}</td>
             <td class="admin-holdings-cell">${u.holdingsSummary}</td>
             <td>${formatLastLogin(u)}</td>
@@ -488,6 +585,8 @@ function renderUsersTable(admin, allUsers) {
                 <button type="button" class="admin-mini-view" data-email="${u.email}">Monitor</button>
                 <button type="button" class="admin-mini-credit" data-email="${u.email}" data-name="${u.name}">Credit</button>
                 <button type="button" class="admin-mini-debit" data-email="${u.email}" data-name="${u.name}">Debit</button>
+                <button type="button" class="${freezeClass}" data-email="${u.email}" data-frozen="${u.withdrawalsFrozen ? "1" : "0"}">${freezeLabel}</button>
+                <button type="button" class="admin-mini-delete" data-email="${u.email}" data-name="${u.name}">Delete</button>
             </td>
         </tr>`;
     }).join("");
@@ -722,6 +821,23 @@ document.getElementById("adjustModal").addEventListener("click", function(e) {
 
 document.getElementById("monitorCloseBtn").addEventListener("click", closeMonitorModal);
 
+document.getElementById("monitorFreezeBtn").addEventListener("click", function() {
+    if (!monitorEmail) return;
+    const detail = getUserDetailForAdmin(monitorEmail);
+    if (!detail) return;
+    const reasonInput = document.getElementById("monitorFreezeReason");
+    const reason = reasonInput ? reasonInput.value.trim() : "";
+    if (!detail.withdrawalsFrozen && !confirm("Freeze withdrawals for " + monitorEmail + "?")) return;
+    toggleUserWithdrawalsFrozen(monitorEmail, detail.withdrawalsFrozen, reason);
+});
+
+document.getElementById("monitorDeleteBtn").addEventListener("click", function() {
+    if (!monitorEmail) return;
+    const detail = getUserDetailForAdmin(monitorEmail);
+    if (!detail) return;
+    confirmDeleteUser(monitorEmail, detail.profile.fullName || monitorEmail);
+});
+
 document.getElementById("monitorModal").addEventListener("click", function(e) {
     if (e.target === document.getElementById("monitorModal")) {
         closeMonitorModal();
@@ -732,6 +848,8 @@ document.getElementById("usersBody").addEventListener("click", function(e) {
     const viewBtn = e.target.closest(".admin-mini-view");
     const creditBtn = e.target.closest(".admin-mini-credit");
     const debitBtn = e.target.closest(".admin-mini-debit");
+    const freezeBtn = e.target.closest(".admin-mini-freeze");
+    const deleteBtn = e.target.closest(".admin-mini-delete");
     if (viewBtn) {
         openMonitorModal(viewBtn.dataset.email);
     }
@@ -740,6 +858,20 @@ document.getElementById("usersBody").addEventListener("click", function(e) {
     }
     if (debitBtn) {
         openAdjustModal(debitBtn.dataset.email, debitBtn.dataset.name, "debit");
+    }
+    if (freezeBtn) {
+        const frozen = freezeBtn.dataset.frozen === "1";
+        let reason = "";
+        if (!frozen) {
+            const input = prompt("Reason for freezing withdrawals (optional):");
+            if (input === null) return;
+            reason = input.trim();
+            if (!confirm("Freeze withdrawals for " + freezeBtn.dataset.email + "?")) return;
+        }
+        toggleUserWithdrawalsFrozen(freezeBtn.dataset.email, frozen, reason);
+    }
+    if (deleteBtn) {
+        confirmDeleteUser(deleteBtn.dataset.email, deleteBtn.dataset.name);
     }
 });
 

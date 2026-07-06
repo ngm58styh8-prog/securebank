@@ -184,7 +184,7 @@ server.mount_proc "/api/accounts" do |req, res|
   if req.request_method == "OPTIONS"
     res.status = 204
     res["Access-Control-Allow-Origin"] = "*"
-    res["Access-Control-Allow-Methods"] = "GET, PUT, POST, OPTIONS"
+    res["Access-Control-Allow-Methods"] = "GET, PUT, POST, DELETE, OPTIONS"
     res["Access-Control-Allow-Headers"] = "Content-Type"
     res.body = ""
     next
@@ -197,13 +197,27 @@ server.mount_proc "/api/accounts" do |req, res|
       next
     end
 
-    unless ["PUT", "POST"].include?(req.request_method)
+    unless ["PUT", "POST", "DELETE"].include?(req.request_method)
       send_api_json(res, 405, { "ok" => false, "error" => "Method not allowed" })
       next
     end
 
     payload = JSON.parse(req.body)
     email = normalize_registry_email(payload["email"])
+
+    if req.request_method == "DELETE"
+      if email.empty? || !email.include?("@")
+        send_api_json(res, 400, { "ok" => false, "error" => "Missing or invalid email." })
+        next
+      end
+
+      accounts = load_accounts_registry
+      accounts.delete(email)
+      save_accounts_registry(accounts)
+      send_api_json(res, 200, { "ok" => true, "email" => email, "deleted" => true, "count" => accounts.length })
+      next
+    end
+
     account = payload["account"]
 
     if email.empty? || !email.include?("@") || !account.is_a?(Hash)

@@ -144,7 +144,7 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
         if self.path in ("/api/send-email", "/api/accounts", "/api/admin-data"):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, DELETE, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
             return
@@ -199,6 +199,12 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
         except Exception as exc:
             self._json(500, {"ok": False, "error": str(exc)})
 
+    def do_DELETE(self):
+        if self.path == "/api/accounts":
+            self._handle_accounts_delete()
+            return
+        self.send_error(404)
+
     def _handle_accounts_write(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
@@ -217,6 +223,25 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
             accounts[email] = account
             save_accounts_registry(accounts)
             send_api_json(self, 200, {"ok": True, "email": email, "count": len(accounts)})
+        except json.JSONDecodeError:
+            send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})
+        except Exception as exc:
+            send_api_json(self, 500, {"ok": False, "error": str(exc)})
+
+    def _handle_accounts_delete(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            email = normalize_registry_email(payload.get("email", ""))
+
+            if not email or "@" not in email:
+                send_api_json(self, 400, {"ok": False, "error": "Missing or invalid email."})
+                return
+
+            accounts = load_accounts_registry()
+            accounts.pop(email, None)
+            save_accounts_registry(accounts)
+            send_api_json(self, 200, {"ok": True, "email": email, "deleted": True, "count": len(accounts)})
         except json.JSONDecodeError:
             send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})
         except Exception as exc:

@@ -575,6 +575,14 @@ function openModal(type) {
         confirmBtn.textContent = "Submit for Admin Approval";
         updateAdminPayToDisplay();
     } else {
+        const frozenMsg = typeof getWithdrawalsFrozenMessage === "function"
+            ? getWithdrawalsFrozenMessage(username)
+            : "";
+        if (frozenMsg) {
+            alert(frozenMsg);
+            return;
+        }
+
         document.getElementById("modalTitle").textContent = "💸 Request Transfer";
         document.getElementById("depositApprovalNotice").classList.add("hidden");
         paymentGroup.style.display = "none";

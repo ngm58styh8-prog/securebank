@@ -184,7 +184,9 @@
 }
 
 .admin-mini-credit,
-.admin-mini-debit {
+.admin-mini-debit,
+.admin-mini-freeze,
+.admin-mini-delete {
     padding: 6px 10px;
     border: none;
     border-radius: 6px;
@@ -193,6 +195,7 @@
     cursor: pointer;
     color: white;
     margin-right: 4px;
+    margin-bottom: 4px;
 }
 
 .admin-mini-credit {
@@ -201,6 +204,51 @@
 
 .admin-mini-debit {
     background: var(--danger);
+}
+
+.admin-mini-freeze {
+    background: #e67e22;
+}
+
+.admin-mini-freeze.is-frozen {
+    background: #27ae60;
+}
+
+.admin-mini-delete {
+    background: #8e2430;
+}
+
+.admin-status-chip.frozen {
+    background: rgba(230, 126, 34, 0.2);
+    border: 1px solid #e67e22;
+    color: #f5b041;
+}
+
+.admin-freeze-status {
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.admin-freeze-status.frozen {
+    color: #f5b041;
+}
+
+.admin-account-controls {
+    border: 1px solid #2a3548;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: rgba(15, 20, 25, 0.5);
+}
+
+.admin-account-controls input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #2a3548;
+    border-radius: 8px;
+    background: #0f1419;
+    color: #e8eef7;
+    font-family: inherit;
 }
 
 .admin-modal-user {
@@ -413,7 +461,9 @@ body[data-theme="dark"] .pending-badge {
 
     .admin-mini-view,
     .admin-mini-credit,
-    .admin-mini-debit {
+    .admin-mini-debit,
+    .admin-mini-freeze,
+    .admin-mini-delete {
         width: 100%;
         margin-right: 0;
         padding: 8px;

@@ -316,6 +316,18 @@
                 <div id="monitorBalances"></div>
             </div>
         </div>
+        <div class="admin-monitor-section admin-account-controls">
+            <h4>Account Controls</h4>
+            <div id="monitorFreezeStatus" class="admin-freeze-status"></div>
+            <div class="admin-form-row">
+                <label class="form-label" for="monitorFreezeReason">Freeze reason (optional)</label>
+                <input id="monitorFreezeReason" type="text" placeholder="Reason shown to the user when frozen…">
+            </div>
+            <div class="admin-form-actions">
+                <button type="button" class="admin-mini-freeze" id="monitorFreezeBtn">Freeze Withdrawals</button>
+                <button type="button" class="admin-mini-delete" id="monitorDeleteBtn">Delete Account</button>
+            </div>
+        </div>
         <div class="admin-monitor-section">
             <h4>Holdings</h4>
             <div id="monitorHoldings" class="admin-holdings-grid"></div>
