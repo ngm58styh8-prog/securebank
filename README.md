@@ -79,6 +79,7 @@ Check configuration:
 
 ```bash
 curl http://localhost:8765/api/verification-health
+curl https://your-app.vercel.app/api/registry-health
 npm run verify:check
 ```
 
@@ -95,6 +96,49 @@ API routes (server-only — `RESEND_API_KEY` never sent to browser):
 - `POST /api/send-verification` — send code on signup
 - `POST /api/resend-verification` — resend with 60s cooldown
 - `POST /api/verify-email` — validate code
+
+## Admin on Vercel
+
+The premium admin panel is a React app at **`/admin-v2/`** (redirects from `/admin.html`).
+
+```
+https://your-app.vercel.app/admin-v2/
+```
+
+**Credentials:** `admin@globalvest.com` / `admin123`
+
+### Local admin dev
+
+```bash
+cd admin-panel && npm install && npm run dev
+# http://localhost:5174/admin-v2/  (proxies /api to localhost:8765)
+```
+
+Also run `./start.sh` in another terminal for the account registry API, or use Supabase on Vercel.
+
+### Build
+
+```bash
+npm run build:admin
+```
+
+Outputs to `admin-v2/` for Vercel static hosting.
+
+### Shared user registry (required for production admin)
+
+On Vercel, user accounts and admin data sync to **Supabase** (not browser-only storage). One-time setup:
+
+1. Run [supabase/migrations/002_app_registry.sql](supabase/migrations/002_app_registry.sql) in the Supabase SQL Editor (creates `user_accounts` and `admin_registry` tables).
+2. Ensure Vercel has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (same vars as email verification).
+3. Redeploy, then verify:
+
+```bash
+curl https://your-app.vercel.app/api/registry-health
+```
+
+When `ok: true`, users who sign up on Vercel are visible in the admin dashboard from any browser. Admin actions (approve deposits, freeze withdrawals, delete users) sync through the same registry.
+
+**Local dev** still uses `data/accounts.json` via `./start.sh` — no Supabase migration required locally.
 
 ## Email notifications (deposits & withdrawals)
 

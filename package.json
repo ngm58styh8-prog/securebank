@@ -4,7 +4,9 @@
   "description": "GlobalVest demo banking platform",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo \"Static site — no build step\"",
+    "build": "cd admin-panel && npm install && npm run build",
+    "build:admin": "cd admin-panel && npm run build",
+    "dev:admin": "cd admin-panel && npm run dev",
     "verify:check": "node scripts/verify-email-setup.mjs",
     "verify:send": "node scripts/verify-email-setup.mjs"
   },

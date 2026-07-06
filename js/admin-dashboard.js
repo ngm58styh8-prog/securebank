@@ -534,9 +534,16 @@ function renderUsersTable(admin, allUsers) {
 
     let hintEl = document.getElementById("adminUserStorageHint");
     if (hintEl) {
-        const canonicalHint = typeof isCanonicalAppOrigin === "function" && !isCanonicalAppOrigin()
-            ? " Warning: open admin at http://localhost:8765/admin.html so it shares browser storage with user registration."
-            : "";
+        const canonicalHint = (function() {
+            if (window.location.protocol === "file:") {
+                return " Warning: open via http://localhost:8765/admin.html (run ./start.sh).";
+            }
+            if (typeof isLocalServerHost === "function" && isLocalServerHost() &&
+                typeof isCanonicalAppOrigin === "function" && !isCanonicalAppOrigin()) {
+                return " Warning: use http://localhost:8765 so admin shares storage with user registration.";
+            }
+            return "";
+        })();
         if (storedCount === 0) {
             hintEl.innerHTML = "No accounts in this browser yet. Users must register at " +
                 "<code>http://localhost:8765/login.html</code> via <code>./start.sh</code> " +

@@ -902,9 +902,7 @@ function notifyAccountsChanged() {
 
 function isServerSyncAvailable() {
     if (typeof window === "undefined") return false;
-    if (window.location.protocol !== "http:" && window.location.protocol !== "https:") return false;
-    const host = window.location.hostname;
-    return host === "localhost" || host === "127.0.0.1";
+    return window.location.protocol === "http:" || window.location.protocol === "https:";
 }
 
 function mergeAccountRecords(serverAcct, localAcct) {

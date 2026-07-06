@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "buildCommand": "",
+  "buildCommand": "cd admin-panel && npm install && npm run build",
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/admin-v2", "destination": "/admin-v2/index.html" },
+    { "source": "/admin-v2/((?!assets/).*)", "destination": "/admin-v2/index.html" }
   ]
 }
