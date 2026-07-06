@@ -467,9 +467,13 @@ function renderDashboard() {
     const totalUsers = allUsers.length;
 
     if (countLabel) {
+        const linkedCount = admin.registeredUsers
+            ? Object.keys(admin.registeredUsers).length
+            : allUsers.length;
         countLabel.textContent = userSearchQuery
-            ? "Showing " + users.length + " of " + totalUsers + " registered users"
-            : "Showing all " + totalUsers + " registered users";
+            ? "Showing " + users.length + " of " + linkedCount + " linked accounts"
+            : linkedCount + " account" + (linkedCount === 1 ? "" : "s") +
+                " automatically linked · refreshes live";
     }
 
     if (!users.length) {
@@ -726,5 +730,13 @@ window.addEventListener("storage", function(e) {
     }
 });
 
-setInterval(renderDashboard, 5000);
+window.addEventListener("globalvest-accounts-changed", renderDashboard);
+
+document.addEventListener("visibilitychange", function() {
+    if (!document.hidden) renderDashboard();
+});
+
+window.addEventListener("focus", renderDashboard);
+
+setInterval(renderDashboard, 2000);
 })();

@@ -668,6 +668,16 @@ function saveAccount(email, account) {
     }
     accounts[key] = account;
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    notifyAccountsChanged();
+}
+
+function notifyAccountsChanged() {
+    if (typeof window === "undefined") return;
+    try {
+        window.dispatchEvent(new CustomEvent("globalvest-accounts-changed", {
+            detail: { key: ACCOUNTS_KEY }
+        }));
+    } catch (e) { /* ignore */ }
 }
 
 function requireAuth() {
@@ -743,11 +753,13 @@ function getAdminData() {
             }
             if (!data.notificationLog) data.notificationLog = [];
             if (!data.userActivityLog) data.userActivityLog = [];
-            return backfillAdminUserRegistry(migrateAdminBranding(data));
+            if (!data.registeredUsers) data.registeredUsers = {};
+            return syncAdminRegisteredUsers(migrateAdminBranding(data));
         }
     } catch (e) { /* ignore */ }
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(Object.assign({}, DEFAULT_ADMIN, {
-        payments: [], pendingTransfers: [], pendingDeposits: [], userActivityLog: []
+        payments: [], pendingTransfers: [], pendingDeposits: [],
+        userActivityLog: [], registeredUsers: {}
     })));
     return JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
 }
@@ -824,40 +836,80 @@ function recordUserPayment(userEmail, type, amount, method) {
     saveAdminData(admin);
 }
 
-function backfillAdminUserRegistry(admin) {
-    if (admin._userRegistrySynced) return admin;
+function syncAdminRegisteredUsers(admin) {
+    if (!admin.registeredUsers) admin.registeredUsers = {};
 
-    ensureAdminUserActivityLog(admin);
     const accounts = getAllAccounts();
-    const knownSignups = {};
+    ensureAdminUserActivityLog(admin);
 
-    admin.userActivityLog.forEach(function(entry) {
-        if (entry.type === "signup") {
-            knownSignups[normalizeEmail(entry.userEmail)] = true;
-        }
-    });
+    let changed = false;
+    const now = new Date().toISOString();
 
     Object.keys(accounts).forEach(function(email) {
         const key = normalizeEmail(email);
-        if (knownSignups[key]) return;
-
         const acct = accounts[email];
-        const userName = acct.profile ? acct.profile.fullName : key;
-        admin.userActivityLog.push({
-            id: Date.now() + Math.random(),
-            date: acct.profile && acct.profile.memberSince
-                ? new Date(acct.profile.memberSince).toLocaleString()
-                : new Date().toLocaleString(),
-            userEmail: key,
-            userName: userName,
-            type: "signup",
-            description: "Account registered",
-            amount: 0
-        });
+        const profile = acct.profile || {};
+        const userName = profile.fullName || key;
+        const existing = admin.registeredUsers[key];
+
+        const entry = {
+            email: key,
+            name: userName,
+            phone: profile.phone || "",
+            memberSince: profile.memberSince || null,
+            lastLoginAt: profile.lastLoginAt || null,
+            lastLoginDevice: profile.lastLoginDevice || null,
+            emailVerified: !!acct.emailVerified,
+            verificationStatus: profile.verificationStatus || "Pending",
+            linkedAt: existing && existing.linkedAt ? existing.linkedAt : now,
+            updatedAt: now
+        };
+
+        if (!existing) {
+            admin.registeredUsers[key] = entry;
+            changed = true;
+
+            const hasSignup = admin.userActivityLog.some(function(e) {
+                return e.type === "signup" && normalizeEmail(e.userEmail) === key;
+            });
+
+            if (!hasSignup) {
+                admin.userActivityLog.unshift({
+                    id: Date.now() + Math.random(),
+                    date: entry.memberSince
+                        ? new Date(entry.memberSince).toLocaleString()
+                        : new Date().toLocaleString(),
+                    userEmail: key,
+                    userName: userName,
+                    type: "signup",
+                    description: "Account automatically linked to admin dashboard",
+                    amount: 0
+                });
+            }
+        } else if (
+            existing.name !== entry.name ||
+            existing.lastLoginAt !== entry.lastLoginAt ||
+            existing.emailVerified !== entry.emailVerified ||
+            existing.verificationStatus !== entry.verificationStatus
+        ) {
+            admin.registeredUsers[key] = Object.assign({}, existing, entry);
+            changed = true;
+        }
     });
 
-    admin._userRegistrySynced = true;
-    saveAdminData(admin);
+    Object.keys(admin.registeredUsers).forEach(function(email) {
+        if (!accounts[normalizeEmail(email)]) {
+            delete admin.registeredUsers[email];
+            changed = true;
+        }
+    });
+
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+        changed = true;
+    }
+
+    if (changed) saveAdminData(admin);
     return admin;
 }
 
@@ -913,6 +965,7 @@ function getHoldingsSummary(holdings) {
 }
 
 function getAllUsersSummary() {
+    getAdminData();
     const accounts = getAllAccounts();
     return Object.keys(accounts).map(function(email) {
         const acct = accounts[email];
