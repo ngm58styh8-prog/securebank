@@ -1,0 +1,94 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@400;600;700;800&display=swap");
+
+:root {
+    --gv-primary: #1F6BFF;
+    --gv-dark: #081B45;
+    --gv-accent: #3B82F6;
+    --gv-white: #FFFFFF;
+    --font-brand: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Manrope", sans-serif;
+}
+
+body {
+    font-family: var(--font-brand);
+    font-weight: 400;
+}
+
+.brand-logo {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    line-height: 0;
+}
+
+.brand-logo-img {
+    height: 36px;
+    width: auto;
+    display: block;
+    max-width: 100%;
+}
+
+.brand-logo-img.sm {
+    height: 28px;
+}
+
+.brand-logo-img.lg {
+    height: 44px;
+}
+
+.brand-logo-img.xl {
+    height: 52px;
+}
+
+.brand-wordmark {
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--gv-dark);
+}
+
+h1, h2, h3 {
+    font-weight: 700;
+}
+
+h4, h5, h6, .section-title, .subtitle {
+    font-weight: 600;
+}
+
+button, .auth-submit, .auth-tab, .landing-btn, .deposit-btn, .withdraw-btn, .landing-cta-btn {
+    font-weight: 600;
+    font-family: var(--font-brand);
+}
+
+.dashboard-brand-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.dashboard-brand-text {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
+.logo.brand-logo-header {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+    line-height: 0;
+}
+
+.landing-logo.brand-logo {
+    flex-shrink: 0;
+}
+
+.admin-brand-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-brand-header h2 {
+    margin: 0;
+}

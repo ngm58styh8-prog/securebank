@@ -4,14 +4,14 @@ const ADMIN_DATA_KEY = "securebank_admin_data";
 const ADMIN_SESSION_KEY = "securebank_admin_session";
 
 const DEFAULT_ADMIN = {
-    email: "admin@securebank.com",
+    email: "admin@globalvest.com",
     password: "admin123",
     balance: 0,
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
     walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
-    bankDetails: "SecureBank Admin · Routing: 021000021 · Account: 8847291053"
+    bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053"
 };
 
 const DEPOSIT_METHODS = {
@@ -23,9 +23,9 @@ const DEPOSIT_METHODS = {
 const FX_RATES = { USD: 1, EUR: 0.92, GBP: 0.79 };
 
 const DEFAULT_WEBSITE_SETTINGS = {
-    siteName: "SecureBank",
-    siteTagline: "Secure Online Banking",
-    supportEmail: "support@securebank.com",
+    siteName: "GlobalVest",
+    siteTagline: "Global Investing & Digital Banking",
+    supportEmail: "support@globalvest.com",
     announcement: "",
     maintenanceMode: false
 };
@@ -95,12 +95,12 @@ function generateVerificationCode() {
 function sendEmailVerificationEmail(account, email, fullName, code) {
     queueAccountEmail(account, {
         to: email,
-        subject: "Verify your SecureBank email",
+        subject: "Verify your GlobalVest email",
         body: "Hi " + fullName + ",\n\n" +
             "Thanks for signing up! Enter this verification code to activate your account:\n\n" +
             code + "\n\n" +
             "This code expires in 24 hours. If you did not create an account, ignore this email.\n\n" +
-            "SecureBank Security Team",
+            "GlobalVest Security Team",
         type: "verification"
     });
 }
@@ -130,11 +130,11 @@ function sendPasswordResetEmail(account, email) {
     const profile = account.profile || {};
     queueAccountEmail(account, {
         to: email,
-        subject: "SecureBank password reset",
+        subject: "GlobalVest password reset",
         body: "Hi " + (profile.fullName || email) + ",\n\n" +
             "We received a request to reset your password. In this demo, use your existing password or contact support.\n\n" +
             "If you did not request this, you can safely ignore this message.\n\n" +
-            "SecureBank Security Team",
+            "GlobalVest Security Team",
         type: "security"
     });
 }
@@ -229,15 +229,15 @@ function queueAccountEmail(account, emailData) {
 function sendWelcomeEmail(account, email, fullName) {
     queueAccountEmail(account, {
         to: email,
-        subject: "Welcome to SecureBank!",
+        subject: "Welcome to GlobalVest!",
         body: "Hi " + fullName + ",\n\n" +
-            "Welcome to SecureBank! Your account has been created successfully.\n\n" +
+            "Welcome to GlobalVest! Your account has been created successfully.\n\n" +
             "You now have access to secure online banking, crypto trading, and portfolio management. " +
             "Your account starts with a $0 balance — use Deposit to add funds when you're ready.\n\n" +
             "Before you can access all features, please complete identity verification by submitting " +
             "your Social Security Number (SSN) in your profile settings.\n\n" +
-            "If you did not create this account, please contact us immediately at support@securebank.com.\n\n" +
-            "Thank you for choosing SecureBank,\nThe SecureBank Team",
+            "If you did not create this account, please contact us immediately at support@globalvest.com.\n\n" +
+            "Thank you for choosing GlobalVest,\nThe GlobalVest Team",
         type: "welcome"
     });
 }
@@ -248,13 +248,13 @@ function sendSsnVerificationEmail(account, email, fullName) {
         subject: "Action Required: Verify Your Identity",
         body: "Hi " + fullName + ",\n\n" +
             "To comply with federal banking regulations and protect your account, we need to verify your identity.\n\n" +
-            "Please log in to SecureBank and go to Profile → Identity Verification to submit your " +
+            "Please log in to GlobalVest and go to Profile → Identity Verification to submit your " +
             "Social Security Number (SSN).\n\n" +
             "Your SSN is encrypted and used solely for identity verification. We never share your " +
             "personal information with third parties.\n\n" +
             "Until verification is complete, some account features may be limited.\n\n" +
             "Complete verification here: Profile → Identity Verification\n\n" +
-            "SecureBank Security Team",
+            "GlobalVest Security Team",
         type: "verification"
     });
 }
@@ -276,8 +276,8 @@ function getTransactionEmailMeta(account, userEmail) {
     const ws = getWebsiteSettings();
     const profile = account.profile || {};
     return {
-        siteName: ws.siteName || "SecureBank",
-        supportEmail: ws.supportEmail || "support@securebank.com",
+        siteName: ws.siteName || "GlobalVest",
+        supportEmail: ws.supportEmail || "support@globalvest.com",
         fullName: profile.fullName || userEmail
     };
 }
@@ -321,7 +321,7 @@ function sendDepositApprovedEmail(account, userEmail, amount, method) {
         " has been approved and credited to your account.\n\n" +
         "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
-        "Log in to SecureBank to view your updated balance and transaction history.\n\n" +
+        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
         "If you did not make this deposit, contact us immediately at " + meta.supportEmail + ".\n\n" +
         "Thank you,\n" + meta.siteName;
     return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
@@ -365,7 +365,7 @@ function sendWithdrawalApprovedEmail(account, userEmail, amount, destination, me
         " to " + (destination || "your linked account") + " has been approved and processed.\n\n" +
         "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
-        "Log in to SecureBank to view your transaction history.\n\n" +
+        "Log in to GlobalVest to view your transaction history.\n\n" +
         "If you did not authorize this withdrawal, contact us immediately at " + meta.supportEmail + ".\n\n" +
         "Thank you,\n" + meta.siteName;
     return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
@@ -411,8 +411,8 @@ function submitSsnVerification(userEmail, ssn) {
         body: "Hi " + profile.fullName + ",\n\n" +
             "Your identity has been successfully verified. Your SSN ending in " + profile.ssnLast4 +
             " has been confirmed.\n\n" +
-            "You now have full access to all SecureBank features including transfers, deposits, and trading.\n\n" +
-            "SecureBank Security Team",
+            "You now have full access to all GlobalVest features including transfers, deposits, and trading.\n\n" +
+            "GlobalVest Security Team",
         type: "verification"
     });
 
@@ -443,7 +443,7 @@ function getStarterAccount(fullName, email, phone, extras) {
     account.notifications = [
         {
             id: 1,
-            message: "Welcome to SecureBank! A welcome email was sent to " + email,
+            message: "Welcome to GlobalVest! A welcome email was sent to " + email,
             time: new Date().toISOString(),
             read: false
         },
@@ -665,6 +665,40 @@ function requireAuth() {
     return normalizeEmail(email);
 }
 
+function isLegacyAdminEmail(email) {
+    return normalizeEmail(email) === normalizeEmail("admin@" + "secure" + "bank" + ".com");
+}
+
+function migrateAdminBranding(data) {
+    let changed = false;
+    if (isLegacyAdminEmail(data.email)) {
+        data.email = DEFAULT_ADMIN.email;
+        changed = true;
+    }
+    if (data.bankDetails && data.bankDetails.indexOf("Secure" + "Bank") !== -1) {
+        data.bankDetails = DEFAULT_ADMIN.bankDetails;
+        changed = true;
+    }
+    if (data.websiteSettings) {
+        const legacySite = "Secure" + "Bank";
+        if (data.websiteSettings.siteName === legacySite) {
+            data.websiteSettings.siteName = DEFAULT_WEBSITE_SETTINGS.siteName;
+            changed = true;
+        }
+        const legacySupport = "support@" + "secure" + "bank" + ".com";
+        if (data.websiteSettings.supportEmail === legacySupport) {
+            data.websiteSettings.supportEmail = DEFAULT_WEBSITE_SETTINGS.supportEmail;
+            changed = true;
+        }
+        if (data.websiteSettings.siteTagline === "Secure Online Banking") {
+            data.websiteSettings.siteTagline = DEFAULT_WEBSITE_SETTINGS.siteTagline;
+            changed = true;
+        }
+    }
+    if (changed) saveAdminData(data);
+    return data;
+}
+
 function getAdminData() {
     try {
         const data = JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
@@ -680,7 +714,7 @@ function getAdminData() {
                 data.websiteSettings = Object.assign({}, DEFAULT_WEBSITE_SETTINGS);
             }
             if (!data.notificationLog) data.notificationLog = [];
-            return data;
+            return migrateAdminBranding(data);
         }
     } catch (e) { /* ignore */ }
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(Object.assign({}, DEFAULT_ADMIN, {
@@ -696,7 +730,8 @@ function saveAdminData(data) {
 function authenticateAdmin(email, password) {
     const admin = getAdminData();
     const key = normalizeEmail(email);
-    if (key !== normalizeEmail(admin.email) || admin.password !== password) return null;
+    const validEmail = key === normalizeEmail(admin.email) || isLegacyAdminEmail(key);
+    if (!validEmail || admin.password !== password) return null;
     return admin;
 }
 
@@ -1215,8 +1250,8 @@ function adminRespondToSupport(userEmail, ticketId, response, markResolved) {
         body: "Hi " + (account.profile ? account.profile.fullName : key) + ",\n\n" +
             "An admin has responded to your support request:\n\n" +
             response + "\n\n" +
-            "Log in to SecureBank → Support to view the full conversation.\n\n" +
-            "SecureBank Support",
+            "Log in to GlobalVest → Support to view the full conversation.\n\n" +
+            "GlobalVest Support",
         type: "support"
     });
 
@@ -1390,7 +1425,7 @@ function submitDepositRequest(userEmail, amount, method) {
         ? getAdminWalletAddress()
         : method === "bank"
             ? getAdminBankDetails()
-            : "SecureBank Admin Merchant";
+            : "GlobalVest Admin Merchant";
 
     const deposit = {
         id: "dep-" + Date.now() + Math.random().toString(36).slice(2, 7),

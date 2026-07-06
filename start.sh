@@ -3,13 +3,13 @@ cd "$(dirname "$0")"
 PORT="${PORT:-8765}"
 
 echo ""
-echo "SecureBank is starting on port $PORT"
+echo "GlobalVest is starting on port $PORT"
 echo ""
 echo "  User site:   http://localhost:$PORT/index.html"
 echo "  Sign in:     http://localhost:$PORT/login.html"
 echo ""
 echo "  Admin portal: http://localhost:$PORT/admin.html (direct URL — not linked on user site)"
-echo "               admin@securebank.com / admin123"
+echo "               admin@globalvest.com / admin123"
 echo ""
 
 if [ ! -f email.config.json ]; then

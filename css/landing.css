@@ -9,7 +9,7 @@
     inset: 0;
     z-index: 0;
     background:
-        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 120, 255, 0.22), transparent 55%),
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(31, 107, 255, 0.22), transparent 55%),
         radial-gradient(ellipse 70% 50% at 80% 20%, rgba(80, 60, 255, 0.18), transparent 50%),
         linear-gradient(160deg, #020612 0%, #041433 45%, #062454 100%);
     animation: landingGradientShift 18s ease-in-out infinite alternate;
@@ -93,9 +93,9 @@
 }
 
 .landing-btn-primary {
-    background: linear-gradient(135deg, #0078ff, #0050d4);
+    background: linear-gradient(135deg, #1F6BFF, #3B82F6);
     color: #fff;
-    box-shadow: 0 8px 28px rgba(0, 100, 255, 0.35);
+    box-shadow: 0 8px 28px rgba(31, 107, 255, 0.35);
 }
 
 .landing-btn-secondary {
@@ -184,7 +184,7 @@
     width: 280px;
     height: 280px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(0, 120, 255, 0.25), transparent 70%);
+    background: radial-gradient(circle, rgba(31, 107, 255, 0.25), transparent 70%);
     animation: landingPulse 4s ease-in-out infinite;
 }
 
@@ -199,16 +199,22 @@
     top: 46%;
     transform: translate(-50%, -50%);
     font-size: 6rem;
-    filter: drop-shadow(0 0 40px rgba(0, 140, 255, 0.5));
+    filter: drop-shadow(0 0 40px rgba(59, 130, 246, 0.5));
     animation: landingFloat 5s ease-in-out infinite;
 }
 
-.landing-scene-bank {
+.landing-scene-bank,
+.landing-scene-logo {
     position: absolute;
     left: 18%;
     top: 22%;
-    font-size: 3.5rem;
     animation: landingFloat 6s ease-in-out infinite reverse;
+}
+
+.landing-scene-logo {
+    width: min(120px, 28vw);
+    height: auto;
+    filter: drop-shadow(0 0 40px rgba(31, 107, 255, 0.45));
 }
 
 .landing-scene-coin {
@@ -267,8 +273,8 @@
 
 .landing-feature-card:hover {
     transform: translateY(-6px);
-    border-color: rgba(0, 140, 255, 0.35);
-    box-shadow: 0 20px 50px rgba(0, 80, 200, 0.2);
+    border-color: rgba(59, 130, 246, 0.35);
+    box-shadow: 0 20px 50px rgba(31, 107, 255, 0.2);
 }
 
 .landing-feature-icon {
@@ -380,19 +386,19 @@
     padding: 18px 42px;
     font-size: 1.1rem;
     border-radius: 999px;
-    background: linear-gradient(135deg, #0084ff, #0047b3);
+    background: linear-gradient(135deg, #1F6BFF, #081B45);
     color: #fff;
     text-decoration: none;
     font-weight: 700;
     border: none;
     cursor: pointer;
-    box-shadow: 0 12px 40px rgba(0, 100, 255, 0.4);
+    box-shadow: 0 12px 40px rgba(31, 107, 255, 0.4);
     transition: transform 0.25s, box-shadow 0.25s;
 }
 
 .landing-cta-btn:hover {
     transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 18px 50px rgba(0, 100, 255, 0.5);
+    box-shadow: 0 18px 50px rgba(31, 107, 255, 0.5);
 }
 
 .landing-footer {

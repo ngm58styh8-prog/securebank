@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SecureBank static server with deposit email notifications."""
+"""GlobalVest static server with deposit email notifications."""
 
 import json
 import os
@@ -27,7 +27,7 @@ def load_email_config():
         "smtp_user": os.environ.get("SMTP_USER", ""),
         "smtp_pass": os.environ.get("SMTP_PASS", ""),
         "from_email": os.environ.get("SMTP_FROM", ""),
-        "from_name": os.environ.get("SMTP_FROM_NAME", "SecureBank"),
+        "from_name": os.environ.get("SMTP_FROM_NAME", "GlobalVest"),
     }
 
 
@@ -38,7 +38,7 @@ def send_smtp_email(to_addr, subject, body):
     user = cfg.get("smtp_user") or cfg.get("smtpUser") or ""
     password = cfg.get("smtp_pass") or cfg.get("smtpPass") or ""
     from_email = cfg.get("from_email") or cfg.get("fromEmail") or user
-    from_name = cfg.get("from_name") or cfg.get("fromName") or "SecureBank"
+    from_name = cfg.get("from_name") or cfg.get("fromName") or "GlobalVest"
 
     if not host or not user or not password:
         return {
@@ -62,7 +62,7 @@ def send_smtp_email(to_addr, subject, body):
     return {"ok": True}
 
 
-class SecureBankHandler(SimpleHTTPRequestHandler):
+class GlobalVestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
@@ -112,9 +112,9 @@ class SecureBankHandler(SimpleHTTPRequestHandler):
 
 
 def main():
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), SecureBankHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), GlobalVestHandler)
     print("")
-    print(f"SecureBank running at http://localhost:{PORT}")
+    print(f"GlobalVest running at http://localhost:{PORT}")
     print(f"  User:  http://localhost:{PORT}/index.html")
     print(f"  Admin: http://localhost:{PORT}/admin.html")
     if not CONFIG_PATH.exists():

@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# SecureBank static server with deposit email notifications.
+# GlobalVest static server with deposit email notifications.
 
 require "json"
 require "webrick"
@@ -19,7 +19,7 @@ def load_email_config
       "smtp_user" => ENV["SMTP_USER"].to_s,
       "smtp_pass" => ENV["SMTP_PASS"].to_s,
       "from_email" => ENV["SMTP_FROM"].to_s,
-      "from_name" => ENV["SMTP_FROM_NAME"] || "SecureBank"
+      "from_name" => ENV["SMTP_FROM_NAME"] || "GlobalVest"
     }
   end
 rescue JSON::ParserError
@@ -34,7 +34,7 @@ def send_smtp_email(to_addr, subject, body)
   pass = cfg["smtp_pass"] || cfg["smtpPass"]
   from_email = cfg["from_email"] || cfg["fromEmail"]
   from_email = user if from_email.to_s.empty?
-  from_name = cfg["from_name"] || cfg["fromName"] || "SecureBank"
+  from_name = cfg["from_name"] || cfg["fromName"] || "GlobalVest"
 
   if host.to_s.empty? || user.to_s.empty? || pass.to_s.empty?
     return {
@@ -115,7 +115,7 @@ end
 trap("INT") { server.shutdown }
 
 puts ""
-puts "SecureBank running at http://localhost:#{PORT}"
+puts "GlobalVest running at http://localhost:#{PORT}"
 puts "  User:  http://localhost:#{PORT}/index.html"
 puts "  Admin: http://localhost:#{PORT}/admin.html"
 unless File.exist?(CONFIG_PATH)

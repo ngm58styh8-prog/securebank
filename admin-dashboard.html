@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#081B45">
 <meta name="robots" content="noindex, nofollow">
-<title>SecureBank — Admin Dashboard</title>
+<title>GlobalVest — Admin Dashboard</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/admin.css">
 <style>
@@ -15,9 +17,12 @@
 <body class="admin-dashboard-body">
 
 <header class="admin-header">
-    <div class="header-left">
-        <h2>🛡️ Admin Dashboard</h2>
-        <p>Payment & user overview</p>
+    <div class="header-left admin-brand-header">
+        <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
+        <div>
+            <h2>Admin Dashboard</h2>
+            <p>Payment & user overview</p>
+        </div>
     </div>
     <div class="header-right">
         <a href="login.html" class="nav-link">User Site</a>
@@ -65,15 +70,15 @@
     <form id="websiteSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">
             <label class="form-label" for="siteNameInput">Site Name</label>
-            <input id="siteNameInput" type="text" placeholder="SecureBank" required>
+            <input id="siteNameInput" type="text" placeholder="GlobalVest" required>
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="siteTaglineInput">Tagline</label>
-            <input id="siteTaglineInput" type="text" placeholder="Secure Online Banking">
+            <input id="siteTaglineInput" type="text" placeholder="Global Investing & Digital Banking">
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="supportEmailInput">Support Email</label>
-            <input id="supportEmailInput" type="email" placeholder="support@securebank.com">
+            <input id="supportEmailInput" type="email" placeholder="support@globalvest.com">
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="announcementInput">Site Announcement</label>
@@ -150,7 +155,7 @@
 </table>
 </div>
 
-<h2 class="section-title">🏦 Admin Wallet & Payment Settings</h2>
+<h2 class="section-title">Admin Wallet & Payment Settings</h2>
 <div class="card admin-adjust-card">
     <form id="walletSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">

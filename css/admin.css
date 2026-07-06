@@ -1,5 +1,5 @@
 .admin-body {
-    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    background: linear-gradient(135deg, #081B45, #0c2d6e);
 }
 
 .admin-login-box {
@@ -7,7 +7,9 @@
 }
 
 .admin-logo {
-    color: #e94560;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
 }
 
 .admin-login-box input {
@@ -23,7 +25,7 @@
     width: 100%;
     margin-top: 20px;
     padding: 15px;
-    background: #e94560;
+    background: #1F6BFF;
     color: white;
     border: none;
     border-radius: 10px;
@@ -32,7 +34,7 @@
 }
 
 .admin-login-box button[type="submit"]:hover {
-    background: #c73e54;
+    background: #1557d6;
 }
 
 .admin-auth-message {
@@ -62,7 +64,7 @@
 }
 
 .admin-back a:hover {
-    color: #e94560;
+    color: #1F6BFF;
 }
 
 .admin-dashboard-body {
@@ -79,7 +81,7 @@
 }
 
 .admin-balance-card {
-    border-top: 3px solid #e94560;
+    border-top: 3px solid #1F6BFF;
 }
 
 .admin-stat {
@@ -119,7 +121,7 @@
 }
 
 .admin-adjust-card {
-    border-top: 3px solid #e94560;
+    border-top: 3px solid #1F6BFF;
     margin-bottom: 8px;
 }
 

@@ -1,4 +1,4 @@
-# SecureBank
+# GlobalVest
 
 Demo online banking app (static frontend + local Python server).
 

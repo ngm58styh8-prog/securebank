@@ -3,15 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0059b3">
-<title>SecureBank Dashboard</title>
+<meta name="theme-color" content="#081B45">
+<title>GlobalVest — Dashboard</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/dashboard.css">
 </head>
 <body>
 
 <header>
     <div class="header-left">
-        <h2 id="dashboardSiteName">🏦 SecureBank Dashboard</h2>
+        <h2 id="dashboardSiteName" class="dashboard-brand-title">
+            <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
+            <span class="dashboard-brand-text">GlobalVest Dashboard</span>
+        </h2>
         <p>Welcome back, <span id="userName">User</span></p>
     </div>
     <div class="header-right">
@@ -443,7 +448,7 @@
 
             <div id="cardPayToGroup" class="admin-payto-box hidden">
                 <span class="form-label">Admin Merchant Account</span>
-                <p class="admin-payto-text">Card payments are processed to the SecureBank admin merchant account.</p>
+                <p class="admin-payto-text">Card payments are processed to the GlobalVest admin merchant account.</p>
                 <p class="deposit-hint">Submit your deposit request after payment. Admin will verify and approve.</p>
             </div>
 

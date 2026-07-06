@@ -76,13 +76,13 @@ function exportCsv() {
     const blob = new Blob([csv], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "securebank-transactions.csv";
+    link.download = "globalvest-transactions.csv";
     link.click();
 }
 
 function exportPdf() {
     const printArea = document.getElementById("printArea");
-    printArea.innerHTML = "<h1>SecureBank Transactions</h1><table border='1' cellpadding='8' cellspacing='0' width='100%'><tr><th>Date</th><th>Description</th><th>Amount</th></tr>" +
+    printArea.innerHTML = "<h1>GlobalVest Transactions</h1><table border='1' cellpadding='8' cellspacing='0' width='100%'><tr><th>Date</th><th>Description</th><th>Amount</th></tr>" +
         filtered.map(function(t) {
             const sign = t.amount < 0 ? "-" : "+";
             return "<tr><td>" + t.date + "</td><td>" + t.description + "</td><td>" +
@@ -90,7 +90,7 @@ function exportPdf() {
         }).join("") + "</table>";
 
     const win = window.open("", "_blank");
-    win.document.write("<html><head><title>SecureBank Transactions</title></head><body>" + printArea.innerHTML + "</body></html>");
+    win.document.write("<html><head><title>GlobalVest Transactions</title></head><body>" + printArea.innerHTML + "</body></html>");
     win.document.close();
     win.print();
 }

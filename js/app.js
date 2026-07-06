@@ -294,12 +294,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     document.getElementById("termsLink").addEventListener("click", function(e) {
         e.preventDefault();
-        alert("SecureBank Terms of Service — by creating an account you agree to our terms of use and acceptable use policy.");
+        alert("GlobalVest Terms of Service — by creating an account you agree to our terms of use and acceptable use policy.");
     });
 
     document.getElementById("privacyLink").addEventListener("click", function(e) {
         e.preventDefault();
-        alert("SecureBank Privacy Policy — we protect your personal data with bank-grade encryption and never sell your information.");
+        alert("GlobalVest Privacy Policy — we protect your personal data with bank-grade encryption and never sell your information.");
     });
 
     document.getElementById("signUpPassword").addEventListener("input", updatePasswordStrength);

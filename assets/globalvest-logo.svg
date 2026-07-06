@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="GlobalVest">
+  <defs>
+    <linearGradient id="gvGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1F6BFF"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+  </defs>
+  <circle cx="24" cy="24" r="22" fill="url(#gvGrad)" opacity="0.12"/>
+  <circle cx="24" cy="24" r="16" fill="none" stroke="url(#gvGrad)" stroke-width="2.5"/>
+  <ellipse cx="24" cy="24" rx="16" ry="6" fill="none" stroke="url(#gvGrad)" stroke-width="1.5" opacity="0.7"/>
+  <path d="M8 24h32M24 8v32" stroke="url(#gvGrad)" stroke-width="1.5" opacity="0.5"/>
+  <text x="54" y="32" font-family="Inter, Manrope, -apple-system, sans-serif" font-weight="800" font-size="21" fill="#081B45" letter-spacing="-0.04em">GlobalVest</text>
+</svg>

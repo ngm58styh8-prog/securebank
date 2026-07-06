@@ -127,13 +127,23 @@ function applyWebsiteSettings() {
     const ws = getWebsiteSettings();
 
     const siteNameEl = document.getElementById("siteName");
-    if (siteNameEl) siteNameEl.textContent = "🏦 " + ws.siteName;
+    if (siteNameEl) {
+        const img = siteNameEl.querySelector("img");
+        if (img) img.alt = ws.siteName;
+        else siteNameEl.textContent = ws.siteName;
+    }
 
     const siteTaglineEl = document.getElementById("siteTagline");
     if (siteTaglineEl) siteTaglineEl.textContent = ws.siteTagline;
 
     const dashTitle = document.getElementById("dashboardSiteName");
-    if (dashTitle) dashTitle.textContent = "🏦 " + ws.siteName + " Dashboard";
+    if (dashTitle) {
+        const textEl = dashTitle.querySelector(".dashboard-brand-text");
+        if (textEl) textEl.textContent = ws.siteName + " Dashboard";
+        else dashTitle.textContent = ws.siteName + " Dashboard";
+        const img = dashTitle.querySelector("img");
+        if (img) img.alt = ws.siteName;
+    }
 
     document.querySelectorAll("[data-site-name]").forEach(function(el) {
         el.textContent = ws.siteName;
@@ -156,8 +166,8 @@ function applyWebsiteSettings() {
         }
     }
 
-    if (ws.siteName && document.title.indexOf("SecureBank") !== -1) {
-        document.title = document.title.replace(/SecureBank/g, ws.siteName);
+    if (ws.siteName && document.title.indexOf("GlobalVest") !== -1) {
+        document.title = document.title.replace(/GlobalVest/g, ws.siteName);
     }
 }
 
