@@ -6,61 +6,88 @@
 <meta name="theme-color" content="#081B45">
 <title>GlobalVest — Dashboard</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/dashboard-premium.css">
 </head>
-<body>
+<body class="dashboard-premium">
 
-<header>
-    <div class="header-left">
-        <h2 id="dashboardSiteName" class="dashboard-brand-title">
-            <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
-            <span class="dashboard-brand-text">GlobalVest Dashboard</span>
-        </h2>
-        <p>Welcome back, <span id="userName">User</span></p>
+<div class="gv-shell">
+
+<aside class="gv-sidebar" id="gvSidebar">
+    <div class="gv-sidebar-logo">
+        <img src="assets/globalvest-logo-light.svg" alt="GlobalVest">
     </div>
-    <div class="header-right">
-        <button id="notifBtn" class="icon-btn" type="button">
+    <div class="gv-nav-section">Overview</div>
+    <a href="dashboard.html" class="gv-nav-link active">📊 Dashboard</a>
+    <a href="wallet.html" class="gv-nav-link">💼 Portfolio</a>
+    <a href="exchange.html" class="gv-nav-link">📈 Markets</a>
+    <div class="gv-nav-section">Invest</div>
+    <a href="exchange.html" class="gv-nav-link">📈 Stocks</a>
+    <a href="exchange.html" class="gv-nav-link">₿ Crypto</a>
+    <a href="exchange.html" class="gv-nav-link">💼 ETFs</a>
+    <a href="exchange.html" class="gv-nav-link">💱 Forex</a>
+    <div class="gv-nav-section">Banking</div>
+    <a href="wallet.html" class="gv-nav-link">💳 Cards</a>
+    <a href="wallet.html" class="gv-nav-link">📋 Transactions</a>
+    <a href="dashboard.html" class="gv-nav-link">📉 Analytics</a>
+    <div class="gv-nav-section">Account</div>
+    <a href="support.html" class="gv-nav-link">🛟 Support</a>
+    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+    <a href="settings.html" class="gv-nav-link">🔒 Security</a>
+    <a href="admin-dashboard.html" class="gv-nav-link gv-hidden" id="gvAdminLink">🛡️ Admin</a>
+</aside>
+
+<div class="gv-app">
+
+<header class="gv-header">
+    <div class="gv-header-left">
+        <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Menu">☰</button>
+        <div class="gv-welcome">
+            <h1>
+                <img src="assets/globalvest-logo-light.svg" alt="" class="brand-logo-img sm" style="height:28px;vertical-align:middle;margin-right:8px;">
+                GlobalVest
+            </h1>
+            <p>Welcome back, <span id="userName">User</span> 👋</p>
+        </div>
+        <div class="gv-market-status" id="marketStatus"><span class="dot"></span> Markets Open</div>
+    </div>
+    <div class="gv-header-actions profile-wrap">
+        <button type="button" class="gv-icon-btn icon-btn" id="searchBtn" title="Search">🔍</button>
+        <button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications">
             🔔 <span id="notifCount" class="badge" style="display:none">0</span>
         </button>
         <div id="notifPanel" class="notif-panel hidden">
-            <div class="notif-header">
-                <span>🔔 Notifications</span>
-            </div>
+            <div class="notif-header"><span>🔔 Notifications</span></div>
             <div id="notifList"></div>
         </div>
-
-        <button id="themeToggle" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
-
-        <nav class="main-nav" id="mainNav">
-            <a href="dashboard.html" class="nav-link active" data-page="dashboard">Dashboard</a>
-            <a href="exchange.html" class="nav-link" data-page="exchange">Exchange</a>
-            <a href="support.html" class="nav-link" data-page="support">Support</a>
-            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
-        </nav>
-
-        <div class="profile-wrap">
-            <button id="profileBtn" class="profile-btn" type="button">
-                👤 <span class="username" id="profileName">User</span> ▾
-            </button>
-            <div id="profileMenu" class="dropdown hidden">
-                <div class="dropdown-header">👤 Account</div>
-                <button class="dropdown-item" type="button" id="viewProfileBtn">Profile</button>
-                <button class="dropdown-item" type="button" id="exchangeBtn">Exchange</button>
-                <button class="dropdown-item" type="button" id="supportBtn">Support</button>
-                <button class="dropdown-item" type="button" id="settingsBtn">Settings</button>
-                <button class="dropdown-item" type="button" id="walletBtn">Wallet & Transactions</button>
-                <button id="logoutBtn" class="dropdown-item" type="button">Log Out</button>
-            </div>
+        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+        <button type="button" class="gv-avatar-btn" id="profileBtn">
+            <span class="gv-avatar">👤</span>
+            <span id="profileName">User</span> ▾
+        </button>
+        <div id="profileMenu" class="dropdown hidden">
+            <div class="dropdown-header">👤 Account</div>
+            <button class="dropdown-item" type="button" id="viewProfileBtn">Profile</button>
+            <button class="dropdown-item" type="button" id="verificationProfileBtn">Verification</button>
+            <button class="dropdown-item" type="button" id="securityProfileBtn">Security</button>
+            <button class="dropdown-item" type="button" id="settingsBtn">Settings</button>
+            <button class="dropdown-item" type="button" id="exchangeBtn">Exchange</button>
+            <button class="dropdown-item" type="button" id="walletBtn">Wallet & Transactions</button>
+            <button class="dropdown-item" type="button" id="supportBtn">Support</button>
+            <button class="dropdown-item" type="button" id="logoutBtn">Log Out</button>
         </div>
     </div>
 </header>
 
-<div class="container">
+<main class="gv-main">
 
 <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
-<div id="verificationBanner" class="card verification-banner hidden">
+<div id="verificationBanner" class="card verification-banner gv-glass hidden">
     <div class="verification-banner-content">
         <span class="verification-banner-icon">🔒</span>
         <div>
@@ -70,34 +97,75 @@
     </div>
 </div>
 
-<div class="cards overview-cards">
+<section class="gv-hero gv-glass gv-animate-in">
+    <div>
+        <div class="gv-hero-label">Total Portfolio Value</div>
+        <div class="gv-hero-value" id="heroPortfolioValue">$0.00</div>
+        <div class="gv-hero-label">Today's Gain</div>
+        <div class="gv-hero-gain pl-positive" id="heroTodayGain">▲ +$0.00 (+0.00%)</div>
+    </div>
+    <div class="gv-hero-chart">
+        <canvas id="heroSparkChart"></canvas>
+    </div>
+</section>
 
-<div class="card balance-card">
-    <h3>💰 Account Balance</h3>
-    <div class="balance" id="accountBalance">$25,480.33</div>
-    <div class="action-row">
-        <button class="deposit-btn" type="button" id="depositBtn">💸 Deposit</button>
-        <button class="withdraw-btn" type="button" id="withdrawBtn">💸 Transfer</button>
+<div class="gv-quick-actions">
+    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="depositBtn">
+        <div class="gv-action-icon">💰</div>
+        <div class="gv-action-label">Deposit</div>
+    </button>
+    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="withdrawBtn">
+        <div class="gv-action-icon">💸</div>
+        <div class="gv-action-label">Withdraw</div>
+    </button>
+    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="transferQuickBtn">
+        <div class="gv-action-icon">🔄</div>
+        <div class="gv-action-label">Transfer</div>
+    </button>
+    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="investQuickBtn">
+        <div class="gv-action-icon">📈</div>
+        <div class="gv-action-label">Invest</div>
+    </button>
+</div>
+
+<div class="gv-stats-grid">
+    <div class="gv-stat-card gv-glass gv-animate-in card">
+        <h3>Profit / Loss</h3>
+        <div id="plValue" class="balance pl-positive">+$0.00</div>
+        <div id="plPercent" class="pl-sub">0.00% all time</div>
+    </div>
+    <div class="gv-stat-card gv-glass gv-animate-in card balance-card">
+        <h3>Buying Power</h3>
+        <div class="balance" id="accountBalance">$0.00</div>
+        <p style="font-size:0.82rem;color:var(--gv-muted);margin-top:8px;">Cash available to invest</p>
+    </div>
+    <div class="gv-stat-card gv-glass gv-animate-in card">
+        <h3>Total Assets</h3>
+        <div class="balance" id="totalAssets">—</div>
+        <p style="font-size:0.82rem;color:var(--gv-muted);margin-top:8px;">Portfolio diversification</p>
+    </div>
+    <div class="gv-stat-card gv-glass gv-animate-in card">
+        <h3>Account Tier</h3>
+        <div class="balance" style="font-size:1.1rem;">Platinum Elite</div>
+        <span class="gv-tier-badge">🏅 Gold Benefits Unlocked</span>
     </div>
 </div>
 
-<div class="card">
-    <h3>📊 Profit / Loss</h3>
-    <div id="plValue" class="balance pl-positive">+$0.00</div>
-    <div id="plPercent" class="pl-sub">0.00% all time</div>
-</div>
-
-</div>
-
-<div id="pendingTransfersCard" class="card pending-card hidden">
+<div id="pendingTransfersCard" class="card pending-card gv-glass hidden">
     <h3>⏳ Pending Requests</h3>
     <ul id="pendingTransfersList" class="pending-list"></ul>
 </div>
 
-<h2 class="section-title">₿ Cryptocurrency</h2>
-<div class="cards crypto-cards">
+<div class="gv-section-title">📈 Your Holdings</div>
+<div class="gv-tabs gv-market-tabs">
+    <button type="button" class="gv-tab gv-market-tab active" data-market-tab="crypto">Crypto</button>
+    <button type="button" class="gv-tab gv-market-tab" data-market-tab="stocks">Stocks</button>
+    <button type="button" class="gv-tab gv-market-tab" data-market-tab="etfs">ETFs</button>
+    <button type="button" class="gv-tab gv-market-tab" data-market-tab="commodities">Commodities</button>
+</div>
 
-<div class="card">
+<div class="gv-market-section cards crypto-cards" data-market-section="crypto">
+<div class="card gv-glass">
     <h3>₿ Bitcoin</h3>
     <div class="balance">
         <div id="btcHoldings">0.4825 BTC</div>
@@ -107,8 +175,7 @@
     <button class="buy-btn" data-coin="btc" type="button" onclick="buyBTC()">Buy BTC</button>
     <button class="sell-btn" data-coin="btc" type="button" onclick="sellBTC()">Sell BTC</button>
 </div>
-
-<div class="card">
+<div class="card gv-glass">
     <h3>Ξ Ethereum</h3>
     <div class="balance">
         <div id="ethHoldings">8.16 ETH</div>
@@ -118,8 +185,7 @@
     <button class="buy-btn" data-coin="eth" type="button" onclick="buyETH()">Buy ETH</button>
     <button class="sell-btn" data-coin="eth" type="button" onclick="sellETH()">Sell ETH</button>
 </div>
-
-<div class="card">
+<div class="card gv-glass">
     <h3>◎ Solana</h3>
     <div class="balance">
         <div id="solHoldings">8.50 SOL</div>
@@ -129,8 +195,7 @@
     <button class="buy-btn" data-coin="sol" type="button" onclick="buySOL()">Buy SOL</button>
     <button class="sell-btn" data-coin="sol" type="button" onclick="sellSOL()">Sell SOL</button>
 </div>
-
-<div class="card">
+<div class="card gv-glass">
     <h3>XRP</h3>
     <div class="balance">
         <div id="xrpHoldings">1,250 XRP</div>
@@ -140,12 +205,10 @@
     <button class="buy-btn" data-coin="xrp" type="button" onclick="buyXRP()">Buy XRP</button>
     <button class="sell-btn" data-coin="xrp" type="button" onclick="sellXRP()">Sell XRP</button>
 </div>
-
 </div>
 
-<h2 class="section-title">🥇 Gold & Commodities</h2>
-<div class="cards">
-<div class="card asset-card gold-card">
+<div class="gv-market-section cards hidden-panel" data-market-section="commodities">
+<div class="card asset-card gold-card gv-glass">
     <h3>🥇 Gold (XAU)</h3>
     <div class="balance">
         <div id="goldHoldings">1.50 oz</div>
@@ -157,9 +220,8 @@
 </div>
 </div>
 
-<h2 class="section-title">📈 Stocks</h2>
-<div class="cards">
-<div class="card asset-card stock-card">
+<div class="gv-market-section cards hidden-panel" data-market-section="stocks">
+<div class="card asset-card stock-card gv-glass">
     <h3>🍎 Apple (AAPL)</h3>
     <div class="balance">
         <div id="aaplHoldings">12 shares</div>
@@ -169,7 +231,7 @@
     <button class="buy-btn" data-asset="aapl" type="button" onclick="buyAsset('aapl')">Buy AAPL</button>
     <button class="sell-btn" data-asset="aapl" type="button" onclick="sellAsset('aapl')">Sell AAPL</button>
 </div>
-<div class="card asset-card stock-card">
+<div class="card asset-card stock-card gv-glass">
     <h3>🔍 Alphabet (GOOGL)</h3>
     <div class="balance">
         <div id="googlHoldings">6 shares</div>
@@ -179,7 +241,7 @@
     <button class="buy-btn" data-asset="googl" type="button" onclick="buyAsset('googl')">Buy GOOGL</button>
     <button class="sell-btn" data-asset="googl" type="button" onclick="sellAsset('googl')">Sell GOOGL</button>
 </div>
-<div class="card asset-card stock-card">
+<div class="card asset-card stock-card gv-glass">
     <h3>💻 Microsoft (MSFT)</h3>
     <div class="balance">
         <div id="msftHoldings">10 shares</div>
@@ -189,7 +251,7 @@
     <button class="buy-btn" data-asset="msft" type="button" onclick="buyAsset('msft')">Buy MSFT</button>
     <button class="sell-btn" data-asset="msft" type="button" onclick="sellAsset('msft')">Sell MSFT</button>
 </div>
-<div class="card asset-card stock-card">
+<div class="card asset-card stock-card gv-glass">
     <h3>🟢 NVIDIA (NVDA)</h3>
     <div class="balance">
         <div id="nvdaHoldings">8 shares</div>
@@ -201,9 +263,8 @@
 </div>
 </div>
 
-<h2 class="section-title">💼 Investments (ETFs)</h2>
-<div class="cards">
-<div class="card asset-card invest-card">
+<div class="gv-market-section cards hidden-panel" data-market-section="etfs">
+<div class="card asset-card invest-card gv-glass">
     <h3>📊 S&P 500 (SPY)</h3>
     <div class="balance">
         <div id="spyHoldings">20 shares</div>
@@ -213,7 +274,7 @@
     <button class="buy-btn" data-asset="spy" type="button" onclick="buyAsset('spy')">Buy SPY</button>
     <button class="sell-btn" data-asset="spy" type="button" onclick="sellAsset('spy')">Sell SPY</button>
 </div>
-<div class="card asset-card invest-card">
+<div class="card asset-card invest-card gv-glass">
     <h3>📈 Nasdaq 100 (QQQ)</h3>
     <div class="balance">
         <div id="qqqHoldings">15 shares</div>
@@ -223,7 +284,7 @@
     <button class="buy-btn" data-asset="qqq" type="button" onclick="buyAsset('qqq')">Buy QQQ</button>
     <button class="sell-btn" data-asset="qqq" type="button" onclick="sellAsset('qqq')">Sell QQQ</button>
 </div>
-<div class="card asset-card invest-card">
+<div class="card asset-card invest-card gv-glass">
     <h3>🌐 Total Market (VTI)</h3>
     <div class="balance">
         <div id="vtiHoldings">25 shares</div>
@@ -235,64 +296,121 @@
 </div>
 </div>
 
-<h2 class="section-title">📊 Live Portfolio Analytics</h2>
+<div class="gv-section-title">⭐ Watchlist</div>
+<div class="gv-watchlist">
+    <button type="button" class="gv-watch-chip active">🍎 Apple</button>
+    <button type="button" class="gv-watch-chip active">💻 Microsoft</button>
+    <button type="button" class="gv-watch-chip">🟢 NVIDIA</button>
+    <button type="button" class="gv-watch-chip">🚗 Tesla</button>
+    <button type="button" class="gv-watch-chip">📦 Amazon</button>
+    <button type="button" class="gv-watch-chip active">₿ Bitcoin</button>
+    <button type="button" class="gv-watch-chip">Ξ Ethereum</button>
+    <button type="button" class="gv-watch-chip">◎ Solana</button>
+    <button type="button" class="gv-watch-chip">🥇 Gold</button>
+    <button type="button" class="gv-watch-chip">📊 S&amp;P 500</button>
+</div>
+
+<div class="gv-section-title">📊 Portfolio Analytics</div>
 <div class="cards analytics-cards">
-    <div class="card">
-        <h3>Total Assets</h3>
-        <div class="balance" id="totalAssets">—</div>
-    </div>
-    <div class="card">
+    <div class="card gv-glass">
         <h3>Today's Profit</h3>
         <div class="balance" id="todayProfit">—</div>
     </div>
-    <div class="card">
+    <div class="card gv-glass">
         <h3>Monthly Return</h3>
         <div class="balance" id="monthlyReturn">—</div>
     </div>
-    <div class="card">
+    <div class="card gv-glass">
         <h3>Best Performing</h3>
         <div class="balance analytics-sm" id="bestCoin">—</div>
     </div>
-    <div class="card">
+    <div class="card gv-glass">
         <h3>Worst Performing</h3>
         <div class="balance analytics-sm" id="worstCoin">—</div>
     </div>
 </div>
 
 <div class="grid-2">
-
-<div class="card">
+<div class="card gv-glass">
     <h3>💰 Portfolio Allocation</h3>
     <div class="chart-wrap pie-wrap">
         <canvas id="allocationChart"></canvas>
     </div>
 </div>
-
-<div class="card">
-    <h3>📈 Portfolio Growth</h3>
+<div class="card gv-glass">
+    <h3>📈 Investment Performance</h3>
+    <div class="gv-chart-tabs">
+        <button type="button" class="gv-chart-tab active">1D</button>
+        <button type="button" class="gv-chart-tab">1W</button>
+        <button type="button" class="gv-chart-tab">1M</button>
+        <button type="button" class="gv-chart-tab">6M</button>
+        <button type="button" class="gv-chart-tab">1Y</button>
+        <button type="button" class="gv-chart-tab">ALL</button>
+    </div>
     <div class="chart-wrap">
         <canvas id="portfolioChart"></canvas>
     </div>
 </div>
-
 </div>
 
-<div class="table-scroll">
-<table id="transactionTable">
-<thead>
-<tr>
-    <th>Date</th>
-    <th>Description</th>
-    <th>Amount</th>
-</tr>
-</thead>
-<tbody id="transactionBody"></tbody>
-</table>
+<div class="card gv-glass gv-insights gv-animate-in">
+    <h3>✨ AI Investment Insights</h3>
+    <p>AI suggests increasing exposure to technology stocks while maintaining a balanced allocation across crypto and ETFs for optimal risk-adjusted returns.</p>
+    <button type="button" class="gv-insights-btn">Explore Insights</button>
 </div>
-<p class="table-link"><a href="wallet.html">View all transactions →</a></p>
 
-<div class="card">
-    <h3>🟢 Market Overview — Live Prices</h3>
+<div class="gv-section-title">🕐 Recent Activity</div>
+<div class="card gv-glass">
+    <div class="table-scroll">
+    <table id="transactionTable">
+    <thead>
+    <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Amount</th>
+    </tr>
+    </thead>
+    <tbody id="transactionBody"></tbody>
+    </table>
+    </div>
+    <p class="table-link" style="margin-top:12px;padding:0 4px;"><a href="wallet.html">View all transactions →</a></p>
+</div>
+
+<div class="gv-section-title">📰 Market News</div>
+<div class="gv-news-grid">
+    <div class="card gv-glass gv-news-item">
+        <div class="gv-news-tag">Breaking News</div>
+        <strong>Fed signals steady rates amid inflation cooldown</strong>
+        <p style="font-size:0.85rem;color:var(--gv-muted);margin-top:8px;">Markets rally as investors price in extended stability.</p>
+    </div>
+    <div class="card gv-glass gv-news-item">
+        <div class="gv-news-tag">Trending Stocks</div>
+        <strong>NVDA leads semiconductor surge on AI demand</strong>
+        <p style="font-size:0.85rem;color:var(--gv-muted);margin-top:8px;">Tech megacaps outperform broader indices.</p>
+    </div>
+    <div class="card gv-glass gv-news-item">
+        <div class="gv-news-tag">Economic Calendar</div>
+        <strong>US jobs report due Friday — volatility expected</strong>
+        <p style="font-size:0.85rem;color:var(--gv-muted);margin-top:8px;">Traders hedge ahead of key macro data.</p>
+    </div>
+    <div class="card gv-glass gv-news-item">
+        <div class="gv-news-tag">Crypto News</div>
+        <strong>Bitcoin holds above key support as ETF inflows rise</strong>
+        <p style="font-size:0.85rem;color:var(--gv-muted);margin-top:8px;">Institutional adoption continues to accelerate.</p>
+    </div>
+</div>
+
+<div class="gv-section-title">🟢 Market Overview</div>
+<div class="card gv-glass">
+    <div class="gv-tabs gv-overview-tabs">
+        <button type="button" class="gv-tab gv-overview-tab active" data-overview-tab="all">All</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="crypto">Crypto</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="stocks">Stocks</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="etfs">ETFs</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="indices">Indices</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="forex">Forex</button>
+        <button type="button" class="gv-tab gv-overview-tab" data-overview-tab="commodities">Commodities</button>
+    </div>
     <div class="table-scroll">
     <table class="market-table">
         <thead>
@@ -304,73 +422,73 @@
         </tr>
         </thead>
         <tbody>
-        <tr>
+        <tr data-market-type="crypto">
             <td>₿ Bitcoin</td>
             <td><span class="type-badge crypto">Crypto</span></td>
             <td id="marketBTC">Loading...</td>
             <td id="marketBTCChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="crypto">
             <td>Ξ Ethereum</td>
             <td><span class="type-badge crypto">Crypto</span></td>
             <td id="marketETH">Loading...</td>
             <td id="marketETHChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="crypto">
             <td>◎ Solana</td>
             <td><span class="type-badge crypto">Crypto</span></td>
             <td id="marketSOL">Loading...</td>
             <td id="marketSOLChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="crypto">
             <td>XRP</td>
             <td><span class="type-badge crypto">Crypto</span></td>
             <td id="marketXRP">Loading...</td>
             <td id="marketXRPChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="commodities">
             <td>🥇 Gold</td>
             <td><span class="type-badge gold">Gold</span></td>
             <td id="marketGOLD">Loading...</td>
             <td id="marketGOLDChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="stocks">
             <td>🍎 AAPL</td>
             <td><span class="type-badge stock">Stock</span></td>
             <td id="marketAAPL">Loading...</td>
             <td id="marketAAPLChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="stocks">
             <td>🔍 GOOGL</td>
             <td><span class="type-badge stock">Stock</span></td>
             <td id="marketGOOGL">Loading...</td>
             <td id="marketGOOGLChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="stocks">
             <td>💻 MSFT</td>
             <td><span class="type-badge stock">Stock</span></td>
             <td id="marketMSFT">Loading...</td>
             <td id="marketMSFTChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="stocks">
             <td>🟢 NVDA</td>
             <td><span class="type-badge stock">Stock</span></td>
             <td id="marketNVDA">Loading...</td>
             <td id="marketNVDAChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="indices">
             <td>📊 SPY</td>
             <td><span class="type-badge invest">ETF</span></td>
             <td id="marketSPY">Loading...</td>
             <td id="marketSPYChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="etfs">
             <td>📈 QQQ</td>
             <td><span class="type-badge invest">ETF</span></td>
             <td id="marketQQQ">Loading...</td>
             <td id="marketQQQChange">—</td>
         </tr>
-        <tr>
+        <tr data-market-type="etfs">
             <td>🌐 VTI</td>
             <td><span class="type-badge invest">ETF</span></td>
             <td id="marketVTI">Loading...</td>
@@ -381,7 +499,19 @@
     </div>
 </div>
 
+</main>
 </div>
+</div>
+
+<nav class="gv-mobile-nav">
+    <a href="dashboard.html" class="active">Home</a>
+    <a href="exchange.html">Markets</a>
+    <a href="wallet.html">Portfolio</a>
+    <a href="support.html">Support</a>
+    <a href="settings.html">Settings</a>
+</nav>
+
+<button type="button" class="gv-fab" id="gvFab" aria-label="Quick deposit">+</button>
 
 <div id="btcDepositPopup" class="modal-overlay hidden">
     <div class="modal btc-deposit-popup">
@@ -464,6 +594,7 @@
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
 <script src="js/dashboard.js"></script>
+<script src="js/dashboard-premium.js"></script>
 
 </body>
 </html>

@@ -231,6 +231,23 @@ function updateAnalytics() {
     todayEl.textContent = (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit);
     todayEl.className = "balance " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
 
+    const dayPct = analytics.dayStartValue ? (todayProfit / analytics.dayStartValue) * 100 : 0;
+    const heroVal = document.getElementById("heroPortfolioValue");
+    const heroGain = document.getElementById("heroTodayGain");
+    if (heroVal) {
+        if (typeof window.animateHeroPortfolio === "function") {
+            window.animateHeroPortfolio(total, formatPrice(total));
+        } else {
+            heroVal.textContent = formatPrice(total);
+        }
+    }
+    if (heroGain) {
+        const arrow = todayProfit >= 0 ? "▲" : "▼";
+        heroGain.textContent = arrow + " " + (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit) +
+            " (" + (dayPct >= 0 ? "+" : "") + dayPct.toFixed(2) + "%)";
+        heroGain.className = "gv-hero-gain " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
+    }
+
     const monthEl = document.getElementById("monthlyReturn");
     monthEl.textContent = (monthPct >= 0 ? "+" : "") + monthPct.toFixed(2) + "%";
     monthEl.className = "balance " + (monthPct >= 0 ? "pl-positive" : "pl-negative");
@@ -296,7 +313,7 @@ function updateUI() {
     const available = account.cash - pendingTotal;
 
     document.getElementById("accountBalance").textContent = formatPrice(account.cash);
-    const balanceCard = document.querySelector(".balance-card .balance");
+    const balanceCard = document.getElementById("accountBalance");
     if (balanceCard && pendingTotal > 0) {
         balanceCard.title = "Available: " + formatPrice(available) + " (" + formatPrice(pendingTotal) + " pending approval)";
     }
@@ -682,9 +699,10 @@ function initCharts() {
             datasets: [{
                 label: "Portfolio Value",
                 data: [12000, 14500, 17000, 19000, 21000, 24000, 25480],
-                borderColor: "#0059b3",
+                borderColor: "#1F6BFF",
                 borderWidth: 3,
-                fill: false,
+                fill: true,
+                backgroundColor: "rgba(31, 107, 255, 0.08)",
                 tension: 0.4
             }]
         },
@@ -703,7 +721,7 @@ function initCharts() {
             labels: ["Cash", "Crypto", "Gold", "Stocks", "ETFs"],
             datasets: [{
                 data: [1, 1, 1, 1, 1],
-                backgroundColor: ["#0059b3", "#f7931a", "#d4af37", "#1a8f4c", "#627eea"]
+                backgroundColor: ["#1F6BFF", "#3B82F6", "#FFB300", "#00C853", "#627eea"]
             }]
         },
         options: {
@@ -715,7 +733,7 @@ function initCharts() {
 }
 
 function initUI() {
-    applyTheme(settings.theme || "light");
+    applyTheme(settings.theme || "dark");
     renderTransactions();
     initCharts();
     updateUI();
@@ -797,6 +815,24 @@ function initUI() {
     document.getElementById("walletBtn").addEventListener("click", function() {
         window.location.href = "wallet.html";
     });
+
+    const verificationBtn = document.getElementById("verificationProfileBtn");
+    if (verificationBtn) {
+        verificationBtn.addEventListener("click", function() {
+            window.location.href = "profile.html";
+        });
+    }
+    const securityBtn = document.getElementById("securityProfileBtn");
+    if (securityBtn) {
+        securityBtn.addEventListener("click", function() {
+            window.location.href = "settings.html";
+        });
+    }
+
+    const adminLink = document.getElementById("gvAdminLink");
+    if (adminLink && (username === normalizeEmail("admin@globalvest.com") || isLegacyAdminEmail(username))) {
+        adminLink.classList.remove("gv-hidden");
+    }
 
     document.addEventListener("click", function(e) {
         if (!e.target.closest("#notifBtn") && !e.target.closest("#notifPanel")) {
