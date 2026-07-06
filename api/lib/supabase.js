@@ -1,9 +1,9 @@
 const { createClient } = require("@supabase/supabase-js");
-const { getSupabaseUrl, getSupabaseAdminKey } = require("./supabase-config");
+const { getSupabaseUrl, getValidatedSupabaseAdminKey, isSupabaseJwtKey } = require("./supabase-config");
 
 function getSupabaseAdmin() {
     const url = getSupabaseUrl();
-    const admin = getSupabaseAdminKey();
+    const admin = getValidatedSupabaseAdminKey();
 
     if (!url || !admin.key) {
         throw new Error(
@@ -11,9 +11,23 @@ function getSupabaseAdmin() {
         );
     }
 
-    return createClient(url, admin.key, {
-        auth: { persistSession: false, autoRefreshToken: false }
-    });
+    const options = {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+        }
+    };
+
+    if (isSupabaseJwtKey(admin.key)) {
+        options.global = {
+            headers: {
+                Authorization: "Bearer " + admin.key
+            }
+        };
+    }
+
+    return createClient(url, admin.key, options);
 }
 
 module.exports = { getSupabaseAdmin };

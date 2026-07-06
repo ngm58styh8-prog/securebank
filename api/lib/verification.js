@@ -1,5 +1,6 @@
 const crypto = require("crypto");
-const { getSupabaseAdmin } = require("./supabase");
+const { supabaseRpc } = require("./supabase-admin-rest");
+const { ensureVerificationSchema } = require("./verification-schema");
 const { sendVerificationEmail } = require("./resend");
 
 const CODE_TTL_MS = 10 * 60 * 1000;
@@ -17,21 +18,23 @@ function generateVerificationCode() {
     return String(crypto.randomInt(100000, 1000000));
 }
 
+function firstRow(data) {
+    if (Array.isArray(data)) return data[0] || null;
+    return data || null;
+}
+
 async function getLatestVerification(email) {
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-        .from("email_verifications")
-        .select("*")
-        .eq("email", email)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    const data = await supabaseRpc("globalvest_get_latest_verification", {
+        p_email: email
+    });
+    return firstRow(data);
+}
 
-    if (error) {
-        throw new Error(error.message);
-    }
-
-    return data;
+async function getUnverifiedVerification(email) {
+    const data = await supabaseRpc("globalvest_get_unverified", {
+        p_email: email
+    });
+    return firstRow(data);
 }
 
 async function createAndSendVerification(email, options) {
@@ -41,6 +44,8 @@ async function createAndSendVerification(email, options) {
     if (!isValidEmail(normalized)) {
         return { ok: false, status: 400, error: "Please enter a valid email address." };
     }
+
+    await ensureVerificationSchema();
 
     if (options.enforceCooldown) {
         const latest = await getLatestVerification(normalized);
@@ -60,28 +65,13 @@ async function createAndSendVerification(email, options) {
 
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
-    const supabase = getSupabaseAdmin();
 
-    const { error: deleteError } = await supabase
-        .from("email_verifications")
-        .delete()
-        .eq("email", normalized)
-        .eq("verified", false);
-
-    if (deleteError) {
-        throw new Error(deleteError.message);
-    }
-
-    const { error: insertError } = await supabase.from("email_verifications").insert({
-        email: normalized,
-        code: code,
-        expires_at: expiresAt,
-        verified: false
+    await supabaseRpc("globalvest_delete_unverified", { p_email: normalized });
+    await supabaseRpc("globalvest_insert_verification", {
+        p_email: normalized,
+        p_code: code,
+        p_expires_at: expiresAt
     });
-
-    if (insertError) {
-        throw new Error(insertError.message);
-    }
 
     await sendVerificationEmail(normalized, code);
 
@@ -105,19 +95,9 @@ async function verifyEmailCode(email, code) {
         return { ok: false, status: 400, error: "Enter a valid 6-digit verification code." };
     }
 
-    const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
-        .from("email_verifications")
-        .select("*")
-        .eq("email", normalized)
-        .eq("verified", false)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    await ensureVerificationSchema();
 
-    if (error) {
-        throw new Error(error.message);
-    }
+    const data = await getUnverifiedVerification(normalized);
 
     if (!data) {
         return { ok: false, status: 400, error: "No active verification code found. Request a new code." };
@@ -131,15 +111,7 @@ async function verifyEmailCode(email, code) {
         return { ok: false, status: 400, error: "Invalid verification code." };
     }
 
-    const { error: updateError } = await supabase
-        .from("email_verifications")
-        .update({ verified: true })
-        .eq("id", data.id);
-
-    if (updateError) {
-        throw new Error(updateError.message);
-    }
-
+    await supabaseRpc("globalvest_mark_verified", { p_id: data.id });
     await markServerAccountEmailVerified(normalized);
 
     return { ok: true, status: 200, email: normalized };

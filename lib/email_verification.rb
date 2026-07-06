@@ -71,6 +71,31 @@ module EmailVerification
     format("%06d", SecureRandom.random_number(1_000_000))
   end
 
+  def supabase_jwt_key?
+    supabase_admin_key.start_with?("eyJ")
+  end
+
+  def supabase_rpc(function_name, params = {})
+    base = ENV["SUPABASE_URL"].to_s.chomp("/")
+    uri = URI("#{base}/rest/v1/rpc/#{function_name}")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+
+    req = Net::HTTP::Post.new(uri)
+    key = supabase_admin_key
+    req["apikey"] = key
+    req["Authorization"] = "Bearer #{key}" if supabase_jwt_key?
+    req["Content-Type"] = "application/json"
+    req["Prefer"] = "return=representation"
+    req.body = params.to_json
+    res = http.request(req)
+    raise "Supabase RPC failed: #{res.body}" unless res.code.to_i.between?(200, 299)
+
+    return nil if res.body.nil? || res.body.strip.empty?
+
+    JSON.parse(res.body)
+  end
+
   def supabase_request(method, path, body = nil)
     base = ENV["SUPABASE_URL"].to_s.chomp("/")
     uri = URI("#{base}/rest/v1/#{path}")
@@ -124,22 +149,16 @@ module EmailVerification
     return { ok: false, status: 400, error: "Please enter a valid email address." } unless email.include?("@")
 
     if enforce_cooldown
-      status, body = supabase_request(
-        "GET",
-        "email_verifications?email=eq.#{URI.encode_www_form_component(email)}&order=created_at.desc&limit=1"
-      )
-      if status == 200
-        rows = JSON.parse(body)
-        if rows.is_a?(Array) && rows.any?
-          created = Time.parse(rows.first["created_at"]) rescue nil
-          if created && (Time.now - created) < RESEND_COOLDOWN_SEC
-            retry_after = (RESEND_COOLDOWN_SEC - (Time.now - created)).ceil
-            return {
-              ok: false, status: 429,
-              error: "Please wait #{retry_after} seconds before requesting another code.",
-              retryAfter: retry_after
-            }
-          end
+      rows = supabase_rpc("globalvest_get_latest_verification", { p_email: email })
+      if rows.is_a?(Array) && rows.any?
+        created = Time.parse(rows.first["created_at"]) rescue nil
+        if created && (Time.now - created) < RESEND_COOLDOWN_SEC
+          retry_after = (RESEND_COOLDOWN_SEC - (Time.now - created)).ceil
+          return {
+            ok: false, status: 429,
+            error: "Please wait #{retry_after} seconds before requesting another code.",
+            retryAfter: retry_after
+          }
         end
       end
     end
@@ -147,15 +166,12 @@ module EmailVerification
     code = generate_code
     expires_at = (Time.now + CODE_TTL_SEC).utc.iso8601
 
-    supabase_request(
-      "DELETE",
-      "email_verifications?email=eq.#{URI.encode_www_form_component(email)}&verified=eq.false"
-    )
-
-    status, res_body = supabase_request("POST", "email_verifications", {
-      email: email, code: code, expires_at: expires_at, verified: false
+    supabase_rpc("globalvest_delete_unverified", { p_email: email })
+    supabase_rpc("globalvest_insert_verification", {
+      p_email: email,
+      p_code: code,
+      p_expires_at: expires_at
     })
-    raise "Supabase insert failed: #{res_body}" unless status.between?(200, 299)
 
     resend_email(email, code)
 
@@ -172,13 +188,7 @@ module EmailVerification
     code = code.to_s.strip
     return { ok: false, status: 400, error: "Enter a valid 6-digit verification code." } unless code.match?(/^\d{6}$/)
 
-    status, body = supabase_request(
-      "GET",
-      "email_verifications?email=eq.#{URI.encode_www_form_component(email)}&verified=eq.false&order=created_at.desc&limit=1"
-    )
-    raise "Supabase lookup failed: #{body}" unless status == 200
-
-    rows = JSON.parse(body)
+    rows = supabase_rpc("globalvest_get_unverified", { p_email: email })
     row = rows.is_a?(Array) ? rows.first : nil
     return { ok: false, status: 400, error: "No active verification code found. Request a new code." } unless row
 
@@ -188,12 +198,7 @@ module EmailVerification
 
     return { ok: false, status: 400, error: "Invalid verification code." } unless row["code"] == code
 
-    patch_status, = supabase_request(
-      "PATCH",
-      "email_verifications?id=eq.#{row['id']}",
-      { verified: true }
-    )
-    raise "Supabase update failed" unless patch_status.between?(200, 299)
+    supabase_rpc("globalvest_mark_verified", { p_id: row["id"] })
 
     mark_account_verified(email)
 
