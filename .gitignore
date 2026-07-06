@@ -9,3 +9,4 @@ backups/
 node_modules/
 admin-panel/node_modules/
 admin-v2/
+.vercel

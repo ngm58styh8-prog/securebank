@@ -1,5 +1,5 @@
-const { setCors, handleOptions } = require("./lib/cors");
-const { getSupabaseEnvChecks, getMissingSupabaseEnv } = require("./lib/supabase-config");
+const { setCors, handleOptions } = require("../server-lib/cors");
+const { getSupabaseEnvChecks, getMissingSupabaseEnv } = require("../server-lib/supabase-config");
 
 module.exports = async function handler(req, res) {
     if (handleOptions(req, res)) return;

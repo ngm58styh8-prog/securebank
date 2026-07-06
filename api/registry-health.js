@@ -1,6 +1,6 @@
-const { setRegistryCors, handleRegistryOptions } = require("./lib/registry-cors");
-const { isRegistryConfigured, registryConfigError } = require("./lib/registry");
-const { getSupabaseEnvChecks } = require("./lib/supabase-config");
+const { setRegistryCors, handleRegistryOptions } = require("../server-lib/registry-cors");
+const { isRegistryConfigured, registryConfigError } = require("../server-lib/registry");
+const { getSupabaseEnvChecks } = require("../server-lib/supabase-config");
 
 module.exports = async function handler(req, res) {
     if (handleRegistryOptions(req, res)) return;

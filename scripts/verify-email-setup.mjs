@@ -32,7 +32,7 @@ loadDotenv(path.join(root, ".env.local"));
 loadDotenv(path.join(root, ".env"));
 
 const require = (await import("module")).createRequire(import.meta.url);
-const { getMissingSupabaseEnv, getSupabaseServiceRoleKey } = require("../api/lib/supabase-config.js");
+const { getMissingSupabaseEnv, getSupabaseServiceRoleKey } = require("../server-lib/supabase-config.js");
 
 console.log("\nGlobalVest email verification — configuration check\n");
 
@@ -61,7 +61,7 @@ if (!testEmail) {
 
 process.chdir(root);
 
-const { createAndSendVerification, verifyEmailCode } = require("../api/lib/verification.js");
+const { createAndSendVerification, verifyEmailCode } = require("../server-lib/verification.js");
 
 console.log("\nSending test verification to " + testEmail + "...");
 const sendResult = await createAndSendVerification(testEmail, { enforceCooldown: false });

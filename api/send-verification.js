@@ -1,5 +1,5 @@
-const { setCors, handleOptions } = require("./lib/cors");
-const { createAndSendVerification } = require("./lib/verification");
+const { setCors, handleOptions } = require("../server-lib/cors");
+const { createAndSendVerification } = require("../server-lib/verification");
 
 module.exports = async function handler(req, res) {
     if (handleOptions(req, res)) return;

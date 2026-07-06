@@ -1,10 +1,10 @@
-const { setRegistryCors, handleRegistryOptions } = require("./lib/registry-cors");
+const { setRegistryCors, handleRegistryOptions } = require("../server-lib/registry-cors");
 const {
     isRegistryConfigured,
     registryConfigError,
     loadAdminRegistry,
     saveAdminRegistry
-} = require("./lib/registry");
+} = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
     if (handleRegistryOptions(req, res)) return;

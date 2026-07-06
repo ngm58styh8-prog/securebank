@@ -1,4 +1,4 @@
-const { setRegistryCors, handleRegistryOptions } = require("./lib/registry-cors");
+const { setRegistryCors, handleRegistryOptions } = require("../server-lib/registry-cors");
 const {
     isRegistryConfigured,
     registryConfigError,
@@ -6,7 +6,7 @@ const {
     loadAllAccounts,
     upsertAccount,
     deleteAccount
-} = require("./lib/registry");
+} = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
     if (handleRegistryOptions(req, res)) return;
