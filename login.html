@@ -3,13 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#081B45">
+<meta name="theme-color" content="#070B18">
 <title>GlobalVest — Sign In</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/luxury.css">
 </head>
-<body class="auth-body auth-page-enter">
+<body class="auth-body auth-page-enter luxury-auth" data-theme="dark">
 
 <button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
 
@@ -84,12 +88,6 @@
 
                     <button type="submit" class="auth-submit">Login</button>
                     <p class="auth-message hidden" id="signInMessage"></p>
-
-                    <div class="social-divider"><span>or continue with</span></div>
-                    <div class="social-btns">
-                        <button type="button" class="social-btn" id="googleSignIn">Google</button>
-                        <button type="button" class="social-btn" id="appleSignIn">Apple</button>
-                    </div>
                 </form>
 
                 <form id="signUpForm" class="auth-form auth-panel-hidden" autocomplete="on">
@@ -165,12 +163,6 @@
 
                     <button type="submit" class="auth-submit">Create Account</button>
                     <p class="auth-message hidden" id="signUpMessage"></p>
-
-                    <div class="social-divider"><span>or continue with</span></div>
-                    <div class="social-btns">
-                        <button type="button" class="social-btn" id="googleSignUp">Google</button>
-                        <button type="button" class="social-btn" id="appleSignUp">Apple</button>
-                    </div>
                 </form>
 
                 <div id="twoFactorStep" class="auth-step auth-panel-hidden">

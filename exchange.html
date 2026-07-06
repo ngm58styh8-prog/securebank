@@ -3,18 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#081B45">
+<meta name="theme-color" content="#070B18">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css">
 <title>GlobalVest — Exchange</title>
 <link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/dashboard-premium.css">
+<link rel="stylesheet" href="css/luxury.css">
 </head>
-<body>
+<body class="luxury-app dashboard-premium" data-theme="dark">
 
 <header>
     <div class="header-left">
-        <h2>💱 Exchange</h2>
-        <p>Convert crypto ↔ cash and view exchange history</p>
+        <h2>📈 Markets</h2>
+        <p>Live markets, convert crypto ↔ cash, and view exchange history</p>
     </div>
     <div class="header-right">
         <nav class="main-nav" id="mainNav">
@@ -32,6 +37,9 @@
 <div class="container feature-page">
 
 <div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<h2 class="gv-section-title lv-animate-in" style="margin-bottom:16px;">Live Markets</h2>
+<div id="lvMarketsGrid" class="lv-markets-grid"></div>
 
 <div class="feature-grid">
     <div class="card settings-section">
@@ -99,5 +107,6 @@
 <script src="js/common.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/exchange.js"></script>
+<script src="js/luxury-ui.js"></script>
 </body>
 </html>

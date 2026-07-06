@@ -109,49 +109,6 @@ body.auth-page-enter {
     background: var(--auth-input-bg);
 }
 
-.social-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 18px 0 12px;
-    color: var(--auth-muted);
-    font-size: 0.82rem;
-}
-
-.social-divider::before,
-.social-divider::after {
-    content: "";
-    flex: 1;
-    height: 1px;
-    background: var(--auth-border);
-}
-
-.social-btns {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-}
-
-.social-btn {
-    width: 100%;
-    margin: 0;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--auth-border);
-    background: var(--auth-input-bg);
-    color: var(--auth-text);
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-}
-
-.social-btn:hover {
-    background: var(--auth-card);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
 .auth-page {
     display: flex;
     align-items: stretch;

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#081B45">
+<meta name="theme-color" content="#070B18">
 <title>GlobalVest — Dashboard</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,8 +12,9 @@
 <link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/dashboard-premium.css">
+<link rel="stylesheet" href="css/luxury.css">
 </head>
-<body class="dashboard-premium">
+<body class="dashboard-premium luxury-app" data-theme="dark">
 
 <div class="gv-shell">
 
@@ -97,12 +98,23 @@
     </div>
 </div>
 
-<section class="gv-hero gv-glass gv-animate-in">
+<section class="gv-hero gv-glass gv-animate-in lv-hero-card">
+    <div class="lv-world-map" aria-hidden="true"><canvas id="lvWorldMap"></canvas></div>
     <div>
-        <div class="gv-hero-label">Total Portfolio Value</div>
+        <div class="gv-hero-label">Total Balance</div>
         <div class="gv-hero-value" id="heroPortfolioValue">$0.00</div>
         <div class="gv-hero-label">Today's Gain</div>
         <div class="gv-hero-gain pl-positive" id="heroTodayGain">▲ +$0.00 (+0.00%)</div>
+        <div class="lv-hero-metrics">
+            <div class="lv-metric">
+                <span class="gv-hero-label">Available Balance</span>
+                <div class="lv-balance-sm" id="lvAvailableBalance">$0.00</div>
+            </div>
+            <div class="lv-metric">
+                <span class="gv-hero-label">Monthly Profit</span>
+                <div class="lv-balance-sm lv-profit" id="lvMonthlyProfit">+$0.00</div>
+            </div>
+        </div>
     </div>
     <div class="gv-hero-chart">
         <canvas id="heroSparkChart"></canvas>
@@ -503,16 +515,6 @@
 </div>
 </div>
 
-<nav class="gv-mobile-nav">
-    <a href="dashboard.html" class="active">Home</a>
-    <a href="exchange.html">Markets</a>
-    <a href="wallet.html">Portfolio</a>
-    <a href="support.html">Support</a>
-    <a href="settings.html">Settings</a>
-</nav>
-
-<button type="button" class="gv-fab" id="gvFab" aria-label="Quick deposit">+</button>
-
 <div id="btcDepositPopup" class="modal-overlay hidden">
     <div class="modal btc-deposit-popup">
         <h3>₿ Admin BTC Deposit Address</h3>
@@ -595,6 +597,7 @@
 <script src="js/common.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/dashboard-premium.js"></script>
+<script src="js/luxury-ui.js"></script>
 
 </body>
 </html>

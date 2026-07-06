@@ -86,8 +86,6 @@ document.addEventListener("DOMContentLoaded", function() {
     sessionStorage.removeItem("securebank_auth_tab");
     sessionStorage.removeItem("securebank_page_transition");
 
-    initSocialAuth();
-
     function showMessage(el, text, type) {
         if (!el) return;
         el.textContent = text;
@@ -556,20 +554,6 @@ function updateSignupProgress() {
     const label = document.getElementById("signupProgressLabel");
     if (bar) bar.style.width = pct + "%";
     if (label) label.textContent = pct + "% complete";
-}
-
-function initSocialAuth() {
-    function bindSocial(id) {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.addEventListener("click", function() {
-            alert("Social sign-in is not available yet. Please use email and password.");
-        });
-    }
-    bindSocial("googleSignIn");
-    bindSocial("appleSignIn");
-    bindSocial("googleSignUp");
-    bindSocial("appleSignUp");
 }
 
 async function initLivePrices() {
