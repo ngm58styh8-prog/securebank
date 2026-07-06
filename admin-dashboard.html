@@ -7,24 +7,41 @@
 <meta name="robots" content="noindex, nofollow">
 <title>GlobalVest — Admin Dashboard</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/admin-premium.css">
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
 </head>
-<body class="admin-dashboard-body">
+<body class="admin-dashboard-body admin-premium">
+
+<div id="adminSidebarOverlay" class="admin-sidebar-overlay"></div>
+<aside id="adminSidebar" class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+        <img src="assets/globalvest-logo-light.svg" alt="GlobalVest">
+        <p>Admin Console</p>
+    </div>
+    <nav id="adminSidebarNav"></nav>
+</aside>
+
+<div class="admin-shell">
+<div class="admin-main">
 
 <header class="admin-header">
     <div class="header-left admin-brand-header">
+        <button type="button" class="admin-menu-btn" id="adminMenuBtn" aria-label="Open menu">☰</button>
         <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img sm">
         <div>
             <h2>Admin Dashboard</h2>
             <p>Payment & user overview</p>
         </div>
     </div>
-    <div class="header-right">
+    <div class="header-right admin-header-actions">
         <a href="login.html" class="nav-link">User Site</a>
         <button id="adminLogoutBtn" class="icon-btn" type="button">Log Out</button>
     </div>
@@ -33,6 +50,7 @@
 <div class="container">
 <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
+<section id="section-dashboard" class="admin-panel-section">
 <div class="cards admin-stats">
     <div class="card admin-balance-card">
         <h3>💰 Admin Account Balance</h3>
@@ -64,7 +82,9 @@
         <div class="balance admin-stat" id="openSupportCount">0</div>
     </div>
 </div>
+</section>
 
+<section id="section-users" class="admin-panel-section">
 <h2 class="section-title">👤 All User Accounts</h2>
 <div class="card admin-filter-card">
     <div class="admin-filter-row admin-user-search-row">
@@ -95,7 +115,9 @@
 <tbody id="usersBody"></tbody>
 </table>
 </div>
+</section>
 
+<section id="section-activity" class="admin-panel-section">
 <h2 class="section-title">📡 Live User Activity</h2>
 <div class="card admin-filter-card">
     <div class="admin-filter-row">
@@ -118,7 +140,9 @@
 <tbody id="activityBody"></tbody>
 </table>
 </div>
+</section>
 
+<section id="section-settings" class="admin-panel-section">
 <h2 class="section-title">🌐 Website Settings</h2>
 <div class="card admin-adjust-card">
     <form id="websiteSettingsForm" class="admin-adjust-form">
@@ -181,7 +205,9 @@
 <tbody id="notificationLogBody"></tbody>
 </table>
 </div>
+</section>
 
+<section id="section-support" class="admin-panel-section">
 <h2 class="section-title">💬 Support & Reports</h2>
 <div class="card admin-filter-card">
     <div class="admin-filter-row">
@@ -208,7 +234,9 @@
 <tbody id="supportBody"></tbody>
 </table>
 </div>
+</section>
 
+<section id="section-settings-payments" class="admin-panel-section">
 <h2 class="section-title">Admin Wallet & Payment Settings</h2>
 <div class="card admin-adjust-card">
     <form id="walletSettingsForm" class="admin-adjust-form">
@@ -225,7 +253,9 @@
         <button type="submit" class="admin-credit-btn wallet-save-btn">Save Settings</button>
     </form>
 </div>
+</section>
 
+<section id="section-approvals" class="admin-panel-section">
 <h2 class="section-title">✅ Approve Deposits</h2>
 <div class="table-scroll">
 <table id="pendingDepositsTable">
@@ -299,6 +329,13 @@
 <tbody id="paymentsBody"></tbody>
 </table>
 </div>
+</section>
+
+</div>
+</div>
+</div>
+
+<nav id="adminBottomNav" class="admin-bottom-nav"></nav>
 
 <div id="monitorModal" class="modal-overlay hidden">
     <div class="modal modal-wide admin-monitor-modal">
@@ -397,8 +434,6 @@
     </div>
 </div>
 
-</div>
-
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
 <script>
@@ -408,5 +443,6 @@
 })();
 </script>
 <script src="js/admin-dashboard.js"></script>
+<script src="js/admin-premium.js"></script>
 </body>
 </html>

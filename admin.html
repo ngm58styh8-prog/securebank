@@ -2,12 +2,48 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0;url=/admin-v2/">
-<title>GlobalVest Admin</title>
-<script>location.replace("/admin-v2/");</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#081B45">
+<meta name="robots" content="noindex, nofollow">
+<title>GlobalVest — Admin Login</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="css/admin-premium.css">
 </head>
-<body>
-<p>Redirecting to <a href="/admin-v2/">GlobalVest Admin</a>…</p>
+<body class="admin-body admin-premium admin-login-page">
+<div class="admin-login-wrap">
+    <div class="admin-login-glass">
+        <div class="admin-logo brand-logo-header">
+            <img src="assets/globalvest-logo-light.svg" alt="GlobalVest" class="brand-logo-img">
+        </div>
+        <p class="admin-login-kicker">Admin Portal</p>
+        <h1 class="admin-login-title">Secure Console</h1>
+        <p class="admin-login-sub">GlobalVest payment & user management</p>
+
+        <form id="adminLoginForm" class="admin-login-form">
+            <label class="admin-field-label" for="adminEmail">Admin email</label>
+            <input id="adminEmail" type="email" placeholder="admin@globalvest.com" value="admin@globalvest.com" required autocomplete="email">
+            <label class="admin-field-label" for="adminPassword">Password</label>
+            <input id="adminPassword" type="password" placeholder="Password" required autocomplete="current-password">
+            <button type="submit" class="admin-login-btn">Sign In to Admin</button>
+            <p class="admin-auth-message" id="adminAuthMessage" role="alert"></p>
+        </form>
+
+        <div class="admin-login-foot">
+            <p>Authorized personnel only</p>
+            <p>Local: <code>./start.sh</code> → <code>/admin.html</code></p>
+            <p>Vercel: open <code>/admin.html</code> on your deployed site</p>
+            <p class="admin-login-creds">Default: admin@globalvest.com / admin123</p>
+            <p class="admin-back"><a href="index.html">← Back to website</a></p>
+        </div>
+    </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/admin-app.js"></script>
 </body>
 </html>

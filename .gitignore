@@ -8,3 +8,4 @@ backups/
 .env.local
 node_modules/
 admin-panel/node_modules/
+admin-v2/

@@ -97,32 +97,15 @@ API routes (server-only — `RESEND_API_KEY` never sent to browser):
 - `POST /api/resend-verification` — resend with 60s cooldown
 - `POST /api/verify-email` — validate code
 
-## Admin on Vercel
+## Admin panel
 
-The premium admin panel is a React app at **`/admin-v2/`** (redirects from `/admin.html`).
-
-```
-https://your-app.vercel.app/admin-v2/
-```
+Open the admin console at **`/admin.html`** (not linked from the public user site).
 
 **Credentials:** `admin@globalvest.com` / `admin123`
 
-### Local admin dev
+Local: `./start.sh` → http://localhost:8765/admin.html
 
-```bash
-cd admin-panel && npm install && npm run dev
-# http://localhost:5174/admin-v2/  (proxies /api to localhost:8765)
-```
-
-Also run `./start.sh` in another terminal for the account registry API, or use Supabase on Vercel.
-
-### Build
-
-```bash
-npm run build:admin
-```
-
-Outputs to `admin-v2/` for Vercel static hosting.
+Vercel: https://your-app.vercel.app/admin.html
 
 ### Shared user registry (required for production admin)
 

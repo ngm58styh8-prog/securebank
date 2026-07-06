@@ -1,12 +1,9 @@
 {
   "version": 2,
-  "installCommand": "npm install",
-  "buildCommand": "echo 'Admin built via GitHub Actions — serving static admin-v2'",
+  "buildCommand": "",
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/admin-v2", "destination": "/admin-v2/index.html" },
-    { "source": "/admin-v2/((?!assets/).*)", "destination": "/admin-v2/index.html" }
+    { "source": "/api/(.*)", "destination": "/api/$1" }
   ]
 }
