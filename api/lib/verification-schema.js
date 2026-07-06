@@ -65,5 +65,9 @@ async function ensureVerificationSchema() {
 }
 
 module.exports = {
-    ensureVerificationSchema
+    ensureVerificationSchema,
+    resetVerificationSchemaCache: function() {
+        schemaReady = false;
+        schemaPromise = null;
+    }
 };

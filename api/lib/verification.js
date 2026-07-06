@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { supabaseRpc } = require("./supabase-admin-rest");
+const { supabaseRest } = require("./supabase-admin-rest");
 const { ensureVerificationSchema } = require("./verification-schema");
 const { sendVerificationEmail } = require("./resend");
 
@@ -23,17 +23,62 @@ function firstRow(data) {
     return data || null;
 }
 
-async function getLatestVerification(email) {
-    const data = await supabaseRpc("globalvest_get_latest_verification", {
-        p_email: email
+async function withRlsRetry(action) {
+    try {
+        return await action();
+    } catch (err) {
+        if (!String(err.message || "").includes("row-level security")) {
+            throw err;
+        }
+
+        const schema = require("./verification-schema");
+        if (typeof schema.resetVerificationSchemaCache === "function") {
+            schema.resetVerificationSchemaCache();
+        }
+        await ensureVerificationSchema();
+        return action();
+    }
+}
+
+async function deleteUnverified(email) {
+    return withRlsRetry(function() {
+        return supabaseRest(
+            "DELETE",
+            "email_verifications?email=eq." + encodeURIComponent(email) + "&verified=eq.false"
+        );
     });
+}
+
+async function insertVerification(email, code, expiresAt) {
+    return withRlsRetry(function() {
+        return supabaseRest("POST", "email_verifications", {
+            body: {
+                email: email,
+                code: code,
+                expires_at: expiresAt,
+                verified: false
+            },
+            prefer: "return=minimal"
+        });
+    });
+}
+
+async function getLatestVerification(email) {
+    const data = await supabaseRest(
+        "GET",
+        "email_verifications?email=eq." + encodeURIComponent(email) + "&order=created_at.desc&limit=1",
+        { prefer: "return=representation" }
+    );
     return firstRow(data);
 }
 
 async function getUnverifiedVerification(email) {
-    const data = await supabaseRpc("globalvest_get_unverified", {
-        p_email: email
-    });
+    const data = await supabaseRest(
+        "GET",
+        "email_verifications?email=eq." + encodeURIComponent(email) +
+            "&verified=eq.false&order=created_at.desc&limit=1",
+        { prefer: "return=representation" }
+    );
     return firstRow(data);
 }
 
@@ -66,12 +111,8 @@ async function createAndSendVerification(email, options) {
     const code = generateVerificationCode();
     const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
 
-    await supabaseRpc("globalvest_delete_unverified", { p_email: normalized });
-    await supabaseRpc("globalvest_insert_verification", {
-        p_email: normalized,
-        p_code: code,
-        p_expires_at: expiresAt
-    });
+    await deleteUnverified(normalized);
+    await insertVerification(normalized, code, expiresAt);
 
     await sendVerificationEmail(normalized, code);
 
@@ -111,7 +152,15 @@ async function verifyEmailCode(email, code) {
         return { ok: false, status: 400, error: "Invalid verification code." };
     }
 
-    await supabaseRpc("globalvest_mark_verified", { p_id: data.id });
+    await supabaseRest(
+        "PATCH",
+        "email_verifications?id=eq." + encodeURIComponent(data.id),
+        {
+            body: { verified: true },
+            prefer: "return=minimal"
+        }
+    );
+
     await markServerAccountEmailVerified(normalized);
 
     return { ok: true, status: 200, email: normalized };

@@ -53,41 +53,6 @@ async function supabaseRest(method, path, options) {
     return data;
 }
 
-async function supabaseRpc(functionName, params, options) {
-    options = options || {};
-    const baseUrl = getSupabaseUrl().replace(/\/$/, "");
-    const admin = getValidatedSupabaseAdminKey();
-
-    if (!baseUrl || !admin.key) {
-        throw new Error("Supabase is not configured.");
-    }
-
-    const headers = Object.assign({}, buildSupabaseHeaders(admin.key), options.headers || {});
-    headers.Prefer = options.prefer || "return=representation";
-
-    const res = await fetch(baseUrl + "/rest/v1/rpc/" + functionName, {
-        method: "POST",
-        headers: headers,
-        body: JSON.stringify(params || {})
-    });
-
-    const data = await parseResponse(res);
-    if (!res.ok) {
-        const message =
-            (data && data.message) ||
-            (data && data.error) ||
-            (typeof data === "string" ? data : null) ||
-            ("Supabase RPC failed (" + res.status + ")");
-        const err = new Error(message);
-        err.status = res.status;
-        err.details = data;
-        throw err;
-    }
-
-    return data;
-}
-
 module.exports = {
-    supabaseRest,
-    supabaseRpc
+    supabaseRest
 };
