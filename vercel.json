@@ -1,6 +1,7 @@
 {
   "version": 2,
-  "buildCommand": "cd admin-panel && npm install && npm run build",
+  "installCommand": "npm install && cd admin-panel && npm install",
+  "buildCommand": "cd admin-panel && npm run build",
   "outputDirectory": ".",
   "framework": null,
   "rewrites": [

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Ban,
   Bell,
@@ -314,7 +315,7 @@ function ActionBtn({
   onClick,
   danger
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   onClick: () => void;
   danger?: boolean;

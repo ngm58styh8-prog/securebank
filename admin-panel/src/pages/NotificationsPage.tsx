@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AlertTriangle, ArrowDownLeft, ArrowUpRight, Shield, UserPlus } from "lucide-react";
 import { useMemo } from "react";
 import { useAdmin } from "../context/AdminContext";
@@ -8,7 +9,7 @@ export default function NotificationsPage() {
   const { admin, accounts, users } = useAdmin();
 
   const alerts = useMemo(() => {
-    const list: Array<{ type: string; message: string; date: string; icon: React.ReactNode }> = [];
+    const list: Array<{ type: string; message: string; date: string; icon: ReactNode }> = [];
 
     users.filter((u) => u.pendingDeposits > 0).forEach((u) => {
       list.push({

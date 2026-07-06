@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -31,7 +32,7 @@ function StatCard({
 }: {
   label: string;
   value: string | number;
-  icon: React.ReactNode;
+  icon: ReactNode;
   accent?: "primary" | "success" | "warning" | "danger";
 }) {
   const colors = {
