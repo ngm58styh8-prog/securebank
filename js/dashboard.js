@@ -482,7 +482,7 @@ function populateBtcAddressDisplays() {
 function showBtcDepositPopup() {
     const address = populateBtcAddressDisplays();
     if (!address) {
-        alert("Admin BTC wallet address is not configured yet. Please contact support.");
+        alert("Deposit address is not configured yet. Please contact support.");
         return;
     }
     document.getElementById("btcDepositPopup").classList.remove("hidden");
@@ -619,7 +619,7 @@ function confirmModal(e) {
         if (method === "crypto") {
             const wallet = getAdminWalletAddress();
             if (!wallet) {
-                alert("Admin BTC wallet address is not configured. Please contact support.");
+                alert("Deposit address is not configured. Please contact support.");
                 return;
             }
         } else if (!isDepositMethodEnabled(method)) {
@@ -758,10 +758,10 @@ function initUI() {
         }
     });
     document.getElementById("copyBtcPopupBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
+        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
     });
     document.getElementById("copyDepositBannerBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
+        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
     });
 
     document.getElementById("withdrawBtn").addEventListener("click", function() {
@@ -776,7 +776,7 @@ function initUI() {
     });
 
     document.getElementById("copyCryptoBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "BTC address copied to clipboard.");
+        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
     });
 
     document.getElementById("copyBankBtn").addEventListener("click", function() {
