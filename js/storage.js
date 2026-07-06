@@ -530,28 +530,40 @@ function clearSession() {
 
 function getAllAccounts() {
     try {
-        const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY)) || {};
+        const raw = JSON.parse(localStorage.getItem(ACCOUNTS_KEY));
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+            return {};
+        }
+
         const normalized = {};
         let changed = false;
 
         Object.keys(raw).forEach(function(key) {
+            const entry = raw[key];
+            if (!entry || typeof entry !== "object") return;
             const emailKey = normalizeEmail(key);
+            if (!emailKey || emailKey.indexOf("@") === -1) return;
             if (normalized[emailKey]) {
-                normalized[emailKey] = Object.assign({}, normalized[emailKey], raw[key]);
+                normalized[emailKey] = Object.assign({}, normalized[emailKey], entry);
             } else {
-                normalized[emailKey] = raw[key];
+                normalized[emailKey] = entry;
             }
             if (emailKey !== key) changed = true;
         });
 
         if (changed) {
             localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(normalized));
+            notifyAccountsChanged();
         }
 
         return normalized;
     } catch (e) {
         return {};
     }
+}
+
+function getRegisteredAccountCount() {
+    return Object.keys(getAllAccounts()).length;
 }
 
 function ensureHoldings(account) {
@@ -736,32 +748,40 @@ function isAdminSessionValid(session, admin) {
     return sessionEmail === adminEmail || isLegacyAdminEmail(sessionEmail);
 }
 
+function ensureAdminDataShape(data) {
+    if (!data.pendingTransfers) data.pendingTransfers = [];
+    if (!data.pendingDeposits) data.pendingDeposits = [];
+    if (!data.payments) data.payments = [];
+    if (typeof data.balance !== "number" || isNaN(data.balance)) data.balance = 0;
+    if (!data.password) data.password = DEFAULT_ADMIN.password;
+    if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
+        data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    }
+    if (!data.bankDetails) data.bankDetails = DEFAULT_ADMIN.bankDetails;
+    if (!data.websiteSettings) {
+        data.websiteSettings = Object.assign({}, DEFAULT_WEBSITE_SETTINGS);
+    }
+    if (!data.notificationLog) data.notificationLog = [];
+    if (!data.userActivityLog) data.userActivityLog = [];
+    if (!data.registeredUsers) data.registeredUsers = {};
+    return data;
+}
+
 function getAdminData() {
     try {
         const data = JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
         if (data && data.email) {
-            if (!data.pendingTransfers) data.pendingTransfers = [];
-            if (!data.pendingDeposits) data.pendingDeposits = [];
-            if (!data.password) data.password = DEFAULT_ADMIN.password;
-            if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
-            if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
-                data.walletAddress = DEFAULT_ADMIN.walletAddress;
-            }
-            if (!data.bankDetails) data.bankDetails = DEFAULT_ADMIN.bankDetails;
-            if (!data.websiteSettings) {
-                data.websiteSettings = Object.assign({}, DEFAULT_WEBSITE_SETTINGS);
-            }
-            if (!data.notificationLog) data.notificationLog = [];
-            if (!data.userActivityLog) data.userActivityLog = [];
-            if (!data.registeredUsers) data.registeredUsers = {};
+            ensureAdminDataShape(data);
             return syncAdminRegisteredUsers(migrateAdminBranding(data));
         }
     } catch (e) { /* ignore */ }
-    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(Object.assign({}, DEFAULT_ADMIN, {
+    const fresh = ensureAdminDataShape(Object.assign({}, DEFAULT_ADMIN, {
         payments: [], pendingTransfers: [], pendingDeposits: [],
         userActivityLog: [], registeredUsers: {}
-    })));
-    return JSON.parse(localStorage.getItem(ADMIN_DATA_KEY));
+    }));
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(fresh));
+    return syncAdminRegisteredUsers(migrateAdminBranding(fresh));
 }
 
 function saveAdminData(data) {
@@ -967,31 +987,45 @@ function getHoldingsSummary(holdings) {
 function getAllUsersSummary() {
     getAdminData();
     const accounts = getAllAccounts();
+    const pendingDeposits = getPendingDeposits();
+    const pendingTransfers = getPendingTransfers();
+
     return Object.keys(accounts).map(function(email) {
-        const acct = accounts[email];
-        const profile = acct.profile || {};
-        const lastTx = acct.transactions && acct.transactions[0];
-        const pendingDeposits = getUserPendingDeposits(email).length;
-        const pendingTransfers = getUserPendingTransfers(email).length;
-        return {
-            email: email,
-            name: profile.fullName || email,
-            phone: profile.phone || "—",
-            cash: acct.cash || 0,
-            holdingsSummary: getHoldingsSummary(acct.holdings),
-            lastActivity: lastTx ? lastTx.description : "Account registered",
-            lastActivityDate: lastTx ? lastTx.date : (profile.memberSince
-                ? new Date(profile.memberSince).toLocaleString() : "—"),
-            transactionCount: (acct.transactions || []).length,
-            memberSince: profile.memberSince || null,
-            lastLoginAt: profile.lastLoginAt || null,
-            lastLoginDevice: profile.lastLoginDevice || null,
-            verificationStatus: profile.verificationStatus || "Pending",
-            emailVerified: !!acct.emailVerified,
-            pendingDeposits: pendingDeposits,
-            pendingTransfers: pendingTransfers
-        };
-    }).sort(function(a, b) {
+        try {
+            const acct = accounts[email];
+            if (!acct || typeof acct !== "object") return null;
+            const profile = acct.profile || {};
+            const lastTx = acct.transactions && acct.transactions[0];
+            const emailKey = normalizeEmail(email);
+            const depositCount = pendingDeposits.filter(function(d) {
+                return normalizeEmail(d.userEmail) === emailKey;
+            }).length;
+            const transferCount = pendingTransfers.filter(function(t) {
+                return normalizeEmail(t.userEmail) === emailKey;
+            }).length;
+
+            return {
+                email: emailKey,
+                name: profile.fullName || emailKey,
+                phone: profile.phone || "—",
+                cash: acct.cash || 0,
+                holdingsSummary: getHoldingsSummary(acct.holdings),
+                lastActivity: lastTx ? lastTx.description : "Account registered",
+                lastActivityDate: lastTx ? lastTx.date : (profile.memberSince
+                    ? new Date(profile.memberSince).toLocaleString() : "—"),
+                transactionCount: (acct.transactions || []).length,
+                memberSince: profile.memberSince || null,
+                lastLoginAt: profile.lastLoginAt || null,
+                lastLoginDevice: profile.lastLoginDevice || null,
+                verificationStatus: profile.verificationStatus || "Pending",
+                emailVerified: !!acct.emailVerified,
+                pendingDeposits: depositCount,
+                pendingTransfers: transferCount
+            };
+        } catch (e) {
+            return null;
+        }
+    }).filter(function(u) { return !!u; }).sort(function(a, b) {
         const aTime = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
         const bTime = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;
         if (aTime !== bTime) return bTime - aTime;

@@ -567,6 +567,17 @@ body[data-theme="dark"] .pending-badge {
     font-size: 1rem;
 }
 
+.admin-user-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.admin-user-search-row .admin-mini-view {
+    margin-top: 0;
+}
+
 .admin-status-chip {
     display: inline-block;
     padding: 4px 8px;

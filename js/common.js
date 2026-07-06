@@ -1,6 +1,25 @@
 const CURRENCY_SYMBOLS = { USD: "$", EUR: "€", GBP: "£" };
 const LOCAL_SERVER_PORT = 8765;
 
+(function enforceLocalDevOrigin() {
+    if (typeof window === "undefined") return;
+    if (window.location.protocol !== "http:" && window.location.protocol !== "https:") return;
+
+    const port = window.location.port;
+    if (port && port !== String(LOCAL_SERVER_PORT)) return;
+
+    const host = window.location.hostname;
+    if (host === "127.0.0.1" || host === "[::1]") {
+        const targetPort = port || String(LOCAL_SERVER_PORT);
+        window.location.replace(
+            window.location.protocol + "//localhost:" + targetPort +
+            window.location.pathname +
+            window.location.search +
+            window.location.hash
+        );
+    }
+})();
+
 function isLocalServerHost() {
     const host = window.location.hostname;
     return host === "localhost" || host === "127.0.0.1";

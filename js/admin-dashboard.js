@@ -416,21 +416,85 @@ function closeSupportModal() {
     pendingSupport = { email: "", ticketId: "" };
 }
 
+function renderUsersTable(admin, allUsers) {
+    const usersBody = document.getElementById("usersBody");
+    const countLabel = document.getElementById("userCountLabel");
+    const users = getFilteredUsers();
+    const totalUsers = allUsers.length;
+    const storedCount = getRegisteredAccountCount();
+
+    if (countLabel) {
+        const linkedCount = admin.registeredUsers
+            ? Object.keys(admin.registeredUsers).length
+            : totalUsers;
+        countLabel.textContent = userSearchQuery
+            ? "Showing " + users.length + " of " + linkedCount + " linked accounts"
+            : linkedCount + " account" + (linkedCount === 1 ? "" : "s") +
+                " automatically linked · refreshes live";
+        if (storedCount > linkedCount) {
+            countLabel.textContent += " · " + storedCount + " found in browser storage";
+        }
+    }
+
+    let hintEl = document.getElementById("adminUserStorageHint");
+    if (hintEl) {
+        if (storedCount === 0) {
+            hintEl.innerHTML = "No accounts in this browser yet. Users must register at " +
+                "<code>http://localhost:8765/login.html</code> (use localhost, not 127.0.0.1 or file://).";
+        } else if (userSearchQuery && !users.length) {
+            hintEl.textContent = "No users match your search. Click Clear search to see all accounts.";
+        } else {
+            hintEl.textContent = "Storage: " + window.location.origin +
+                " · " + storedCount + " registered account" + (storedCount === 1 ? "" : "s");
+        }
+    }
+
+    if (!usersBody) return;
+
+    if (!users.length) {
+        usersBody.innerHTML = '<tr><td colspan="9">' +
+            (totalUsers ? "No users match your search." : "No users registered yet.") +
+            '</td></tr>';
+        return;
+    }
+
+    usersBody.innerHTML = users.map(function(u) {
+        return `<tr>
+            <td>${u.name}</td>
+            <td><span class="admin-email">${u.email}</span><br><span class="admin-email">${u.phone}</span></td>
+            <td><span class="admin-status-chip">${formatUserStatus(u)}</span></td>
+            <td>${formatMoney(u.cash)}</td>
+            <td class="admin-holdings-cell">${u.holdingsSummary}</td>
+            <td>${formatLastLogin(u)}</td>
+            <td>${formatPendingSummary(u)}</td>
+            <td>${u.transactionCount}</td>
+            <td class="admin-row-actions">
+                <button type="button" class="admin-mini-view" data-email="${u.email}">Monitor</button>
+                <button type="button" class="admin-mini-credit" data-email="${u.email}" data-name="${u.name}">Credit</button>
+                <button type="button" class="admin-mini-debit" data-email="${u.email}" data-name="${u.name}">Debit</button>
+            </td>
+        </tr>`;
+    }).join("");
+}
+
 function renderDashboard() {
     const admin = getAdminData();
     const allUsers = getAllUsersSummary();
 
+    document.getElementById("totalUsers").textContent = String(allUsers.length);
+    renderUsersTable(admin, allUsers);
+
+    const payments = admin.payments || [];
     let totalDeposits = 0;
     let totalWithdrawals = 0;
-    admin.payments.forEach(function(p) {
+    payments.forEach(function(p) {
         if (p.type === "deposit") totalDeposits += p.amount;
         if (p.type === "withdraw") totalWithdrawals += p.amount;
     });
 
-    document.getElementById("adminBalance").textContent = formatMoney(admin.balance);
+    document.getElementById("adminBalance").textContent = formatMoney(admin.balance || 0);
     document.getElementById("adminBalance").className =
-        "balance " + (admin.balance >= 0 ? "pl-positive" : "pl-negative");
-    document.getElementById("totalUsers").textContent = String(allUsers.length);
+        "balance " + ((admin.balance || 0) >= 0 ? "pl-positive" : "pl-negative");
     document.getElementById("totalDeposits").textContent = formatMoney(totalDeposits);
     document.getElementById("totalWithdrawals").textContent = formatMoney(totalWithdrawals);
 
@@ -444,10 +508,10 @@ function renderDashboard() {
     renderSupportAdmin();
 
     const paymentsBody = document.getElementById("paymentsBody");
-    if (!admin.payments.length) {
+    if (!payments.length) {
         paymentsBody.innerHTML = '<tr><td colspan="5">No payments recorded yet.</td></tr>';
     } else {
-        paymentsBody.innerHTML = admin.payments.map(function(p) {
+        paymentsBody.innerHTML = payments.map(function(p) {
             const positive = isPositivePayment(p.type);
             const typeClass = positive ? "pl-positive" : "pl-negative";
             const sign = positive ? "+" : "−";
@@ -457,45 +521,6 @@ function renderDashboard() {
                 <td class="${typeClass}">${formatPaymentType(p.type)}</td>
                 <td>${p.method}</td>
                 <td class="${typeClass}">${sign}${formatMoney(p.amount)}</td>
-            </tr>`;
-        }).join("");
-    }
-
-    const usersBody = document.getElementById("usersBody");
-    const users = getFilteredUsers();
-    const countLabel = document.getElementById("userCountLabel");
-    const totalUsers = allUsers.length;
-
-    if (countLabel) {
-        const linkedCount = admin.registeredUsers
-            ? Object.keys(admin.registeredUsers).length
-            : allUsers.length;
-        countLabel.textContent = userSearchQuery
-            ? "Showing " + users.length + " of " + linkedCount + " linked accounts"
-            : linkedCount + " account" + (linkedCount === 1 ? "" : "s") +
-                " automatically linked · refreshes live";
-    }
-
-    if (!users.length) {
-        usersBody.innerHTML = '<tr><td colspan="9">' +
-            (totalUsers ? "No users match your search." : "No users registered yet.") +
-            '</td></tr>';
-    } else {
-        usersBody.innerHTML = users.map(function(u) {
-            return `<tr>
-                <td>${u.name}</td>
-                <td><span class="admin-email">${u.email}</span><br><span class="admin-email">${u.phone}</span></td>
-                <td><span class="admin-status-chip">${formatUserStatus(u)}</span></td>
-                <td>${formatMoney(u.cash)}</td>
-                <td class="admin-holdings-cell">${u.holdingsSummary}</td>
-                <td>${formatLastLogin(u)}</td>
-                <td>${formatPendingSummary(u)}</td>
-                <td>${u.transactionCount}</td>
-                <td class="admin-row-actions">
-                    <button type="button" class="admin-mini-view" data-email="${u.email}">Monitor</button>
-                    <button type="button" class="admin-mini-credit" data-email="${u.email}" data-name="${u.name}">Credit</button>
-                    <button type="button" class="admin-mini-debit" data-email="${u.email}" data-name="${u.name}">Debit</button>
-                </td>
             </tr>`;
         }).join("");
     }
@@ -547,6 +572,17 @@ renderDashboard();
 
 document.getElementById("userSearchInput").addEventListener("input", function(e) {
     userSearchQuery = e.target.value.trim();
+    renderDashboard();
+});
+
+document.getElementById("clearUserSearchBtn").addEventListener("click", function() {
+    userSearchQuery = "";
+    document.getElementById("userSearchInput").value = "";
+    renderDashboard();
+});
+
+document.getElementById("refreshUsersBtn").addEventListener("click", function() {
+    getAdminData();
     renderDashboard();
 });
 
