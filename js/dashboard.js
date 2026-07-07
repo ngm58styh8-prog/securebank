@@ -506,19 +506,21 @@ function updateDepositPagePreview() {
 function populateDepositPageAddress() {
     const address = getAdminBtcAddress();
     const el = document.getElementById("depositPageAddress");
-    if (el) el.textContent = address || "";
+    if (el) {
+        el.textContent = address || "Deposit address not configured — contact support.";
+    }
     return address;
 }
 
-function hideDepositAddressSection() {
-    const section = document.getElementById("depositAddressSection");
+function hideDepositConfirmSection() {
+    const section = document.getElementById("depositConfirmSection");
     const error = document.getElementById("depositAmountError");
     if (section) section.classList.add("hidden");
     if (error) error.classList.add("hidden");
 }
 
-function showDepositAddressSection() {
-    const section = document.getElementById("depositAddressSection");
+function showDepositConfirmSection() {
+    const section = document.getElementById("depositConfirmSection");
     if (section) section.classList.remove("hidden");
     updateDepositPagePreview();
 }
@@ -541,7 +543,9 @@ function openDepositPanel() {
     const input = document.getElementById("depositAmountInput");
     if (!panel || !input) return;
 
-    hideDepositAddressSection();
+    hideDepositConfirmSection();
+    populateDepositPageAddress();
+    loadMarketPrices().catch(function() { /* preview updates when prices load */ });
     panel.classList.remove("hidden");
     input.value = "";
     input.focus();
@@ -552,7 +556,7 @@ function openDepositPanel() {
 function closeDepositPanel() {
     const panel = document.getElementById("depositPanel");
     if (panel) panel.classList.add("hidden");
-    hideDepositAddressSection();
+    hideDepositConfirmSection();
 }
 
 function continueDepositFlow() {
@@ -568,16 +572,15 @@ function continueDepositFlow() {
         return;
     }
 
-    loadMarketPrices().then(function() {
-        showDepositAddressSection();
-        document.getElementById("depositAddressSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
+    showDepositConfirmSection();
+    loadMarketPrices().then(updateDepositPagePreview).catch(updateDepositPagePreview);
+    document.getElementById("depositConfirmSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 function submitDepositFromPanel() {
     const amount = validateDepositAmount();
     if (!amount) {
-        hideDepositAddressSection();
+        hideDepositConfirmSection();
         document.getElementById("depositAmountInput").focus();
         return;
     }
@@ -770,13 +773,13 @@ function initUI() {
     document.getElementById("depositBtn").addEventListener("click", openDepositPanel);
     document.getElementById("depositContinueBtn").addEventListener("click", continueDepositFlow);
     document.getElementById("depositSubmitBtn").addEventListener("click", submitDepositFromPanel);
-    document.getElementById("depositBackBtn").addEventListener("click", hideDepositAddressSection);
+    document.getElementById("depositBackBtn").addEventListener("click", hideDepositConfirmSection);
     document.getElementById("depositPanelCloseBtn").addEventListener("click", closeDepositPanel);
     document.getElementById("copyDepositPageBtn").addEventListener("click", function() {
         copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
     });
     document.getElementById("depositAmountInput").addEventListener("input", function() {
-        const section = document.getElementById("depositAddressSection");
+        const section = document.getElementById("depositConfirmSection");
         if (section && !section.classList.contains("hidden")) {
             updateDepositPagePreview();
         } else {

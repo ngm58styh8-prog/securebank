@@ -154,7 +154,14 @@
         <button type="button" class="deposit-continue-btn" id="depositContinueBtn">Continue</button>
     </div>
 
-    <div id="depositAddressSection" class="deposit-address-section hidden">
+    <div id="depositAddressBox" class="admin-payto-box deposit-btc-banner">
+        <span class="form-label">Deposit Address</span>
+        <p class="crypto-pay-label">Send Bitcoin to:</p>
+        <div id="depositPageAddress" class="admin-payto-text admin-crypto-address">Loading deposit address…</div>
+        <button type="button" class="copy-btn" id="copyDepositPageBtn">Copy Deposit Address</button>
+    </div>
+
+    <div id="depositConfirmSection" class="deposit-confirm-section hidden">
         <div class="admin-approval-notice">
             Deposits are not credited instantly. An admin must verify your BTC payment and approve the transaction.
         </div>
@@ -163,13 +170,7 @@
             <div id="depositPageBtcAmount" class="deposit-btc-preview-amount">—</div>
             <p class="deposit-hint">Based on current BTC price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
         </div>
-        <div class="admin-payto-box deposit-btc-banner">
-            <span class="form-label">Deposit Address</span>
-            <p class="crypto-pay-label">Send Bitcoin to:</p>
-            <div id="depositPageAddress" class="admin-payto-text admin-crypto-address"></div>
-            <button type="button" class="copy-btn" id="copyDepositPageBtn">Copy Deposit Address</button>
-        </div>
-        <p class="deposit-hint">Send the BTC amount above to this address, then submit for admin approval.</p>
+        <p class="deposit-hint">Send the BTC amount above to the deposit address, then submit for admin approval.</p>
         <div class="deposit-panel-actions">
             <button type="button" class="modal-cancel" id="depositBackBtn">Change Amount</button>
             <button type="button" class="modal-confirm" id="depositSubmitBtn">Submit for Admin Approval</button>

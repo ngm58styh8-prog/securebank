@@ -1020,10 +1020,15 @@ body[data-theme="dark"] .pending-badge {
     color: #fff;
 }
 
-.deposit-address-section {
+.deposit-address-section,
+.deposit-confirm-section {
     margin-top: 24px;
     padding-top: 24px;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#depositAddressBox {
+    margin-top: 20px;
 }
 
 .deposit-panel-actions {
