@@ -29,6 +29,11 @@ function normalizeRegistryEmail(email) {
     return String(email || "").trim().toLowerCase();
 }
 
+function isProtectedAdminRegistryEmail(email) {
+    const key = normalizeRegistryEmail(email);
+    return key === "admin@globalvest.com" || key === "admin@securebank.com";
+}
+
 function isRegistryConfigured() {
     try {
         getSupabaseServiceRoleClient();
@@ -92,6 +97,12 @@ async function upsertAccount(email, account) {
         merged.profile = Object.assign({}, existing.account.profile || {}, account.profile || {});
         merged.settings = Object.assign({}, existing.account.settings || {}, account.settings || {});
         merged.holdings = Object.assign({}, existing.account.holdings || {}, account.holdings || {});
+        if (Array.isArray(account.transactions)) {
+            merged.transactions = account.transactions;
+        }
+        if (typeof account.cash === "number" && !isNaN(account.cash)) {
+            merged.cash = account.cash;
+        }
     }
 
     merged.serverSyncedAt = new Date().toISOString();
@@ -230,6 +241,9 @@ async function deleteAccount(email) {
     const key = normalizeRegistryEmail(email);
     if (!key || key.indexOf("@") === -1) {
         throw new Error("Missing or invalid email.");
+    }
+    if (isProtectedAdminRegistryEmail(key)) {
+        throw new Error("The admin account cannot be deleted.");
     }
 
     const supabase = getSupabaseServiceRoleClient();

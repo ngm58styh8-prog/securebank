@@ -214,6 +214,12 @@ server.mount_proc "/api/accounts" do |req, res|
       accounts = load_accounts_registry
       accounts.delete(email)
       save_accounts_registry(accounts)
+      admin = load_admin_registry
+      if admin.is_a?(Hash)
+        admin["registeredUsers"] ||= {}
+        admin["registeredUsers"].delete(email)
+        save_admin_registry(admin)
+      end
       send_api_json(res, 200, { "ok" => true, "email" => email, "deleted" => true, "count" => accounts.length })
       next
     end

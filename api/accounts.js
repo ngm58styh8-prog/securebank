@@ -29,7 +29,10 @@ module.exports = async function handler(req, res) {
         }
 
         if (req.method === "DELETE") {
-            const email = normalizeRegistryEmail(req.body && req.body.email);
+            const email = normalizeRegistryEmail(
+                (req.body && req.body.email) ||
+                (req.query && req.query.email)
+            );
             const result = await deleteAccount(email);
             const accounts = await loadAllAccounts();
             res.status(200).json({
@@ -45,8 +48,14 @@ module.exports = async function handler(req, res) {
             const email = normalizeRegistryEmail(req.body && req.body.email);
             const account = req.body && req.body.account;
             const eventType = req.body && req.body.eventType;
+            const normalizedEvent = eventType === "login"
+                ? "login"
+                : eventType === "admin-adjust"
+                    ? "admin-adjust"
+                    : "signup";
             const result = await registerUserAccount(email, account, {
-                eventType: eventType === "login" ? "login" : "signup"
+                eventType: normalizedEvent,
+                logSignup: normalizedEvent === "signup"
             });
             const accounts = await loadAllAccounts();
             res.status(200).json({

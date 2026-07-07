@@ -308,6 +308,20 @@ function refreshNotificationsFromStorage() {
     renderNotifications();
 }
 
+function reloadAccountFromRegistry() {
+    const fresh = getAccount(username);
+    if (!fresh) return;
+    account.cash = fresh.cash;
+    account.transactions = fresh.transactions || account.transactions;
+    account.notifications = fresh.notifications || account.notifications;
+    account.holdings = fresh.holdings || account.holdings;
+    ensureProfile(username, account);
+    ensureSettings(username, account);
+    ensureHoldings(account);
+    syncAccountNotifications(username, account);
+    updateUI();
+}
+
 function updateUI() {
     const pendingTotal = getUserPendingTransferTotal(username);
     const available = account.cash - pendingTotal;
@@ -866,9 +880,12 @@ function initUI() {
 
     window.addEventListener("storage", function(e) {
         if (e.key === "securebank_accounts") {
+            reloadAccountFromRegistry();
             refreshNotificationsFromStorage();
         }
     });
+
+    window.addEventListener("globalvest-registry-synced", reloadAccountFromRegistry);
 
     setInterval(refreshNotificationsFromStorage, 3000);
 }

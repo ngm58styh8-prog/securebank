@@ -124,7 +124,7 @@ def link_account_to_admin_registry(email, account, event_type="signup"):
         "updatedAt": now,
     }
 
-    if event_type == "signup" or is_new:
+    if event_type != "admin-adjust" and (event_type == "signup" or is_new):
         has_signup = any(
             entry.get("type") == "signup" and normalize_registry_email(entry.get("userEmail", "")) == key
             for entry in admin["userActivityLog"]
@@ -317,9 +317,17 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
 
     def _handle_accounts_delete(self):
         try:
+            from urllib.parse import urlparse, parse_qs
+
             length = int(self.headers.get("Content-Length", 0))
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-            email = normalize_registry_email(payload.get("email", ""))
+            payload = {}
+            if length > 0:
+                payload = json.loads(self.rfile.read(length).decode("utf-8"))
+
+            query = parse_qs(urlparse(self.path).query)
+            email = normalize_registry_email(
+                payload.get("email", "") or (query.get("email", [""])[0] if query.get("email") else "")
+            )
 
             if not email or "@" not in email:
                 send_api_json(self, 400, {"ok": False, "error": "Missing or invalid email."})

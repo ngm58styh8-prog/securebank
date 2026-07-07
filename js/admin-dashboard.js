@@ -389,7 +389,7 @@ function renderSelectedUserProfile() {
         ? (detail.profile.fullName || selectedProfileEmail)
         : (summary ? summary.name : selectedProfileEmail);
     const phone = detail ? (detail.profile.phone || "—") : (summary ? summary.phone : "—");
-    const cash = detail ? formatMoney(detail.cashBalance) : (summary ? formatMoney(summary.cash) : "—");
+    const cash = detail ? formatMoney(detail.cash) : (summary ? formatMoney(summary.cash) : "—");
     const status = summary ? formatUserStatus(summary) : "—";
 
     if (panel) {
@@ -436,38 +436,43 @@ function confirmDeleteUser(email, name, options) {
     const key = normalizeEmail(email);
     if (!isUserDeletable(key)) {
         alert("The admin account cannot be deleted.");
-        return false;
+        return Promise.resolve(false);
     }
     if (!confirm(
         "Permanently delete " + name + " (" + key + ")?\n\n" +
         "This removes the account from browser storage and the server registry. " +
         "Pending deposits and transfers will be rejected."
     )) {
-        return false;
+        return Promise.resolve(false);
     }
 
     if (!options.skipTypedConfirm) {
         const typed = prompt("Type the user's email to confirm deletion:");
-        if (typed === null) return false;
+        if (typed === null) return Promise.resolve(false);
         if (normalizeEmail(typed) !== key) {
             alert("Email confirmation did not match.");
-            return false;
+            return Promise.resolve(false);
         }
     }
 
-    const result = adminDeleteUser(key);
-    if (!result.ok) {
-        alert(result.error);
-        return false;
-    }
+    const deleteHandler = typeof adminDeleteUserAsync === "function"
+        ? adminDeleteUserAsync(key)
+        : Promise.resolve(adminDeleteUser(key));
 
-    alert("Account deleted: " + result.userName);
-    if (selectedProfileEmail === key) {
-        selectUserProfile("");
-    }
-    closeMonitorModal();
-    renderDashboard();
-    return true;
+    return deleteHandler.then(function(result) {
+        if (!result.ok) {
+            alert(result.error || "Could not delete user.");
+            return false;
+        }
+
+        alert("Account deleted: " + result.userName);
+        if (selectedProfileEmail === key) {
+            selectUserProfile("");
+        }
+        closeMonitorModal();
+        renderDashboard({ skipReconcile: true });
+        return true;
+    });
 }
 
 function renderPendingTransfersAdmin() {
@@ -794,7 +799,8 @@ function updateRegistryBanner(syncResult) {
     });
 }
 
-function renderDashboard() {
+function renderDashboard(options) {
+    options = options || {};
     const doRender = function(syncResult) {
         repairAccountsStorage();
         if (typeof linkAllAccountsToAdmin === "function") {
@@ -849,7 +855,7 @@ function renderDashboard() {
     }
     };
 
-    if (typeof reconcileAccountRegistry !== "function") {
+    if (options.skipReconcile || typeof reconcileAccountRegistry !== "function") {
         doRender(null);
         return;
     }
@@ -860,13 +866,28 @@ function renderDashboard() {
 }
 
 function runAdjustment(email, action, amount, note) {
-    const result = adminAdjustUserBalance(email, action, amount, note);
-    if (!result.ok) {
-        alert(result.error);
-        return false;
-    }
-    renderDashboard();
-    return true;
+    const handler = typeof adminAdjustUserBalanceAsync === "function"
+        ? adminAdjustUserBalanceAsync(email, action, amount, note)
+        : Promise.resolve(adminAdjustUserBalance(email, action, amount, note));
+
+    return handler.then(function(result) {
+        if (!result.ok) {
+            alert(result.error || "Could not update account balance.");
+            return false;
+        }
+
+        const label = action === "credit" ? "credited" : "debited";
+        alert(
+            (result.userName || email) + " was " + label + " $" +
+            parseFloat(amount).toFixed(2) + ". New balance: " + formatMoney(result.newBalance)
+        );
+
+        if (monitorEmail === normalizeEmail(email)) {
+            openMonitorModal(email);
+        }
+        renderDashboard({ skipReconcile: true });
+        return true;
+    });
 }
 
 function submitMainForm(action) {
@@ -879,10 +900,12 @@ function submitMainForm(action) {
         return;
     }
 
-    if (runAdjustment(email, action, amount, note)) {
-        document.getElementById("adjustAmount").value = "";
-        document.getElementById("adjustNote").value = "";
-    }
+    runAdjustment(email, action, amount, note).then(function(ok) {
+        if (ok) {
+            document.getElementById("adjustAmount").value = "";
+            document.getElementById("adjustNote").value = "";
+        }
+    });
 }
 
 function openAdjustModal(email, name, action) {
@@ -1026,9 +1049,9 @@ document.getElementById("modalAdjustConfirm").addEventListener("click", function
     if (!pendingAdjust.email) return;
     const amount = document.getElementById("modalAdjustAmount").value;
     const note = document.getElementById("modalAdjustNote").value;
-    if (runAdjustment(pendingAdjust.email, pendingAdjust.action, amount, note)) {
-        closeAdjustModal();
-    }
+    runAdjustment(pendingAdjust.email, pendingAdjust.action, amount, note).then(function(ok) {
+        if (ok) closeAdjustModal();
+    });
 });
 
 document.getElementById("modalAdjustCancel").addEventListener("click", closeAdjustModal);

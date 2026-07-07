@@ -1006,6 +1006,11 @@ function mergeAccountRecords(serverAcct, localAcct) {
     const localTx = localAcct.transactions || [];
     const serverTx = serverAcct.transactions || [];
     merged.transactions = localTx.length >= serverTx.length ? localTx : serverTx;
+    if (typeof localAcct.cash === "number" && !isNaN(localAcct.cash)) {
+        merged.cash = localAcct.cash;
+    } else if (typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
+        merged.cash = serverAcct.cash;
+    }
     merged.password = localAcct.password || serverAcct.password;
     merged.emailVerified = localAcct.emailVerified != null ? localAcct.emailVerified : serverAcct.emailVerified;
     if (localAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = localAcct.withdrawalsFrozen;
@@ -1083,13 +1088,39 @@ function deleteAccountFromServer(email) {
     }
 
     const key = normalizeEmail(email);
-    return fetch("/api/accounts", {
+    const url = "/api/accounts?email=" + encodeURIComponent(key);
+
+    return fetch(url, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: key })
     })
-        .then(function(response) { return response.json(); })
-        .catch(function() { return { ok: false }; });
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not delete account on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || "Could not delete account on server." };
+        });
+}
+
+function removeAccountEverywhere(email) {
+    const key = normalizeEmail(email);
+    const accounts = getAllAccounts();
+    delete accounts[key];
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+
+    const cache = Object.assign({}, getServerAccountsCache());
+    delete cache[key];
+    setServerAccountsCache(cache);
+    notifyAccountsChanged();
 }
 
 function pullAccountsFromServer() {
@@ -1749,7 +1780,7 @@ function getAllUserActivity(filterEmail, limit) {
 
 function adminAdjustUserBalance(userEmail, action, amount, note) {
     const key = normalizeEmail(userEmail);
-    const account = getAccount(key);
+    const account = getRegistryAccount(key);
     if (!account) {
         return { ok: false, error: "User not found." };
     }
@@ -1761,6 +1792,11 @@ function adminAdjustUserBalance(userEmail, action, amount, note) {
         return { ok: false, error: "User has insufficient cash for this debit." };
     }
 
+    applyAdminBalanceAdjustment(key, account, action, amount, note);
+    return { ok: true, email: key, newBalance: account.cash };
+}
+
+function applyAdminBalanceAdjustment(key, account, action, amount, note) {
     const admin = getAdminData();
     const userName = account.profile ? account.profile.fullName : key;
     const noteText = note ? String(note).trim() : "";
@@ -1768,19 +1804,21 @@ function adminAdjustUserBalance(userEmail, action, amount, note) {
     const description = noteText ? label + " — " + noteText : label;
 
     if (action === "credit") {
-        account.cash += amount;
-        admin.balance -= amount;
+        account.cash = (account.cash || 0) + amount;
+        admin.balance = (admin.balance || 0) - amount;
     } else {
-        account.cash -= amount;
-        admin.balance += amount;
+        account.cash = (account.cash || 0) - amount;
+        admin.balance = (admin.balance || 0) + amount;
     }
 
+    if (!Array.isArray(account.transactions)) account.transactions = [];
     account.transactions.unshift({
         date: new Date().toLocaleString(),
         description: description,
         amount: action === "credit" ? amount : -amount
     });
 
+    ensureNotifications(account);
     account.notifications.unshift({
         id: Date.now() + Math.random(),
         message: action === "credit"
@@ -1793,8 +1831,9 @@ function adminAdjustUserBalance(userEmail, action, amount, note) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
-    saveAccount(key, account);
+    account.serverSyncedAt = new Date().toISOString();
 
+    if (!Array.isArray(admin.payments)) admin.payments = [];
     admin.payments.unshift({
         id: Date.now() + Math.random(),
         userEmail: key,
@@ -1808,8 +1847,60 @@ function adminAdjustUserBalance(userEmail, action, amount, note) {
         admin.payments = admin.payments.slice(0, 200);
     }
 
-    saveAdminData(admin);
-    return { ok: true };
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+    saveAccount(key, account, { skipServerSync: true });
+}
+
+function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
+    const key = normalizeEmail(userEmail);
+    const account = getRegistryAccount(key);
+    if (!account) {
+        return Promise.resolve({ ok: false, error: "User not found." });
+    }
+    amount = parseFloat(amount);
+    if (!amount || amount <= 0) {
+        return Promise.resolve({ ok: false, error: "Enter a valid amount." });
+    }
+    if (action === "debit" && (account.cash || 0) < amount) {
+        return Promise.resolve({ ok: false, error: "User has insufficient cash for this debit." });
+    }
+
+    const userName = account.profile ? account.profile.fullName : key;
+    applyAdminBalanceAdjustment(key, account, action, amount, note);
+
+    const admin = getAdminData();
+    const accountSync = syncAccountToServer(key, account, "admin-adjust");
+    const adminSync = syncAdminToServer(admin);
+
+    return Promise.all([accountSync, adminSync])
+        .then(function(results) {
+            const accountResult = results[0];
+            if (!accountResult || (!accountResult.ok && !accountResult.offline)) {
+                throw new Error((accountResult && accountResult.error) || "Failed to save balance on server.");
+            }
+
+            const cache = Object.assign({}, getServerAccountsCache());
+            cache[key] = account;
+            setServerAccountsCache(cache);
+
+            const accounts = getAllAccounts();
+            accounts[key] = account;
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+            notifyAccountsChanged();
+            syncAdminRegisteredUsers(getAdminData());
+
+            return {
+                ok: true,
+                email: key,
+                userName: userName,
+                action: action,
+                amount: amount,
+                newBalance: account.cash
+            };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function adminSetWithdrawalsFrozen(userEmail, frozen, reason) {
@@ -1891,29 +1982,101 @@ function adminDeleteUser(userEmail) {
         return { ok: false, error: "The admin account cannot be deleted." };
     }
 
-    const account = getAccount(key);
+    const account = getRegistryAccount(key);
     if (!account) {
         return { ok: false, error: "User not found." };
     }
 
     const userName = account.profile ? account.profile.fullName : key;
     adminRejectPendingForUser(key, "Account deleted by admin");
-
-    const accounts = getAllAccounts();
-    delete accounts[key];
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-    notifyAccountsChanged();
+    removeAccountEverywhere(key);
 
     const admin = getAdminData();
     if (admin.registeredUsers && admin.registeredUsers[key]) {
         delete admin.registeredUsers[key];
     }
-    recordAdminUserEvent(key, "admin-delete", "Account deleted by admin — " + userName, 0);
-    saveAdminData(admin);
 
+    ensureAdminUserActivityLog(admin);
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: new Date().toLocaleString(),
+        userEmail: key,
+        userName: userName,
+        type: "admin-delete",
+        description: "Account deleted by admin — " + userName,
+        amount: 0
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
     deleteAccountFromServer(key);
 
     return { ok: true, email: key, userName: userName };
+}
+
+function adminDeleteUserAsync(userEmail) {
+    const key = normalizeEmail(userEmail);
+    if (!key || key.indexOf("@") === -1) {
+        return Promise.resolve({ ok: false, error: "Invalid email." });
+    }
+    if (isProtectedAdminAccount(key)) {
+        return Promise.resolve({ ok: false, error: "The admin account cannot be deleted." });
+    }
+
+    const account = getRegistryAccount(key);
+    if (!account) {
+        return Promise.resolve({ ok: false, error: "User not found." });
+    }
+
+    const userName = account.profile ? account.profile.fullName : key;
+    adminRejectPendingForUser(key, "Account deleted by admin");
+    removeAccountEverywhere(key);
+
+    const admin = getAdminData();
+    if (admin.registeredUsers && admin.registeredUsers[key]) {
+        delete admin.registeredUsers[key];
+    }
+
+    ensureAdminUserActivityLog(admin);
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: new Date().toLocaleString(),
+        userEmail: key,
+        userName: userName,
+        type: "admin-delete",
+        description: "Account deleted by admin — " + userName,
+        amount: 0
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+
+    const serverStep = isServerSyncAvailable()
+        ? deleteAccountFromServer(key).then(function(result) {
+            if (!result || !result.ok) {
+                throw new Error((result && result.error) || "Could not delete account on server.");
+            }
+            return result;
+        })
+        : Promise.resolve({ ok: true, offline: true });
+
+    return serverStep
+        .then(function() { return syncAdminToServer(admin); })
+        .then(function() {
+            if (isServerSyncAvailable()) {
+                return pullAccountsFromServer();
+            }
+            return null;
+        })
+        .then(function() {
+            syncAdminRegisteredUsers(getAdminData());
+            return { ok: true, email: key, userName: userName };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function getUserPendingTransferTotal(userEmail) {
