@@ -33,10 +33,12 @@ loadDotenv(path.join(root, ".env"));
 
 const require = (await import("module")).createRequire(import.meta.url);
 const { getMissingSupabaseEnv, getSupabaseServiceRoleKey } = require("../server-lib/supabase-config.js");
+const { getDeliverabilityWarnings } = require("../server-lib/email-deliverability.js");
 
 console.log("\nGlobalVest email verification — configuration check\n");
 
 const missing = getMissingSupabaseEnv();
+const deliverabilityWarnings = getDeliverabilityWarnings();
 
 if (missing.length) {
     console.log("MISSING or invalid configuration:");
@@ -51,6 +53,15 @@ console.log("  ✓ SUPABASE_URL");
 console.log("  ✓ SUPABASE_SERVICE_ROLE_KEY (" + roleKey.source + ")");
 console.log("  ✓ RESEND_API_KEY");
 console.log("  ✓ RESEND_FROM_EMAIL");
+
+if (deliverabilityWarnings.length) {
+    console.log("\nDeliverability warnings (codes may go to spam until fixed):");
+    deliverabilityWarnings.forEach(function(w) { console.log("  ⚠ " + w); });
+    console.log("\nIn Resend → Domains, verify globalvestbank.com (SPF + DKIM), then set:");
+    console.log("  RESEND_FROM_EMAIL=GlobalVest Bank <noreply@globalvestbank.com>");
+} else {
+    console.log("\n✓ Sender settings look good for inbox delivery");
+}
 
 const testEmail = process.argv[2];
 if (!testEmail) {

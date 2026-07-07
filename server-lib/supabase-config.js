@@ -174,6 +174,14 @@ function getSupabaseEnvChecks() {
         }
     }
 
+    let deliverabilityWarnings = [];
+    try {
+        const { getDeliverabilityWarnings } = require("./email-deliverability");
+        deliverabilityWarnings = getDeliverabilityWarnings();
+    } catch (e) {
+        /* optional module */
+    }
+
     return {
         SUPABASE_URL: { set: !!url },
         SUPABASE_SERVICE_ROLE_KEY: {
@@ -183,7 +191,14 @@ function getSupabaseEnvChecks() {
             error: serviceRoleError
         },
         RESEND_API_KEY: { set: !!cleanEnvValue(process.env.RESEND_API_KEY) },
-        RESEND_FROM_EMAIL: { set: !!cleanEnvValue(process.env.RESEND_FROM_EMAIL) }
+        RESEND_FROM_EMAIL: {
+            set: !!cleanEnvValue(process.env.RESEND_FROM_EMAIL),
+            value: cleanEnvValue(process.env.RESEND_FROM_EMAIL) || null
+        },
+        deliverability: {
+            ok: deliverabilityWarnings.length === 0,
+            warnings: deliverabilityWarnings
+        }
     };
 }
 

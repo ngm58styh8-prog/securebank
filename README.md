@@ -49,12 +49,31 @@ Set in **Project Settings → Environment Variables** (never expose service keys
 
 | Variable | Description |
 |----------|-------------|
-| `RESEND_API_KEY` | Resend API key (already added) |
-| `RESEND_FROM_EMAIL` | Verified sender, e.g. `GlobalVest <noreply@yourdomain.com>` |
+| `RESEND_API_KEY` | Resend API key |
+| `RESEND_FROM_EMAIL` | **Verified** sender on your domain — `GlobalVest Bank <noreply@globalvestbank.com>` (not `onboarding@resend.dev`) |
+| `RESEND_REPLY_TO` | Optional support inbox — `support@globalvestbank.com` |
+| `RESEND_SITE_URL` | Optional site link in email — `https://globalvestbank.com` |
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SECRET_KEY` | New secret API key (`sb_secret_...`, server-side only) |
 | `SUPABASE_SECRET_KEYS` | Optional JSON map of named secret keys, e.g. `{"default":"sb_secret_..."}` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Legacy service role JWT (alternative to secret key) |
+
+### 2b. Inbox delivery (avoid spam/junk)
+
+Verification emails land in spam when sent from Resend’s sandbox domain. Fix it once in Resend + DNS:
+
+1. In [Resend → Domains](https://resend.com/domains), add **globalvestbank.com**.
+2. Add the **SPF** and **DKIM** DNS records Resend shows (at your domain registrar or Cloudflare).
+3. Wait until Resend shows the domain as **Verified**.
+4. In Vercel, set `RESEND_FROM_EMAIL` to `GlobalVest Bank <noreply@globalvestbank.com>` and redeploy.
+5. Confirm with:
+
+```bash
+curl https://globalvestbank.com/api/verification-health
+# inboxReady should be true; deliverabilityWarnings should be []
+```
+
+Emails are sent as multipart HTML + plain text with a reply-to address and branded template (see `server-lib/email-deliverability.js`).
 
 ### 3. Deploy
 

@@ -1,4 +1,10 @@
 const { Resend } = require("resend");
+const {
+    getFromAddress,
+    getReplyTo,
+    getDeliverabilityWarnings,
+    buildVerificationEmailContent
+} = require("./email-deliverability");
 
 function getResendClient() {
     const apiKey = process.env.RESEND_API_KEY;
@@ -8,22 +14,24 @@ function getResendClient() {
     return new Resend(apiKey);
 }
 
-function getFromAddress() {
-    return process.env.RESEND_FROM_EMAIL || "GlobalVest <onboarding@resend.dev>";
-}
-
 async function sendVerificationEmail(to, code) {
+    const warnings = getDeliverabilityWarnings();
+    if (warnings.length) {
+        console.warn("[resend] deliverability:", warnings.join(" "));
+    }
+
     const resend = getResendClient();
-    const from = getFromAddress();
+    const content = buildVerificationEmailContent(code, to);
 
     const { data, error } = await resend.emails.send({
-        from: from,
+        from: getFromAddress(),
         to: to,
-        subject: "Verify your GlobalVest account",
-        text:
-            "Your GlobalVest verification code is:\n\n" +
-            code +
-            "\n\nThis code expires in 10 minutes."
+        replyTo: getReplyTo(),
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
+        headers: content.headers,
+        tags: content.tags
     });
 
     if (error) {
@@ -33,4 +41,4 @@ async function sendVerificationEmail(to, code) {
     return data;
 }
 
-module.exports = { sendVerificationEmail };
+module.exports = { sendVerificationEmail, getDeliverabilityWarnings };
