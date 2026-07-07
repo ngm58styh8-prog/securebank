@@ -373,12 +373,13 @@ function renderPendingDepositsAdmin() {
 
     tbody.innerHTML = pending.map(function(d) {
         const payToShort = d.payTo.length > 40 ? d.payTo.slice(0, 40) + "…" : d.payTo;
+        const btcCol = d.btcAmount ? d.btcAmount.toFixed(8) + " BTC" : "—";
         return `<tr>
             <td>${d.date}</td>
             <td>${d.userName}<br><span class="admin-email">${d.userEmail}</span></td>
-            <td>${d.method}</td>
+            <td>BTC</td>
             <td class="admin-payto-cell" title="${d.payTo}">${payToShort}</td>
-            <td class="pl-positive">${formatMoney(d.amount)}</td>
+            <td class="pl-positive">${formatMoney(d.amount)}<br><span class="admin-email">${btcCol}</span></td>
             <td class="admin-row-actions">
                 <button type="button" class="admin-approve-btn admin-approve-deposit" data-id="${d.id}">Approve</button>
                 <button type="button" class="admin-reject-btn admin-reject-deposit" data-id="${d.id}">Reject</button>

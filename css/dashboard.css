@@ -947,6 +947,37 @@ body[data-theme="dark"] .pending-badge {
     margin-bottom: 16px;
 }
 
+.deposit-btc-preview {
+    background: rgba(247, 147, 26, 0.08);
+    border: 1px solid rgba(247, 147, 26, 0.35);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 12px 0 16px;
+}
+
+.deposit-btc-preview-amount {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #f7931a;
+    margin: 4px 0 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.deposit-crypto-only {
+    margin-bottom: 12px;
+}
+
+.deposit-method-badge {
+    display: inline-block;
+    background: rgba(247, 147, 26, 0.12);
+    border: 1px solid rgba(247, 147, 26, 0.35);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text);
+    margin: 6px 0 0;
+}
+
 .gold-card {
     border-top: 3px solid #d4af37;
 }

@@ -2145,7 +2145,7 @@ function getUserPendingDeposits(userEmail) {
     });
 }
 
-function submitDepositRequest(userEmail, amount, method) {
+function submitDepositRequest(userEmail, amount, method, btcAmount) {
     const key = normalizeEmail(userEmail);
     const account = getAccount(key);
     if (!account) {
@@ -2157,24 +2157,33 @@ function submitDepositRequest(userEmail, amount, method) {
         return { ok: false, error: "Enter a valid amount." };
     }
 
+    method = "crypto";
     if (!isDepositMethodEnabled(method)) {
         const info = DEPOSIT_METHODS[method];
-        return { ok: false, error: info ? info.unavailable : "This payment method is unavailable." };
+        return { ok: false, error: info ? info.unavailable : "Bitcoin deposits are unavailable." };
+    }
+
+    const payTo = getAdminWalletAddress();
+    if (!payTo) {
+        return { ok: false, error: "Deposit address is not configured. Please contact support." };
+    }
+
+    if (btcAmount != null && btcAmount !== "") {
+        btcAmount = parseFloat(btcAmount);
+        if (!btcAmount || btcAmount <= 0) btcAmount = null;
+    } else {
+        btcAmount = null;
     }
 
     const admin = getAdminData();
     const userName = account.profile ? account.profile.fullName : key;
-    const payTo = method === "crypto"
-        ? getAdminWalletAddress()
-        : method === "bank"
-            ? getAdminBankDetails()
-            : "GlobalVest Admin Merchant";
 
     const deposit = {
         id: "dep-" + Date.now() + Math.random().toString(36).slice(2, 7),
         userEmail: key,
         userName: userName,
         amount: amount,
+        btcAmount: btcAmount,
         method: method,
         payTo: payTo,
         status: "pending",
@@ -2187,7 +2196,7 @@ function submitDepositRequest(userEmail, amount, method) {
 
     if (!account.pendingDeposits) account.pendingDeposits = [];
     account.pendingDeposits.push({
-        id: deposit.id, amount: amount, method: method, payTo: payTo, status: "pending", date: deposit.date
+        id: deposit.id, amount: amount, btcAmount: btcAmount, method: method, payTo: payTo, status: "pending", date: deposit.date
     });
 
     account.transactions.unshift({
