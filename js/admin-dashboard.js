@@ -431,6 +431,67 @@ function escapeAdminHtml(text) {
         .replace(/"/g, "&quot;");
 }
 
+function confirmDeleteAllUsers() {
+    const users = getManageableUsersSummary();
+    if (!users.length) {
+        alert("No customer accounts to delete.");
+        return Promise.resolve(false);
+    }
+
+    if (!confirm(
+        "Permanently delete ALL " + users.length + " customer account(s)?\n\n" +
+        "This removes every customer from browser storage and the server registry. " +
+        "The admin login is not affected.\n\n" +
+        "This cannot be undone."
+    )) {
+        return Promise.resolve(false);
+    }
+
+    const typed = prompt('Type DELETE ALL to confirm bulk deletion:');
+    if (typed === null) return Promise.resolve(false);
+    if (String(typed).trim().toUpperCase() !== "DELETE ALL") {
+        alert('Confirmation did not match. Type DELETE ALL exactly.');
+        return Promise.resolve(false);
+    }
+
+    const btn = document.getElementById("deleteAllUsersBtn");
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Deleting…";
+    }
+
+    return adminDeleteAllUsersAsync().then(function(result) {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Delete all customers";
+        }
+
+        selectUserProfile("");
+        closeMonitorModal();
+
+        if (result.failed && result.failed.length) {
+            alert(
+                "Deleted " + result.deleted + " of " + result.total + " account(s).\n\n" +
+                "Failed:\n" + result.failed.map(function(f) {
+                    return f.email + ": " + f.error;
+                }).join("\n")
+            );
+        } else {
+            alert("Deleted all " + result.deleted + " customer account(s).");
+        }
+
+        renderDashboard({ skipReconcile: true });
+        return result.deleted > 0;
+    }).catch(function(err) {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = "Delete all customers";
+        }
+        alert(err.message || "Bulk delete failed.");
+        return false;
+    });
+}
+
 function confirmDeleteUser(email, name, options) {
     options = options || {};
     const key = normalizeEmail(email);
@@ -992,6 +1053,11 @@ if (repairUsersBtn) {
             finish(null);
         }
     });
+}
+
+const deleteAllUsersBtn = document.getElementById("deleteAllUsersBtn");
+if (deleteAllUsersBtn) {
+    deleteAllUsersBtn.addEventListener("click", confirmDeleteAllUsers);
 }
 
 window.addEventListener("globalvest-registry-synced", renderDashboard);

@@ -2015,7 +2015,8 @@ function adminDeleteUser(userEmail) {
     return { ok: true, email: key, userName: userName };
 }
 
-function adminDeleteUserAsync(userEmail) {
+function adminDeleteUserAsync(userEmail, options) {
+    options = options || {};
     const key = normalizeEmail(userEmail);
     if (!key || key.indexOf("@") === -1) {
         return Promise.resolve({ ok: false, error: "Invalid email." });
@@ -2065,18 +2066,81 @@ function adminDeleteUserAsync(userEmail) {
     return serverStep
         .then(function() { return syncAdminToServer(admin); })
         .then(function() {
-            if (isServerSyncAvailable()) {
+            if (isServerSyncAvailable() && !options.skipRegistryPull) {
                 return pullAccountsFromServer();
             }
             return null;
         })
         .then(function() {
-            syncAdminRegisteredUsers(getAdminData());
+            if (!options.skipRegistrySync) {
+                syncAdminRegisteredUsers(getAdminData());
+            }
             return { ok: true, email: key, userName: userName };
         })
         .catch(function(err) {
-            return { ok: false, error: err.message || String(err) };
+            return { ok: false, error: err.message || String(err), email: key };
         });
+}
+
+function adminDeleteAllUsersAsync() {
+    const users = getManageableUsersSummary().slice();
+    if (!users.length) {
+        return Promise.resolve({ ok: true, deleted: 0, failed: [], total: 0 });
+    }
+
+    let deleted = 0;
+    const failed = [];
+
+    return users.reduce(function(chain, user) {
+        return chain.then(function() {
+            return adminDeleteUserAsync(user.email, {
+                skipRegistryPull: true,
+                skipRegistrySync: true
+            }).then(function(result) {
+                if (result.ok) {
+                    deleted += 1;
+                } else {
+                    failed.push({
+                        email: user.email,
+                        name: user.name,
+                        error: result.error || "Delete failed."
+                    });
+                }
+            });
+        });
+    }, Promise.resolve()).then(function() {
+        const admin = getAdminData();
+        ensureAdminUserActivityLog(admin);
+        admin.userActivityLog.unshift({
+            id: Date.now() + Math.random(),
+            date: new Date().toLocaleString(),
+            userEmail: "bulk",
+            userName: "Admin bulk action",
+            type: "admin-delete",
+            description: "Bulk deleted " + deleted + " customer account(s)",
+            amount: 0
+        });
+        if (admin.userActivityLog.length > 500) {
+            admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+        }
+        localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+
+        const finalize = isServerSyncAvailable()
+            ? syncAdminToServer(admin).then(function() {
+                return pullAccountsFromServer();
+            })
+            : Promise.resolve(null);
+
+        return finalize.then(function() {
+            syncAdminRegisteredUsers(getAdminData());
+            return {
+                ok: failed.length === 0,
+                deleted: deleted,
+                failed: failed,
+                total: users.length
+            };
+        });
+    });
 }
 
 function getUserPendingTransferTotal(userEmail) {
