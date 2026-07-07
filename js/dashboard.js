@@ -480,62 +480,132 @@ function formatBtcAmount(btc) {
     return btc.toFixed(8) + " BTC";
 }
 
-function updateDepositBtcPreview() {
-    const preview = document.getElementById("depositBtcPreview");
-    const previewAmount = document.getElementById("depositBtcPreviewAmount");
-    const modalInput = document.getElementById("modalInput");
-    if (!preview || !previewAmount || !modalInput) return;
-
-    const type = document.getElementById("modalOverlay").dataset.type;
-    if (type !== "deposit") {
-        preview.classList.add("hidden");
-        return;
-    }
-
-    const usd = parseFloat(modalInput.value);
-    const btc = getDepositBtcAmount(usd);
-    if (!btc) {
-        preview.classList.add("hidden");
-        previewAmount.textContent = "—";
-        return;
-    }
-
-    previewAmount.textContent = "≈ " + formatBtcAmount(btc);
-    preview.classList.remove("hidden");
+function getDepositAmountValue() {
+    const input = document.getElementById("depositAmountInput");
+    if (!input) return null;
+    return parseFloat(input.value);
 }
 
-function populateBtcAddressDisplays() {
+function updateDepositPagePreview() {
+    const amount = getDepositAmountValue();
+    const btcEl = document.getElementById("depositPageBtcAmount");
+    const usdEl = document.getElementById("depositPageUsdDisplay");
+    if (!btcEl) return;
+
+    if (!amount || amount <= 0) {
+        btcEl.textContent = "—";
+        if (usdEl) usdEl.textContent = "0.00";
+        return;
+    }
+
+    if (usdEl) usdEl.textContent = amount.toFixed(2);
+    const btc = getDepositBtcAmount(amount);
+    btcEl.textContent = btc ? "≈ " + formatBtcAmount(btc) : "—";
+}
+
+function populateDepositPageAddress() {
     const address = getAdminBtcAddress();
-    ["btcPopupAddress", "adminCryptoAddress", "depositBtcBannerAddress"].forEach(function(id) {
-        const el = document.getElementById(id);
-        if (el) el.textContent = address;
-    });
+    const el = document.getElementById("depositPageAddress");
+    if (el) el.textContent = address || "";
     return address;
 }
 
-function showBtcDepositPopup() {
-    const address = populateBtcAddressDisplays();
+function hideDepositAddressSection() {
+    const section = document.getElementById("depositAddressSection");
+    const error = document.getElementById("depositAmountError");
+    if (section) section.classList.add("hidden");
+    if (error) error.classList.add("hidden");
+}
+
+function showDepositAddressSection() {
+    const section = document.getElementById("depositAddressSection");
+    if (section) section.classList.remove("hidden");
+    updateDepositPagePreview();
+}
+
+function validateDepositAmount() {
+    const amount = getDepositAmountValue();
+    const error = document.getElementById("depositAmountError");
+    const valid = amount && amount > 0;
+
+    if (error) {
+        if (valid) error.classList.add("hidden");
+        else error.classList.remove("hidden");
+    }
+
+    return valid ? amount : null;
+}
+
+function openDepositPanel() {
+    const panel = document.getElementById("depositPanel");
+    const input = document.getElementById("depositAmountInput");
+    if (!panel || !input) return;
+
+    hideDepositAddressSection();
+    panel.classList.remove("hidden");
+    input.value = "";
+    input.focus();
+
+    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeDepositPanel() {
+    const panel = document.getElementById("depositPanel");
+    if (panel) panel.classList.add("hidden");
+    hideDepositAddressSection();
+}
+
+function continueDepositFlow() {
+    const amount = validateDepositAmount();
+    if (!amount) {
+        document.getElementById("depositAmountInput").focus();
+        return;
+    }
+
+    const address = populateDepositPageAddress();
     if (!address) {
         alert("Deposit address is not configured yet. Please contact support.");
         return;
     }
-    document.getElementById("btcDepositPopup").classList.remove("hidden");
-}
 
-function closeBtcDepositPopup() {
-    document.getElementById("btcDepositPopup").classList.add("hidden");
-}
-
-function openDepositModal() {
-    closeBtcDepositPopup();
-    const address = populateBtcAddressDisplays();
-    if (!address) {
-        alert("Deposit address is not configured yet. Please contact support.");
-        return;
-    }
     loadMarketPrices().then(function() {
-        openModal("deposit");
+        showDepositAddressSection();
+        document.getElementById("depositAddressSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
+}
+
+function submitDepositFromPanel() {
+    const amount = validateDepositAmount();
+    if (!amount) {
+        hideDepositAddressSection();
+        document.getElementById("depositAmountInput").focus();
+        return;
+    }
+
+    const wallet = getAdminWalletAddress();
+    if (!wallet) {
+        alert("Deposit address is not configured. Please contact support.");
+        return;
+    }
+
+    const btcAmount = getDepositBtcAmount(amount);
+    const result = submitDepositRequest(username, amount, "crypto", btcAmount);
+    if (!result.ok) {
+        alert(result.error);
+        return;
+    }
+
+    saveState();
+    updateUI();
+    closeDepositPanel();
+
+    const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
+    alert("Deposit submitted for admin approval.\n\n" +
+        "USD amount: $" + amount.toFixed(2) + "\n" +
+        "Send " + btcLine + " to:\n\n" +
+        result.payTo + "\n\n" +
+        "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
+        "A confirmation email was sent to your inbox.");
 }
 
 function renderPendingTransfers() {
@@ -569,68 +639,24 @@ function renderPendingTransfers() {
     list.innerHTML = items.join("");
 }
 
-function updateAdminPayToDisplay() {
-    const type = document.getElementById("modalOverlay").dataset.type;
-    const cryptoGroup = document.getElementById("cryptoWalletGroup");
-    const bankGroup = document.getElementById("bankPayToGroup");
-    const cardGroup = document.getElementById("cardPayToGroup");
-    const btcBanner = document.getElementById("depositBtcBanner");
-
-    if (type !== "deposit") return;
-
-    const address = populateBtcAddressDisplays();
-    if (cryptoGroup) cryptoGroup.classList.add("hidden");
-    if (bankGroup) bankGroup.classList.add("hidden");
-    if (cardGroup) cardGroup.classList.add("hidden");
-    if (btcBanner) {
-        if (address) btcBanner.classList.remove("hidden");
-        else btcBanner.classList.add("hidden");
-    }
-}
-
 function openModal(type) {
+    if (type !== "withdraw") return;
+
+    const frozenMsg = typeof getWithdrawalsFrozenMessage === "function"
+        ? getWithdrawalsFrozenMessage(username)
+        : "";
+    if (frozenMsg) {
+        alert(frozenMsg);
+        return;
+    }
+
     document.getElementById("modalOverlay").classList.remove("hidden");
     document.getElementById("modalOverlay").dataset.type = type;
     document.getElementById("modalInput").value = "";
-
-    const paymentGroup = document.getElementById("paymentMethodGroup");
-    const cryptoOnly = document.getElementById("depositCryptoOnly");
-    const transferGroup = document.getElementById("transferDetailsGroup");
-    const confirmBtn = document.getElementById("confirmModalBtn");
-    const btcPreview = document.getElementById("depositBtcPreview");
-
-    if (type === "deposit") {
-        document.getElementById("modalTitle").textContent = "💸 Deposit Funds (BTC)";
-        document.getElementById("depositApprovalNotice").classList.remove("hidden");
-        if (paymentGroup) paymentGroup.style.display = "none";
-        if (cryptoOnly) cryptoOnly.classList.remove("hidden");
-        transferGroup.classList.add("hidden");
-        confirmBtn.textContent = "Submit for Admin Approval";
-        updateAdminPayToDisplay();
-        updateDepositBtcPreview();
-    } else {
-        const frozenMsg = typeof getWithdrawalsFrozenMessage === "function"
-            ? getWithdrawalsFrozenMessage(username)
-            : "";
-        if (frozenMsg) {
-            alert(frozenMsg);
-            return;
-        }
-
-        document.getElementById("modalTitle").textContent = "💸 Request Transfer";
-        document.getElementById("depositApprovalNotice").classList.add("hidden");
-        if (paymentGroup) paymentGroup.style.display = "none";
-        if (cryptoOnly) cryptoOnly.classList.add("hidden");
-        transferGroup.classList.remove("hidden");
-        document.getElementById("cryptoWalletGroup").classList.add("hidden");
-        document.getElementById("bankPayToGroup").classList.add("hidden");
-        document.getElementById("cardPayToGroup").classList.add("hidden");
-        document.getElementById("depositBtcBanner").classList.add("hidden");
-        if (btcPreview) btcPreview.classList.add("hidden");
-        document.getElementById("transferDestination").value = "";
-        confirmBtn.textContent = "Submit Transfer for Approval";
-    }
-
+    document.getElementById("modalTitle").textContent = "💸 Request Transfer";
+    document.getElementById("transferDetailsGroup").classList.remove("hidden");
+    document.getElementById("transferDestination").value = "";
+    document.getElementById("confirmModalBtn").textContent = "Submit Transfer for Approval";
     document.getElementById("modalInput").focus();
 }
 
@@ -641,7 +667,6 @@ function closeModal() {
 function confirmModal(e) {
     if (e) e.preventDefault();
 
-    const type = document.getElementById("modalOverlay").dataset.type;
     const amount = parseFloat(document.getElementById("modalInput").value);
 
     if (!amount || amount <= 0) {
@@ -649,57 +674,24 @@ function confirmModal(e) {
         return;
     }
 
-    if (type === "deposit") {
-        const wallet = getAdminWalletAddress();
-        if (!wallet) {
-            alert("Deposit address is not configured. Please contact support.");
-            return;
-        }
+    const destination = document.getElementById("transferDestination").value.trim();
+    const method = document.querySelector('input[name="transferMethod"]:checked').value;
 
-        const btcAmount = getDepositBtcAmount(amount);
-        const result = submitDepositRequest(username, amount, "crypto", btcAmount);
-        if (!result.ok) {
-            alert(result.error);
-            return;
-        }
-
-        saveState();
-        updateUI();
-        closeModal();
-
-        const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
-        alert("Deposit submitted for admin approval.\n\n" +
-            "USD amount: $" + amount.toFixed(2) + "\n" +
-            "Send " + btcLine + " to:\n\n" +
-            result.payTo + "\n\n" +
-            "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
-            "A confirmation email was sent to your inbox.");
+    if (!destination) {
+        alert("Please enter where to send the transfer.");
         return;
-    } else {
-        const destination = document.getElementById("transferDestination").value.trim();
-        const method = document.querySelector('input[name="transferMethod"]:checked').value;
+    }
 
-        if (!destination) {
-            alert("Please enter where to send the transfer.");
-            return;
-        }
-
-        const result = submitTransferRequest(username, amount, destination, method);
-        if (!result.ok) {
-            alert(result.error);
-            return;
-        }
-
-        saveState();
-        updateUI();
-        closeModal();
-        alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.\n\nA confirmation email was sent to your inbox.");
+    const result = submitTransferRequest(username, amount, destination, method);
+    if (!result.ok) {
+        alert(result.error);
         return;
     }
 
     saveState();
     updateUI();
     closeModal();
+    alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.\n\nA confirmation email was sent to your inbox.");
 }
 
 function applyTheme(theme) {
@@ -775,20 +767,27 @@ function initUI() {
     loadMarketPrices();
     setInterval(loadMarketPrices, 30000);
 
-    document.getElementById("depositBtn").addEventListener("click", showBtcDepositPopup);
-
-    document.getElementById("btcPopupContinueBtn").addEventListener("click", openDepositModal);
-    document.getElementById("btcPopupCloseBtn").addEventListener("click", closeBtcDepositPopup);
-    document.getElementById("btcDepositPopup").addEventListener("click", function(e) {
-        if (e.target === document.getElementById("btcDepositPopup")) {
-            closeBtcDepositPopup();
+    document.getElementById("depositBtn").addEventListener("click", openDepositPanel);
+    document.getElementById("depositContinueBtn").addEventListener("click", continueDepositFlow);
+    document.getElementById("depositSubmitBtn").addEventListener("click", submitDepositFromPanel);
+    document.getElementById("depositBackBtn").addEventListener("click", hideDepositAddressSection);
+    document.getElementById("depositPanelCloseBtn").addEventListener("click", closeDepositPanel);
+    document.getElementById("copyDepositPageBtn").addEventListener("click", function() {
+        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
+    });
+    document.getElementById("depositAmountInput").addEventListener("input", function() {
+        const section = document.getElementById("depositAddressSection");
+        if (section && !section.classList.contains("hidden")) {
+            updateDepositPagePreview();
+        } else {
+            document.getElementById("depositAmountError").classList.add("hidden");
         }
     });
-    document.getElementById("copyBtcPopupBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
-    });
-    document.getElementById("copyDepositBannerBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
+    document.getElementById("depositAmountInput").addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            continueDepositFlow();
+        }
     });
 
     document.getElementById("withdrawBtn").addEventListener("click", function() {
@@ -797,19 +796,6 @@ function initUI() {
 
     document.getElementById("cashForm").addEventListener("submit", confirmModal);
     document.getElementById("cancelModalBtn").addEventListener("click", closeModal);
-    document.getElementById("modalInput").addEventListener("input", updateDepositBtcPreview);
-
-    document.getElementById("copyCryptoBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
-    });
-
-    document.getElementById("copyBankBtn").addEventListener("click", function() {
-        copyText(document.getElementById("adminBankPayTo").textContent, "Bank details copied to clipboard.");
-    });
-
-    function copyTextToClipboard(text) {
-        copyText(text);
-    }
 
     document.getElementById("modalOverlay").addEventListener("click", function(e) {
         if (e.target === document.getElementById("modalOverlay")) {
