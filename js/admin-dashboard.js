@@ -525,11 +525,14 @@ function renderUsersTable(admin, allUsers) {
             ? Object.keys(admin.registeredUsers).length
             : totalUsers;
         countLabel.textContent = userSearchQuery
-            ? "Showing " + users.length + " of " + linkedCount + " linked accounts"
-            : linkedCount + " account" + (linkedCount === 1 ? "" : "s") +
-                " automatically linked · refreshes live";
-        if (storedCount > linkedCount) {
-            countLabel.textContent += " · " + storedCount + " found in browser storage";
+            ? "Showing " + users.length + " of " + totalUsers + " linked accounts"
+            : totalUsers + " account" + (totalUsers === 1 ? "" : "s") +
+                " linked · browser + server registry";
+        if (linkedCount !== totalUsers) {
+            countLabel.textContent += " · admin index: " + linkedCount;
+        }
+        if (storedCount > totalUsers) {
+            countLabel.textContent += " · " + storedCount + " in browser storage";
         }
     }
 
@@ -556,8 +559,8 @@ function renderUsersTable(admin, allUsers) {
             if (diagnosis && diagnosis.found) {
                 hintEl.textContent = "Account found in storage but filtered out. Click Clear search.";
             } else if (diagnosis && !diagnosis.found && isValidEmail(normalizeEmail(userSearchQuery))) {
-                hintEl.textContent = "No account for \"" + userSearchQuery + "\" in this browser at " +
-                    window.location.origin + ". Registration and admin must use the same origin." + canonicalHint;
+                hintEl.textContent = "No account for \"" + userSearchQuery + "\" in this browser or server registry. " +
+                    "Ask the user to log in once (syncs their account), then click Repair registry." + canonicalHint;
             } else {
                 hintEl.textContent = "No users match your search. Click Clear search to see all accounts.";
             }
@@ -600,11 +603,54 @@ function renderUsersTable(admin, allUsers) {
     }).join("");
 }
 
+function updateRegistryBanner(syncResult) {
+    const banner = document.getElementById("adminRegistryBanner");
+    if (!banner) return;
+
+    if (typeof checkRegistryHealth !== "function") {
+        banner.classList.add("hidden");
+        return;
+    }
+
+    checkRegistryHealth().then(function(health) {
+        if (!health.ok || !health.configured) {
+            banner.className = "site-announcement admin-registry-warn";
+            banner.textContent = "Server account registry is not configured. User accounts only appear in this browser until Supabase is set up.";
+            banner.classList.remove("hidden");
+            return;
+        }
+
+        if (health.tableReady === false) {
+            banner.className = "site-announcement admin-registry-warn";
+            banner.textContent = "Supabase migration missing: run supabase/migrations/002_app_registry.sql in your Supabase SQL editor, then click Repair registry. Until then, accounts only sync within the same browser.";
+            banner.classList.remove("hidden");
+            return;
+        }
+
+        if (syncResult && syncResult.registryError) {
+            banner.className = "site-announcement admin-registry-warn";
+            banner.textContent = "Could not load accounts from server: " + syncResult.registryError + " Click Repair registry to retry.";
+            banner.classList.remove("hidden");
+            return;
+        }
+
+        banner.classList.add("hidden");
+    }).catch(function() {
+        banner.className = "site-announcement admin-registry-warn";
+        banner.textContent = "Could not reach the account registry. Users in this browser are shown locally; run Repair registry after fixing the server.";
+        banner.classList.remove("hidden");
+    });
+}
+
 function renderDashboard() {
-    const doRender = function() {
+    const doRender = function(syncResult) {
         repairAccountsStorage();
+        if (typeof linkAllAccountsToAdmin === "function") {
+            linkAllAccountsToAdmin();
+        }
         const admin = getAdminData();
         const allUsers = getAllUsersSummary();
+        updateRegistryBanner(syncResult);
 
     document.getElementById("totalUsers").textContent = String(allUsers.length);
     renderUsersTable(admin, allUsers);
@@ -651,12 +697,14 @@ function renderDashboard() {
     }
     };
 
-    if (typeof pullAccountsFromServer !== "function") {
-        doRender();
+    if (typeof reconcileAccountRegistry !== "function") {
+        doRender(null);
         return;
     }
 
-    pullAccountsFromServer().then(doRender).catch(doRender);
+    reconcileAccountRegistry().then(doRender).catch(function(err) {
+        doRender({ registryError: String(err) });
+    });
 }
 
 function runAdjustment(email, action, amount, note) {
@@ -715,7 +763,7 @@ document.getElementById("clearUserSearchBtn").addEventListener("click", function
 });
 
 document.getElementById("refreshUsersBtn").addEventListener("click", function() {
-    const finish = function() {
+    const finish = function(syncResult) {
         const report = repairAccountsStorage();
         getAdminData();
         renderDashboard();
@@ -723,38 +771,50 @@ document.getElementById("refreshUsersBtn").addEventListener("click", function() 
             alert("Account registry repaired.\n" +
                 (report.repaired.length ? "Fixed: " + report.repaired.join(", ") + "\n" : "") +
                 (report.merged.length ? "Merged: " + report.merged.join(", ") + "\n" : "") +
-                (report.removed.length ? "Removed invalid: " + report.removed.join(", ") : ""));
+                (report.removed.length ? "Removed invalid: " + report.removed.join(", ") : "") +
+                (syncResult && syncResult.localCount != null ? "\nAccounts linked: " + syncResult.localCount : ""));
+        } else if (syncResult && syncResult.localCount != null) {
+            alert("Users refreshed. " + syncResult.localCount + " account(s) linked to admin.");
         }
     };
-    if (typeof pullAccountsFromServer === "function") {
-        pullAccountsFromServer().then(finish).catch(finish);
+    if (typeof reconcileAccountRegistry === "function") {
+        reconcileAccountRegistry().then(finish).catch(function(err) {
+            finish({ registryError: String(err) });
+        });
     } else {
-        finish();
+        finish(null);
     }
 });
 
 const repairUsersBtn = document.getElementById("repairUsersBtn");
 if (repairUsersBtn) {
     repairUsersBtn.addEventListener("click", function() {
-        const finish = function() {
+        const finish = function(syncResult) {
             const report = repairAccountsStorage();
-            if (typeof importLocalAccountsToServer === "function") {
-                importLocalAccountsToServer().then(function() {
-                    getAdminData();
-                    renderDashboard();
-                    alert("Repair complete.\nAccounts: " + getRegisteredAccountCount() +
-                        (report.incomplete.length ? "\nIncomplete: " + report.incomplete.join(", ") : ""));
-                });
-                return;
-            }
             getAdminData();
             renderDashboard();
-            alert("Repair complete.\nAccounts: " + getRegisteredAccountCount());
+            let msg = "Repair complete.\nAccounts linked: " + getRegisteredAccountCount();
+            if (syncResult && syncResult.imported != null) {
+                msg += "\nPushed to server: " + syncResult.imported;
+            }
+            if (syncResult && syncResult.serverCount != null) {
+                msg += "\nOn server: " + syncResult.serverCount;
+            }
+            if (report.incomplete.length) {
+                msg += "\nIncomplete: " + report.incomplete.join(", ");
+            }
+            if (syncResult && syncResult.registryError) {
+                msg += "\n\nServer error: " + syncResult.registryError;
+                msg += "\n\nRun supabase/migrations/002_app_registry.sql in Supabase if not done yet.";
+            }
+            alert(msg);
         };
-        if (typeof pullAccountsFromServer === "function") {
-            pullAccountsFromServer().then(finish).catch(finish);
+        if (typeof reconcileAccountRegistry === "function") {
+            reconcileAccountRegistry().then(finish).catch(function(err) {
+                finish({ registryError: String(err) });
+            });
         } else {
-            finish();
+            finish(null);
         }
     });
 }

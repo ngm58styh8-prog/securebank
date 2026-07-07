@@ -119,9 +119,9 @@ On Vercel, user accounts and admin data sync to **Supabase** (not browser-only s
 curl https://your-app.vercel.app/api/registry-health
 ```
 
-When `ok: true`, users who sign up on Vercel are visible in the admin dashboard from any browser. Admin actions (approve deposits, freeze withdrawals, delete users) sync through the same registry.
+When `ok: true` and `tableReady: true`, users who sign up on Vercel are visible in the admin dashboard from any browser. Open admin → **Repair registry** to pull server accounts and link them all to the user list.
 
-**Local dev** still uses `data/accounts.json` via `./start.sh` — no Supabase migration required locally.
+**Local dev** uses `data/accounts.json` via `./start.sh`. Copy `data/accounts.example.json` to `data/accounts.json` for sample users (e.g. `ellenmartinez20011@hotmail.com`).
 
 ## Email notifications (deposits & withdrawals)
 

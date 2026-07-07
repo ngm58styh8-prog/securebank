@@ -3,6 +3,69 @@ const ACCOUNTS_KEY = "securebank_accounts";
 const ADMIN_DATA_KEY = "securebank_admin_data";
 const ADMIN_SESSION_KEY = "securebank_admin_session";
 
+let serverAccountsCache = {};
+
+function setServerAccountsCache(accounts) {
+    serverAccountsCache = accounts && typeof accounts === "object" && !Array.isArray(accounts)
+        ? accounts
+        : {};
+}
+
+function getServerAccountsCache() {
+    return serverAccountsCache;
+}
+
+function getMergedAccountsRegistry() {
+    const merged = {};
+    const local = getAllAccounts();
+    const server = getServerAccountsCache();
+
+    Object.keys(local).forEach(function(email) {
+        const key = normalizeEmail(email);
+        if (!key) return;
+        merged[key] = local[email];
+    });
+
+    Object.keys(server).forEach(function(email) {
+        const key = normalizeEmail(email);
+        const serverAcct = server[email];
+        if (!key || !serverAcct || typeof serverAcct !== "object") return;
+        if (merged[key]) {
+            merged[key] = mergeAccountRecords(serverAcct, merged[key]);
+        } else {
+            merged[key] = serverAcct;
+        }
+    });
+
+    return merged;
+}
+
+function persistMergedRegistryToLocal() {
+    const merged = getMergedAccountsRegistry();
+    const keys = Object.keys(merged);
+    if (!keys.length) return false;
+
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(merged));
+    notifyAccountsChanged();
+    syncAdminRegisteredUsers(getAdminData());
+    return true;
+}
+
+function getRegistryAccount(email) {
+    const key = findAccountKey(email) || normalizeEmail(email);
+    const merged = getMergedAccountsRegistry();
+    return merged[key] || null;
+}
+
+function linkAllAccountsToAdmin() {
+    const admin = syncAdminRegisteredUsers(getAdminData());
+    saveAdminData(admin);
+    return {
+        linkedCount: Object.keys(admin.registeredUsers || {}).length,
+        accountCount: Object.keys(getMergedAccountsRegistry()).length
+    };
+}
+
 const DEFAULT_ADMIN = {
     email: "admin@globalvest.com",
     password: "admin123",
@@ -643,19 +706,25 @@ function repairAccountsStorage(options) {
 function diagnoseAccountEmail(email) {
     const key = normalizeEmail(email);
     const accountKey = findAccountKey(key);
-    const account = accountKey ? getAllAccountsUncached()[accountKey] : null;
+    const merged = typeof getMergedAccountsRegistry === "function"
+        ? getMergedAccountsRegistry()
+        : getAllAccountsUncached();
+    const account = accountKey
+        ? merged[normalizeEmail(accountKey)]
+        : (merged[key] || null);
 
     return {
         query: key,
         origin: typeof window !== "undefined" ? window.location.origin : "unknown",
         canonical: typeof isCanonicalAppOrigin === "function" ? isCanonicalAppOrigin() : true,
         found: !!account,
-        accountKey: accountKey,
+        accountKey: accountKey || (merged[key] ? key : null),
         complete: isCompleteAccount(account),
         hasPassword: !!(account && account.password),
         hasProfile: !!(account && account.profile),
         profileName: account && account.profile ? account.profile.fullName : null,
-        registeredCount: Object.keys(getAllAccountsUncached()).length
+        registeredCount: Object.keys(merged).length,
+        onServer: !!(typeof getServerAccountsCache === "function" && getServerAccountsCache()[key])
     };
 }
 
@@ -750,7 +819,7 @@ function getAllAccounts() {
 }
 
 function getRegisteredAccountCount() {
-    return Object.keys(getAllAccounts()).length;
+    return Object.keys(getMergedAccountsRegistry()).length;
 }
 
 function ensureHoldings(account) {
@@ -768,7 +837,19 @@ function ensureHoldings(account) {
 function getAccount(email) {
     const key = findAccountKey(email) || normalizeEmail(email);
     const accounts = getAllAccounts();
-    const account = accounts[key];
+    let account = accounts[key];
+
+    if (!account) {
+        const serverAcct = getServerAccountsCache()[key];
+        if (serverAcct && typeof serverAcct === "object") {
+            account = serverAcct;
+            accounts[key] = account;
+            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+            notifyAccountsChanged();
+            syncAdminRegisteredUsers(getAdminData());
+        }
+    }
+
     if (!account) return null;
     ensureNotifications(account);
     if (ensureHoldings(account)) {
@@ -888,6 +969,7 @@ function saveAccount(email, account) {
     accounts[key] = account;
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     notifyAccountsChanged();
+    syncAdminRegisteredUsers(getAdminData());
     syncAccountToServer(key, account);
 }
 
@@ -976,6 +1058,7 @@ function pullAccountsFromServer() {
             }
 
             const serverAccounts = payload.accounts;
+            setServerAccountsCache(serverAccounts);
             const local = getAllAccounts();
             let changed = false;
 
@@ -984,10 +1067,11 @@ function pullAccountsFromServer() {
                 const serverAcct = serverAccounts[email];
                 if (!serverAcct || typeof serverAcct !== "object") return;
 
-                if (local[key]) {
-                    const merged = mergeAccountRecords(serverAcct, local[key]);
-                    if (JSON.stringify(merged) !== JSON.stringify(local[key])) {
-                        local[key] = merged;
+                const localKey = findAccountKey(key) || key;
+                if (local[localKey]) {
+                    const merged = mergeAccountRecords(serverAcct, local[localKey]);
+                    if (JSON.stringify(merged) !== JSON.stringify(local[localKey])) {
+                        local[localKey] = merged;
                         changed = true;
                     }
                 } else {
@@ -999,13 +1083,81 @@ function pullAccountsFromServer() {
             if (changed) {
                 localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(local));
                 notifyAccountsChanged();
-                syncAdminRegisteredUsers(getAdminData());
             }
+
+            syncAdminRegisteredUsers(getAdminData());
 
             return { ok: true, accounts: serverAccounts, merged: changed, count: payload.count || 0 };
         })
         .catch(function(err) {
+            syncAdminRegisteredUsers(getAdminData());
             return { ok: false, accounts: {}, error: String(err) };
+        });
+}
+
+function reconcileAccountRegistry() {
+    repairAccountsStorage();
+    syncAdminRegisteredUsers(getAdminData());
+
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({
+            ok: true,
+            offline: true,
+            localCount: getRegisteredAccountCount(),
+            linkedCount: Object.keys(getAdminData().registeredUsers || {}).length
+        });
+    }
+
+    return pullAccountsFromServer()
+        .then(function(pullResult) {
+            if (typeof pullAdminFromServer === "function") {
+                return pullAdminFromServer().then(function() {
+                    return pullResult;
+                });
+            }
+            return pullResult;
+        })
+        .then(function(pullResult) {
+            return importLocalAccountsToServer().then(function(importResult) {
+                return pullAccountsFromServer().then(function(secondPull) {
+                    return importLocalAdminToServer().then(function() {
+                        return {
+                            pull: pullResult,
+                            import: importResult,
+                            secondPull: secondPull
+                        };
+                    });
+                });
+            });
+        })
+        .then(function(result) {
+            const report = repairAccountsStorage();
+            persistMergedRegistryToLocal();
+            const admin = syncAdminRegisteredUsers(getAdminData());
+            saveAdminData(admin);
+            return {
+                ok: true,
+                localCount: getRegisteredAccountCount(),
+                linkedCount: Object.keys(admin.registeredUsers || {}).length,
+                serverCount: result.secondPull && result.secondPull.count != null
+                    ? result.secondPull.count
+                    : (result.pull && result.pull.count != null ? result.pull.count : null),
+                imported: result.import && result.import.imported != null ? result.import.imported : 0,
+                report: report,
+                registryError: result.pull && !result.pull.ok ? result.pull.error : null
+            };
+        })
+        .catch(function(err) {
+            const report = repairAccountsStorage();
+            const admin = syncAdminRegisteredUsers(getAdminData());
+            saveAdminData(admin);
+            return {
+                ok: false,
+                error: String(err),
+                localCount: getRegisteredAccountCount(),
+                linkedCount: Object.keys(admin.registeredUsers || {}).length,
+                report: report
+            };
         });
 }
 
@@ -1025,6 +1177,28 @@ function importLocalAccountsToServer() {
     })).then(function() {
         return { ok: true, imported: emails.length };
     });
+}
+
+function checkRegistryHealth() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, configured: false, offline: true });
+    }
+
+    return fetch("/api/registry-health", { cache: "no-store" })
+        .then(function(response) { return response.json(); })
+        .then(function(payload) {
+            payload = payload || {};
+            return {
+                ok: !!payload.ok,
+                configured: !!payload.configured,
+                tableReady: payload.tableReady !== false,
+                message: payload.message || "",
+                tableError: payload.tableError || null
+            };
+        })
+        .catch(function() {
+            return { ok: false, configured: false, tableReady: false };
+        });
 }
 
 function syncAdminToServer(admin) {
@@ -1255,7 +1429,7 @@ function recordUserPayment(userEmail, type, amount, method) {
 function syncAdminRegisteredUsers(admin) {
     if (!admin.registeredUsers) admin.registeredUsers = {};
 
-    const accounts = getAllAccounts();
+    const accounts = getMergedAccountsRegistry();
     ensureAdminUserActivityLog(admin);
 
     let changed = false;
@@ -1316,7 +1490,8 @@ function syncAdminRegisteredUsers(admin) {
     });
 
     Object.keys(admin.registeredUsers).forEach(function(email) {
-        if (!accounts[normalizeEmail(email)]) {
+        const key = normalizeEmail(email);
+        if (!accounts[key]) {
             delete admin.registeredUsers[email];
             changed = true;
         }
@@ -1385,7 +1560,7 @@ function getHoldingsSummary(holdings) {
 function getAllUsersSummary() {
     repairAccountsStorage();
     getAdminData();
-    const accounts = getAllAccounts();
+    const accounts = getMergedAccountsRegistry();
     const pendingDeposits = getPendingDeposits();
     const pendingTransfers = getPendingTransfers();
 
@@ -1436,7 +1611,7 @@ function getAllUsersSummary() {
 }
 
 function getUserDetailForAdmin(email) {
-    const account = getAccount(email);
+    const account = getRegistryAccount(email);
     if (!account) return null;
     const profile = account.profile || getDefaultProfile(email);
     return {
@@ -1462,7 +1637,7 @@ function getUserDetailForAdmin(email) {
 
 function getAllUserActivity(filterEmail, limit) {
     limit = limit || 100;
-    const accounts = getAllAccounts();
+    const accounts = getMergedAccountsRegistry();
     const admin = getAdminData();
     let activities = [];
 

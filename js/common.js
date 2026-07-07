@@ -89,7 +89,14 @@ if (typeof repairAccountsStorage === "function") {
     repairAccountsStorage();
 }
 
-if (typeof pullAccountsFromServer === "function") {
+if (typeof reconcileAccountRegistry === "function") {
+    reconcileAccountRegistry()
+        .then(function() {
+            try {
+                window.dispatchEvent(new CustomEvent("globalvest-registry-synced"));
+            } catch (e) { /* ignore */ }
+        });
+} else if (typeof pullAccountsFromServer === "function") {
     pullAccountsFromServer()
         .then(function() {
             if (typeof pullAdminFromServer === "function") {

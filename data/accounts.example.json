@@ -1,0 +1,17 @@
+{
+  "ellenmartinez20011@hotmail.com": {
+    "password": "CHANGE_ME",
+    "cash": 0,
+    "emailVerified": true,
+    "profile": {
+      "fullName": "Ellen Martinez",
+      "email": "ellenmartinez20011@hotmail.com",
+      "phone": "5551234567",
+      "memberSince": "2026-07-06T00:00:00.000Z",
+      "verificationStatus": "Pending"
+    },
+    "holdings": {},
+    "transactions": [],
+    "notifications": []
+  }
+}
