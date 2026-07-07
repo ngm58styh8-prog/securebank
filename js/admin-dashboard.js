@@ -757,8 +757,8 @@ function renderUsersTable(admin, allUsers) {
         })();
         if (storedCount === 0) {
             hintEl.innerHTML = "No accounts loaded yet. Users who sign up on " +
-                "<code>https://globalvestbank.com</code> (or this Vercel URL) sync to the shared server registry. " +
-                "Click <strong>Repair registry</strong> after a user logs in." + canonicalHint;
+                "<code>https://globalvestbank.com</code> sync to the shared server registry. " +
+                "Open admin here on the same domain, then click <strong>Repair registry</strong>." + canonicalHint;
         } else if (userSearchQuery && !users.length) {
             const diagnosis = typeof diagnoseAccountEmail === "function"
                 ? diagnoseAccountEmail(userSearchQuery)
@@ -843,9 +843,12 @@ function updateRegistryBanner(syncResult) {
         const userSite = typeof getProductionSiteUrl === "function"
             ? getProductionSiteUrl()
             : "https://globalvestbank.com";
+        const registryOrigin = typeof getRegistryApiOrigin === "function"
+            ? getRegistryApiOrigin()
+            : window.location.origin;
         banner.className = "site-announcement";
-        banner.textContent = "Shared registry active. User signups on " + userSite +
-            " and securebank-1.vercel.app sync to this admin panel. Click Repair registry to refresh.";
+        banner.textContent = "Shared registry active on " + registryOrigin + ". User signups on " + userSite +
+            " sync to this admin panel. Click Repair registry to refresh.";
         banner.classList.remove("hidden");
 
         if (syncResult && syncResult.registryError) {
@@ -985,7 +988,15 @@ function closeAdjustModal() {
     pendingAdjust = { email: "", action: "" };
 }
 
-renderDashboard();
+function startDashboard() {
+    renderDashboard({ skipReconcile: true });
+}
+
+if (document.body.classList.contains("admin-auth-ready")) {
+    startDashboard();
+} else {
+    window.addEventListener("globalvest-admin-registry-ready", startDashboard, { once: true });
+}
 
 document.getElementById("userSearchInput").addEventListener("input", function(e) {
     userSearchQuery = e.target.value.trim();

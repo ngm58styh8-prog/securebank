@@ -132,6 +132,8 @@ Local: `./start.sh` → http://localhost:8765/admin.html
 
 Production: https://globalvestbank.com/admin.html (also https://securebank-1.vercel.app/admin.html — same shared registry)
 
+Open admin on **globalvestbank.com** so it reads the same Supabase registry as user signups. On login the panel auto-syncs server accounts; use **Repair registry** to refresh manually.
+
 ### Shared user registry (required for production admin)
 
 On Vercel, user accounts and admin data sync to **Supabase** (not browser-only storage). One-time setup:

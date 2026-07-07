@@ -5,6 +5,108 @@ const ADMIN_SESSION_KEY = "securebank_admin_session";
 
 let serverAccountsCache = {};
 
+const REGISTRY_API_FALLBACKS = [
+    "https://globalvestbank.com",
+    "https://securebank-1.vercel.app"
+];
+
+let resolvedRegistryApiOrigin = null;
+let registryOriginPromise = null;
+
+function getRegistryApiOrigin() {
+    if (resolvedRegistryApiOrigin) return resolvedRegistryApiOrigin;
+    if (typeof window === "undefined") return "";
+    if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+        return window.location.origin;
+    }
+    return REGISTRY_API_FALLBACKS[0];
+}
+
+function registryApiUrl(path) {
+    const origin = getRegistryApiOrigin();
+    const normalizedPath = path.charAt(0) === "/" ? path : "/" + path;
+    if (!origin) return normalizedPath;
+    return origin.replace(/\/$/, "") + normalizedPath;
+}
+
+function resolveRegistryApiOrigin() {
+    if (resolvedRegistryApiOrigin) {
+        return Promise.resolve(resolvedRegistryApiOrigin);
+    }
+    if (registryOriginPromise) return registryOriginPromise;
+
+    registryOriginPromise = new Promise(function(resolve) {
+        if (typeof window === "undefined") {
+            resolvedRegistryApiOrigin = "";
+            resolve("");
+            return;
+        }
+
+        const meta = document.querySelector('meta[name="globalvest-registry-api"]');
+        if (meta && meta.content) {
+            resolvedRegistryApiOrigin = String(meta.content).trim().replace(/\/$/, "");
+            resolve(resolvedRegistryApiOrigin);
+            return;
+        }
+
+        const candidates = [];
+        const current = window.location.origin;
+        if (current && (current.indexOf("http://") === 0 || current.indexOf("https://") === 0)) {
+            candidates.push(current);
+        }
+        if (window.location.hostname === "www.globalvestbank.com") {
+            candidates.push("https://globalvestbank.com");
+        }
+        REGISTRY_API_FALLBACKS.forEach(function(origin) {
+            if (candidates.indexOf(origin) === -1) candidates.push(origin);
+        });
+
+        let index = 0;
+        function tryNext() {
+            if (index >= candidates.length) {
+                resolvedRegistryApiOrigin = current || REGISTRY_API_FALLBACKS[0];
+                resolve(resolvedRegistryApiOrigin);
+                return;
+            }
+
+            const origin = candidates[index++];
+            fetch(origin + "/api/registry-health", { cache: "no-store" })
+                .then(function(res) {
+                    return res.json().then(function(data) {
+                        return { res: res, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (result.res.ok && result.data && (result.data.ok || result.data.configured)) {
+                        resolvedRegistryApiOrigin = origin;
+                        resolve(origin);
+                    } else {
+                        tryNext();
+                    }
+                })
+                .catch(function() {
+                    tryNext();
+                });
+        }
+
+        tryNext();
+    });
+
+    return registryOriginPromise;
+}
+
+function registryFetch(path, options) {
+    return resolveRegistryApiOrigin().then(function() {
+        return fetch(registryApiUrl(path), options || {});
+    });
+}
+
+function bootstrapAdminRegistry() {
+    return resolveRegistryApiOrigin().then(function() {
+        return reconcileAccountRegistry();
+    });
+}
+
 function setServerAccountsCache(accounts) {
     serverAccountsCache = accounts && typeof accounts === "object" && !Array.isArray(accounts)
         ? accounts
@@ -1033,7 +1135,7 @@ function syncAccountToServer(email, account, eventType) {
     }
 
     const key = normalizeEmail(email);
-    return fetch("/api/accounts", {
+    return registryFetch("/api/accounts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1088,9 +1190,7 @@ function deleteAccountFromServer(email) {
     }
 
     const key = normalizeEmail(email);
-    const url = "/api/accounts?email=" + encodeURIComponent(key);
-
-    return fetch(url, {
+    return registryFetch("/api/accounts?email=" + encodeURIComponent(key), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: key })
@@ -1128,7 +1228,7 @@ function pullAccountsFromServer() {
         return Promise.resolve({ ok: false, accounts: {} });
     }
 
-    return fetch("/api/accounts", { cache: "no-store" })
+    return registryFetch("/api/accounts", { cache: "no-store" })
         .then(function(response) {
             if (!response.ok) throw new Error("Registry unavailable");
             return response.json();
@@ -1189,7 +1289,9 @@ function reconcileAccountRegistry() {
         });
     }
 
-    return pullAccountsFromServer()
+    return resolveRegistryApiOrigin().then(function() {
+        return pullAccountsFromServer();
+    })
         .then(function(pullResult) {
             if (typeof pullAdminFromServer === "function") {
                 return pullAdminFromServer().then(function() {
@@ -1265,7 +1367,7 @@ function checkRegistryHealth() {
         return Promise.resolve({ ok: false, configured: false, offline: true });
     }
 
-    return fetch("/api/registry-health", { cache: "no-store" })
+    return registryFetch("/api/registry-health", { cache: "no-store" })
         .then(function(response) { return response.json(); })
         .then(function(payload) {
             payload = payload || {};
@@ -1287,7 +1389,7 @@ function syncAdminToServer(admin) {
         return Promise.resolve({ ok: false, offline: true });
     }
 
-    return fetch("/api/admin-data", {
+    return registryFetch("/api/admin-data", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ admin: admin })
@@ -1301,7 +1403,7 @@ function pullAdminFromServer() {
         return Promise.resolve({ ok: false });
     }
 
-    return fetch("/api/admin-data", { cache: "no-store" })
+    return registryFetch("/api/admin-data", { cache: "no-store" })
         .then(function(response) {
             if (!response.ok) throw new Error("Admin registry unavailable");
             return response.json();

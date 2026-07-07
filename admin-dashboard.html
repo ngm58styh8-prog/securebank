@@ -536,7 +536,22 @@
 <script>
 (function() {
     if (!requireAdminAuth()) return;
-    document.body.classList.add("admin-auth-ready");
+
+    function revealDashboard() {
+        document.body.classList.add("admin-auth-ready");
+        try {
+            window.dispatchEvent(new CustomEvent("globalvest-admin-registry-ready"));
+        } catch (e) { /* ignore */ }
+    }
+
+    if (typeof bootstrapAdminRegistry === "function") {
+        bootstrapAdminRegistry()
+            .then(revealDashboard)
+            .catch(revealDashboard);
+        return;
+    }
+
+    revealDashboard();
 })();
 </script>
 <script src="js/admin-dashboard.js"></script>

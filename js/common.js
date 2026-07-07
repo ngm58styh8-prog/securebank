@@ -31,6 +31,21 @@ const LOCAL_SERVER_PORT = 8765;
     }
 })();
 
+(function enforceGlobalVestProductionHost() {
+    if (typeof window === "undefined") return;
+    if (window.location.protocol !== "https:") return;
+
+    const host = window.location.hostname;
+    if (host === "www.globalvestbank.com") {
+        window.location.replace(
+            "https://globalvestbank.com" +
+            window.location.pathname +
+            window.location.search +
+            window.location.hash
+        );
+    }
+})();
+
 function getProductionSiteUrl() {
     if (typeof window === "undefined") return "https://globalvestbank.com";
     const host = window.location.hostname;
