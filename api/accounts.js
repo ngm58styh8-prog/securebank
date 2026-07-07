@@ -4,7 +4,7 @@ const {
     registryConfigError,
     normalizeRegistryEmail,
     loadAllAccounts,
-    upsertAccount,
+    registerUserAccount,
     deleteAccount
 } = require("../server-lib/registry");
 
@@ -44,11 +44,15 @@ module.exports = async function handler(req, res) {
         if (req.method === "PUT" || req.method === "POST") {
             const email = normalizeRegistryEmail(req.body && req.body.email);
             const account = req.body && req.body.account;
-            const result = await upsertAccount(email, account);
+            const eventType = req.body && req.body.eventType;
+            const result = await registerUserAccount(email, account, {
+                eventType: eventType === "login" ? "login" : "signup"
+            });
             const accounts = await loadAllAccounts();
             res.status(200).json({
                 ok: true,
                 email: result.email,
+                adminLinked: true,
                 count: Object.keys(accounts).length
             });
             return;

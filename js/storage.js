@@ -268,7 +268,7 @@ function recordSuccessfulLogin(email) {
     ensureProfile(key, account);
     account.profile.lastLoginAt = new Date().toISOString();
     account.profile.lastLoginDevice = deviceLabel;
-    saveAccount(key, account);
+    saveAccount(key, account, { eventType: "login" });
     recordAdminUserEvent(key, "login", "Signed in from " + deviceLabel, 0);
 
     return { isNewDevice: isNewDevice, deviceLabel: deviceLabel, previousLogin: previousLogin };
@@ -915,10 +915,10 @@ function createAccount(email, password, fullName, phone, extras) {
     };
     sendWelcomeEmail(account, key, fullName.trim());
     sendSsnVerificationEmail(account, key, fullName.trim());
-    saveAccount(key, account);
+    saveAccount(key, account, { skipServerSync: true });
     recordAdminUserEvent(key, "signup", "New account registered", 0);
     syncAdminRegisteredUsers(getAdminData());
-    return { ok: true };
+    return { ok: true, email: key };
 }
 
 function authenticate(email, password) {
@@ -954,7 +954,8 @@ function syncAccountNotifications(email, account) {
     return account.notifications;
 }
 
-function saveAccount(email, account) {
+function saveAccount(email, account, options) {
+    options = options || {};
     const accounts = getAllAccounts();
     const key = findAccountKey(email) || normalizeEmail(email);
     const existing = accounts[key];
@@ -970,7 +971,9 @@ function saveAccount(email, account) {
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     notifyAccountsChanged();
     syncAdminRegisteredUsers(getAdminData());
-    syncAccountToServer(key, account);
+    if (options.skipServerSync !== true) {
+        syncAccountToServer(key, account, options.eventType || "signup");
+    }
 }
 
 function notifyAccountsChanged() {
@@ -1012,19 +1015,66 @@ function mergeAccountRecords(serverAcct, localAcct) {
     return merged;
 }
 
-function syncAccountToServer(email, account) {
+function syncAccountToServer(email, account, eventType) {
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: false, offline: true });
+    }
+
+    if (!account) {
+        account = getAccount(email);
+    }
+    if (!account) {
+        return Promise.resolve({ ok: false, error: "Account not found." });
     }
 
     const key = normalizeEmail(email);
     return fetch("/api/accounts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: key, account: account })
+        body: JSON.stringify({
+            email: key,
+            account: account,
+            eventType: eventType === "login" ? "login" : "signup"
+        })
     })
-        .then(function(response) { return response.json(); })
-        .catch(function() { return { ok: false }; });
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: data.error || "Server sync failed.",
+                        status: response.status
+                    };
+                }
+                const cache = getServerAccountsCache();
+                cache[key] = account;
+                setServerAccountsCache(cache);
+                syncAdminRegisteredUsers(getAdminData());
+                if (typeof pullAdminFromServer === "function") {
+                    return pullAdminFromServer().then(function() {
+                        return data;
+                    });
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: String(err) };
+        });
+}
+
+function syncRegistrationToServer(email, account, eventType) {
+    return syncAccountToServer(email, account, eventType || "signup").then(function(result) {
+        if (result.ok) {
+            syncAdminRegisteredUsers(getAdminData());
+            if (typeof pullAdminFromServer === "function") {
+                return pullAdminFromServer().then(function() {
+                    return result;
+                });
+            }
+        }
+        return result;
+    });
 }
 
 function deleteAccountFromServer(email) {

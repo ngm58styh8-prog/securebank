@@ -4,6 +4,27 @@ const ACCOUNTS_TABLE = "user_accounts";
 const ADMIN_TABLE = "admin_registry";
 const ADMIN_ROW_ID = "default";
 
+const DEFAULT_ADMIN_REGISTRY = {
+    email: "admin@globalvest.com",
+    password: "admin123",
+    balance: 0,
+    payments: [],
+    pendingTransfers: [],
+    pendingDeposits: [],
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
+    registeredUsers: {},
+    userActivityLog: [],
+    notificationLog: [],
+    websiteSettings: {
+        siteName: "GlobalVest",
+        siteTagline: "Global Investing & Digital Banking",
+        supportEmail: "support@globalvest.com",
+        announcement: "",
+        maintenanceMode: false
+    }
+};
+
 function normalizeRegistryEmail(email) {
     return String(email || "").trim().toLowerCase();
 }
@@ -92,6 +113,119 @@ async function upsertAccount(email, account) {
     return { email: key, account: merged };
 }
 
+function ensureAdminRegistryShape(admin) {
+    const base = Object.assign({}, DEFAULT_ADMIN_REGISTRY);
+    admin = admin && typeof admin === "object" ? admin : {};
+    admin = Object.assign(base, admin);
+    if (!admin.registeredUsers || typeof admin.registeredUsers !== "object") {
+        admin.registeredUsers = {};
+    }
+    if (!Array.isArray(admin.userActivityLog)) admin.userActivityLog = [];
+    if (!Array.isArray(admin.payments)) admin.payments = [];
+    if (!Array.isArray(admin.pendingTransfers)) admin.pendingTransfers = [];
+    if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
+    if (!Array.isArray(admin.notificationLog)) admin.notificationLog = [];
+    return admin;
+}
+
+async function ensureAdminRegistry() {
+    const existing = await loadAdminRegistry();
+    return ensureAdminRegistryShape(existing);
+}
+
+async function linkAccountToAdminRegistry(email, account, options) {
+    options = options || {};
+    const key = normalizeRegistryEmail(email);
+    if (!key || key.indexOf("@") === -1) {
+        throw new Error("Missing or invalid email.");
+    }
+    if (!account || typeof account !== "object") {
+        throw new Error("Missing or invalid account payload.");
+    }
+
+    const admin = await ensureAdminRegistry();
+    const profile = account.profile || {};
+    const userName = profile.fullName || key;
+    const now = new Date().toISOString();
+    const existing = admin.registeredUsers[key];
+    const isNew = !existing;
+
+    admin.registeredUsers[key] = {
+        email: key,
+        name: userName,
+        phone: profile.phone || "",
+        memberSince: profile.memberSince || null,
+        lastLoginAt: profile.lastLoginAt || null,
+        lastLoginDevice: profile.lastLoginDevice || null,
+        emailVerified: !!account.emailVerified,
+        verificationStatus: profile.verificationStatus || "Pending",
+        withdrawalsFrozen: !!account.withdrawalsFrozen,
+        linkedAt: existing && existing.linkedAt ? existing.linkedAt : now,
+        updatedAt: now
+    };
+
+    const shouldLogSignup = options.eventType === "signup" || (isNew && options.logSignup !== false);
+    if (shouldLogSignup) {
+        const hasSignup = admin.userActivityLog.some(function(entry) {
+            return entry.type === "signup" &&
+                normalizeRegistryEmail(entry.userEmail) === key;
+        });
+        if (!hasSignup) {
+            admin.userActivityLog.unshift({
+                id: Date.now() + Math.random(),
+                date: profile.memberSince
+                    ? new Date(profile.memberSince).toLocaleString()
+                    : new Date().toLocaleString(),
+                userEmail: key,
+                userName: userName,
+                type: "signup",
+                description: isNew ? "New account registered" : "Account linked to admin dashboard",
+                amount: 0
+            });
+        }
+    }
+
+    if (options.eventType === "login") {
+        admin.userActivityLog.unshift({
+            id: Date.now() + Math.random(),
+            date: new Date().toLocaleString(),
+            userEmail: key,
+            userName: userName,
+            type: "login",
+            description: "Signed in from " + (profile.lastLoginDevice || "web"),
+            amount: 0
+        });
+    }
+
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    await saveAdminRegistry(admin);
+    return { email: key, linked: true, isNew: isNew };
+}
+
+async function registerUserAccount(email, account, options) {
+    const result = await upsertAccount(email, account);
+    const link = await linkAccountToAdminRegistry(result.email, result.account, options || { eventType: "signup" });
+    return {
+        email: result.email,
+        account: result.account,
+        adminLinked: true,
+        isNew: link.isNew
+    };
+}
+
+async function unlinkAccountFromAdminRegistry(email) {
+    const key = normalizeRegistryEmail(email);
+    const admin = await ensureAdminRegistry();
+    if (admin.registeredUsers[key]) {
+        delete admin.registeredUsers[key];
+        await saveAdminRegistry(admin);
+    }
+    return { email: key, unlinked: true };
+}
+
 async function deleteAccount(email) {
     const key = normalizeRegistryEmail(email);
     if (!key || key.indexOf("@") === -1) {
@@ -107,6 +241,8 @@ async function deleteAccount(email) {
     if (error) {
         throw new Error(error.message || "Failed to delete account.");
     }
+
+    await unlinkAccountFromAdminRegistry(key);
 
     return { email: key, deleted: true };
 }
@@ -160,6 +296,8 @@ module.exports = {
     registryConfigError,
     loadAllAccounts,
     upsertAccount,
+    registerUserAccount,
+    linkAccountToAdminRegistry,
     deleteAccount,
     loadAdminRegistry,
     saveAdminRegistry

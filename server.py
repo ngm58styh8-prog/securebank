@@ -76,6 +76,86 @@ def save_admin_registry(admin):
         json.dump(admin, handle, indent=2)
 
 
+DEFAULT_ADMIN_REGISTRY = {
+    "email": "admin@globalvest.com",
+    "password": "admin123",
+    "balance": 0,
+    "payments": [],
+    "pendingTransfers": [],
+    "pendingDeposits": [],
+    "walletAddress": "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    "bankDetails": "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
+    "registeredUsers": {},
+    "userActivityLog": [],
+    "notificationLog": [],
+}
+
+
+def ensure_admin_registry():
+    existing = load_admin_registry()
+    admin = {**DEFAULT_ADMIN_REGISTRY, **(existing or {})}
+    if not isinstance(admin.get("registeredUsers"), dict):
+        admin["registeredUsers"] = {}
+    if not isinstance(admin.get("userActivityLog"), list):
+        admin["userActivityLog"] = []
+    return admin
+
+
+def link_account_to_admin_registry(email, account, event_type="signup"):
+    admin = ensure_admin_registry()
+    key = normalize_registry_email(email)
+    profile = account.get("profile") or {}
+    user_name = profile.get("fullName") or key
+    now = __import__("datetime").datetime.utcnow().isoformat() + "Z"
+    existing = admin["registeredUsers"].get(key)
+    is_new = not existing
+
+    admin["registeredUsers"][key] = {
+        "email": key,
+        "name": user_name,
+        "phone": profile.get("phone") or "",
+        "memberSince": profile.get("memberSince"),
+        "lastLoginAt": profile.get("lastLoginAt"),
+        "lastLoginDevice": profile.get("lastLoginDevice"),
+        "emailVerified": bool(account.get("emailVerified")),
+        "verificationStatus": profile.get("verificationStatus") or "Pending",
+        "withdrawalsFrozen": bool(account.get("withdrawalsFrozen")),
+        "linkedAt": existing.get("linkedAt") if existing else now,
+        "updatedAt": now,
+    }
+
+    if event_type == "signup" or is_new:
+        has_signup = any(
+            entry.get("type") == "signup" and normalize_registry_email(entry.get("userEmail", "")) == key
+            for entry in admin["userActivityLog"]
+        )
+        if not has_signup:
+            admin["userActivityLog"].insert(0, {
+                "id": __import__("time").time(),
+                "date": __import__("datetime").datetime.utcnow().strftime("%m/%d/%Y, %I:%M:%S %p"),
+                "userEmail": key,
+                "userName": user_name,
+                "type": "signup",
+                "description": "New account registered" if is_new else "Account linked to admin dashboard",
+                "amount": 0,
+            })
+
+    if event_type == "login":
+        admin["userActivityLog"].insert(0, {
+            "id": __import__("time").time(),
+            "date": __import__("datetime").datetime.utcnow().strftime("%m/%d/%Y, %I:%M:%S %p"),
+            "userEmail": key,
+            "userName": user_name,
+            "type": "login",
+            "description": "Signed in from " + (profile.get("lastLoginDevice") or "web"),
+            "amount": 0,
+        })
+
+    admin["userActivityLog"] = admin["userActivityLog"][:500]
+    save_admin_registry(admin)
+    return {"linked": True, "email": key}
+
+
 def send_api_json(handler, status, payload):
     data = json.dumps(payload).encode("utf-8")
     handler.send_response(status)
@@ -222,7 +302,14 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
             account["serverSyncedAt"] = __import__("datetime").datetime.utcnow().isoformat() + "Z"
             accounts[email] = account
             save_accounts_registry(accounts)
-            send_api_json(self, 200, {"ok": True, "email": email, "count": len(accounts)})
+            event_type = payload.get("eventType") or "signup"
+            link_account_to_admin_registry(email, account, event_type)
+            send_api_json(self, 200, {
+                "ok": True,
+                "email": email,
+                "adminLinked": True,
+                "count": len(accounts)
+            })
         except json.JSONDecodeError:
             send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})
         except Exception as exc:
@@ -241,6 +328,9 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
             accounts = load_accounts_registry()
             accounts.pop(email, None)
             save_accounts_registry(accounts)
+            admin = ensure_admin_registry()
+            admin.get("registeredUsers", {}).pop(email, None)
+            save_admin_registry(admin)
             send_api_json(self, 200, {"ok": True, "email": email, "deleted": True, "count": len(accounts)})
         except json.JSONDecodeError:
             send_api_json(self, 400, {"ok": False, "error": "Invalid JSON body."})

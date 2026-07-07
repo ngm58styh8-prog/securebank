@@ -150,7 +150,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function finalizeLogin(email) {
-        const loginMeta = recordSuccessfulLogin(email);
+        recordSuccessfulLogin(email);
         setSession(email);
 
         if (document.getElementById("rememberMe").checked) {
@@ -379,9 +379,28 @@ document.addEventListener("DOMContentLoaded", function() {
                 return;
             }
 
-            showEmailVerifyPanel(email,
-                "We sent a 6-digit code to " + email + ". Check your inbox to continue.");
-            sendVerificationForEmail(email);
+            pendingSignupEmail = email;
+
+            const finishSignup = function() {
+                showEmailVerifyPanel(email,
+                    "We sent a 6-digit code to " + email + ". Check your inbox to continue.");
+                sendVerificationForEmail(email);
+            };
+
+            if (typeof syncRegistrationToServer === "function") {
+                syncRegistrationToServer(email, getAccount(email), "signup").then(function(sync) {
+                    if (!sync.ok && window.location.protocol !== "file:") {
+                        showMessage(
+                            document.getElementById("signUpMessage"),
+                            "Account created locally but server link failed. Sign in once to retry admin sync.",
+                            "error"
+                        );
+                    }
+                    finishSignup();
+                }).catch(finishSignup);
+            } else {
+                finishSignup();
+            }
         };
 
         if (typeof pullAccountsFromServer === "function") {
