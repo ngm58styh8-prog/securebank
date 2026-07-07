@@ -1339,6 +1339,17 @@ function isLegacyAdminEmail(email) {
     return normalizeEmail(email) === normalizeEmail("admin@" + "secure" + "bank" + ".com");
 }
 
+function isProtectedAdminAccount(email) {
+    const key = normalizeEmail(email);
+    return isLegacyAdminEmail(key) || key === normalizeEmail(DEFAULT_ADMIN.email);
+}
+
+function getManageableUsersSummary() {
+    return getAllUsersSummary().filter(function(u) {
+        return !isProtectedAdminAccount(u.email);
+    });
+}
+
 function migrateAdminBranding(data) {
     let changed = false;
     if (isLegacyAdminEmail(data.email)) {
@@ -1876,8 +1887,8 @@ function adminDeleteUser(userEmail) {
     if (!key || key.indexOf("@") === -1) {
         return { ok: false, error: "Invalid email." };
     }
-    if (isLegacyAdminEmail(key) || key === normalizeEmail(DEFAULT_ADMIN.email)) {
-        return { ok: false, error: "Cannot delete the admin account." };
+    if (isProtectedAdminAccount(key)) {
+        return { ok: false, error: "The admin account cannot be deleted." };
     }
 
     const account = getAccount(key);

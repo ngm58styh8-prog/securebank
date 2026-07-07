@@ -6,6 +6,7 @@ let pendingAdjust = { email: "", action: "" };
 let pendingSupport = { email: "", ticketId: "" };
 let monitorEmail = "";
 let userSearchQuery = "";
+let selectedProfileEmail = "";
 
 const HOLDING_LABELS = {
     btc: "Bitcoin", eth: "Ethereum", sol: "Solana", xrp: "XRP", gold: "Gold",
@@ -58,7 +59,7 @@ function formatPendingSummary(user) {
 }
 
 function getFilteredUsers() {
-    const users = getAllUsersSummary();
+    const users = getManageableUsersSummary();
     if (!userSearchQuery) return users;
     const q = userSearchQuery.toLowerCase();
     return users.filter(function(u) {
@@ -68,14 +69,21 @@ function getFilteredUsers() {
     });
 }
 
+function isUserDeletable(email) {
+    return typeof isProtectedAdminAccount === "function" && !isProtectedAdminAccount(email);
+}
+
 function populateUserSelects() {
     const users = getAllUsersSummary();
+    const manageableUsers = getManageableUsersSummary();
     const adjustSelect = document.getElementById("adjustUser");
     const activityFilter = document.getElementById("activityFilter");
     const notifTarget = document.getElementById("notifTarget");
+    const profileSelect = document.getElementById("profileUserSelect");
     const adjustCurrent = adjustSelect.value;
     const filterCurrent = activityFilter.value;
     const notifCurrent = notifTarget ? notifTarget.value : "";
+    const profileCurrent = profileSelect ? profileSelect.value : "";
 
     const options = users.map(function(u) {
         return `<option value="${u.email}">${u.name} (${u.email})</option>`;
@@ -87,6 +95,21 @@ function populateUserSelects() {
         }).join("");
 
     activityFilter.innerHTML = '<option value="">All users</option>' + options;
+
+    if (profileSelect) {
+        profileSelect.innerHTML = '<option value="">Select a customer account…</option>' +
+            manageableUsers.map(function(u) {
+                return `<option value="${u.email}">${u.name} (${u.email})</option>`;
+            }).join("");
+        if (profileCurrent && manageableUsers.some(function(u) { return u.email === profileCurrent; })) {
+            profileSelect.value = profileCurrent;
+        } else if (selectedProfileEmail && manageableUsers.some(function(u) { return u.email === selectedProfileEmail; })) {
+            profileSelect.value = selectedProfileEmail;
+        } else {
+            profileSelect.value = "";
+            selectedProfileEmail = "";
+        }
+    }
 
     if (notifTarget) {
         notifTarget.innerHTML = '<option value="all">All users</option>' + options;
@@ -101,6 +124,9 @@ function populateUserSelects() {
     if (filterCurrent && users.some(function(u) { return u.email === filterCurrent; })) {
         activityFilter.value = filterCurrent;
     }
+
+    renderSelectedUserProfile();
+    highlightSelectedUserRow();
 }
 
 function renderActivityFeed() {
@@ -140,6 +166,7 @@ function openMonitorModal(email) {
     const detail = getUserDetailForAdmin(email);
     if (!detail) return;
 
+    selectUserProfile(email);
     monitorEmail = detail.email;
     document.getElementById("monitorTitle").textContent = detail.profile.fullName + " — Account Monitor";
 
@@ -300,8 +327,117 @@ function toggleUserWithdrawalsFrozen(email, currentlyFrozen, reason) {
     return true;
 }
 
-function confirmDeleteUser(email, name) {
+function selectUserProfile(email) {
     const key = normalizeEmail(email);
+    if (!key) {
+        selectedProfileEmail = "";
+        const profileSelect = document.getElementById("profileUserSelect");
+        if (profileSelect) profileSelect.value = "";
+        renderSelectedUserProfile();
+        highlightSelectedUserRow();
+        return;
+    }
+
+    if (!isUserDeletable(key)) {
+        return;
+    }
+
+    const users = getManageableUsersSummary();
+    if (!users.some(function(u) { return u.email === key; })) {
+        return;
+    }
+
+    selectedProfileEmail = key;
+    const profileSelect = document.getElementById("profileUserSelect");
+    if (profileSelect) profileSelect.value = key;
+    renderSelectedUserProfile();
+    highlightSelectedUserRow();
+}
+
+function renderSelectedUserProfile() {
+    const panel = document.getElementById("selectedUserProfile");
+    const deleteBtn = document.getElementById("deleteSelectedUserBtn");
+    const monitorBtn = document.getElementById("openSelectedProfileBtn");
+    const email = selectedProfileEmail || (document.getElementById("profileUserSelect") || {}).value || "";
+
+    if (!email) {
+        selectedProfileEmail = "";
+        if (panel) {
+            panel.classList.add("hidden");
+            panel.innerHTML = "";
+        }
+        if (deleteBtn) deleteBtn.disabled = true;
+        if (monitorBtn) monitorBtn.disabled = true;
+        return;
+    }
+
+    selectedProfileEmail = normalizeEmail(email);
+    const detail = getUserDetailForAdmin(selectedProfileEmail);
+    const summary = getAllUsersSummary().find(function(u) { return u.email === selectedProfileEmail; });
+
+    if (!detail && !summary) {
+        if (panel) {
+            panel.classList.add("hidden");
+            panel.innerHTML = "";
+        }
+        if (deleteBtn) deleteBtn.disabled = true;
+        if (monitorBtn) monitorBtn.disabled = true;
+        return;
+    }
+
+    const name = detail
+        ? (detail.profile.fullName || selectedProfileEmail)
+        : (summary ? summary.name : selectedProfileEmail);
+    const phone = detail ? (detail.profile.phone || "—") : (summary ? summary.phone : "—");
+    const cash = detail ? formatMoney(detail.cashBalance) : (summary ? formatMoney(summary.cash) : "—");
+    const status = summary ? formatUserStatus(summary) : "—";
+
+    if (panel) {
+        panel.classList.remove("hidden");
+        panel.innerHTML =
+            '<div class="admin-selected-profile-card">' +
+            '<div class="admin-selected-profile-avatar" aria-hidden="true">' +
+            escapeAdminHtml(name.charAt(0).toUpperCase()) +
+            "</div>" +
+            '<div class="admin-selected-profile-body">' +
+            "<h4>" + escapeAdminHtml(name) + "</h4>" +
+            '<p class="admin-email">' + escapeAdminHtml(selectedProfileEmail) + "</p>" +
+            "<p><strong>Phone:</strong> " + escapeAdminHtml(phone) + "</p>" +
+            "<p><strong>Cash balance:</strong> " + cash + "</p>" +
+            "<p><strong>Status:</strong> " + escapeAdminHtml(status) + "</p>" +
+            "</div></div>";
+    }
+
+    if (deleteBtn) deleteBtn.disabled = false;
+    if (monitorBtn) monitorBtn.disabled = false;
+}
+
+function highlightSelectedUserRow() {
+    const rows = document.querySelectorAll("#usersBody tr.admin-user-row");
+    rows.forEach(function(row) {
+        if (row.dataset.email === selectedProfileEmail) {
+            row.classList.add("is-selected");
+        } else {
+            row.classList.remove("is-selected");
+        }
+    });
+}
+
+function escapeAdminHtml(text) {
+    return String(text || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function confirmDeleteUser(email, name, options) {
+    options = options || {};
+    const key = normalizeEmail(email);
+    if (!isUserDeletable(key)) {
+        alert("The admin account cannot be deleted.");
+        return false;
+    }
     if (!confirm(
         "Permanently delete " + name + " (" + key + ")?\n\n" +
         "This removes the account from browser storage and the server registry. " +
@@ -310,11 +446,13 @@ function confirmDeleteUser(email, name) {
         return false;
     }
 
-    const typed = prompt("Type the user's email to confirm deletion:");
-    if (typed === null) return false;
-    if (normalizeEmail(typed) !== key) {
-        alert("Email confirmation did not match.");
-        return false;
+    if (!options.skipTypedConfirm) {
+        const typed = prompt("Type the user's email to confirm deletion:");
+        if (typed === null) return false;
+        if (normalizeEmail(typed) !== key) {
+            alert("Email confirmation did not match.");
+            return false;
+        }
     }
 
     const result = adminDeleteUser(key);
@@ -324,6 +462,9 @@ function confirmDeleteUser(email, name) {
     }
 
     alert("Account deleted: " + result.userName);
+    if (selectedProfileEmail === key) {
+        selectUserProfile("");
+    }
     closeMonitorModal();
     renderDashboard();
     return true;
@@ -517,7 +658,7 @@ function renderUsersTable(admin, allUsers) {
     const usersBody = document.getElementById("usersBody");
     const countLabel = document.getElementById("userCountLabel");
     const users = getFilteredUsers();
-    const totalUsers = allUsers.length;
+    const totalUsers = getManageableUsersSummary().length;
     const storedCount = getRegisteredAccountCount();
 
     if (countLabel) {
@@ -586,7 +727,8 @@ function renderUsersTable(admin, allUsers) {
     usersBody.innerHTML = users.map(function(u) {
         const freezeLabel = u.withdrawalsFrozen ? "Unfreeze" : "Freeze";
         const freezeClass = u.withdrawalsFrozen ? "admin-mini-freeze is-frozen" : "admin-mini-freeze";
-        return `<tr>
+        const selectedClass = u.email === selectedProfileEmail ? " is-selected" : "";
+        return `<tr class="admin-user-row${selectedClass}" data-email="${u.email}" tabindex="0" role="button" aria-label="Select ${u.name}">
             <td>${u.name}</td>
             <td><span class="admin-email">${u.email}</span><br><span class="admin-email">${u.phone}</span></td>
             <td><span class="${userStatusClass(u)}">${formatUserStatus(u)}</span></td>
@@ -604,6 +746,8 @@ function renderUsersTable(admin, allUsers) {
             </td>
         </tr>`;
     }).join("");
+
+    highlightSelectedUserRow();
 }
 
 function updateRegistryBanner(syncResult) {
@@ -911,16 +1055,47 @@ document.getElementById("monitorDeleteBtn").addEventListener("click", function()
     if (!monitorEmail) return;
     const detail = getUserDetailForAdmin(monitorEmail);
     if (!detail) return;
-    confirmDeleteUser(monitorEmail, detail.profile.fullName || monitorEmail);
+    confirmDeleteUser(monitorEmail, detail.profile.fullName || monitorEmail, { skipTypedConfirm: true });
 });
 
-document.getElementById("monitorModal").addEventListener("click", function(e) {
-    if (e.target === document.getElementById("monitorModal")) {
-        closeMonitorModal();
-    }
-});
+const profileUserSelect = document.getElementById("profileUserSelect");
+if (profileUserSelect) {
+    profileUserSelect.addEventListener("change", function() {
+        selectUserProfile(profileUserSelect.value);
+    });
+}
+
+const deleteSelectedUserBtn = document.getElementById("deleteSelectedUserBtn");
+if (deleteSelectedUserBtn) {
+    deleteSelectedUserBtn.addEventListener("click", function() {
+        if (!selectedProfileEmail) {
+            alert("Select a user profile first.");
+            return;
+        }
+        const detail = getUserDetailForAdmin(selectedProfileEmail);
+        const summary = getAllUsersSummary().find(function(u) { return u.email === selectedProfileEmail; });
+        const name = detail
+            ? (detail.profile.fullName || selectedProfileEmail)
+            : (summary ? summary.name : selectedProfileEmail);
+        confirmDeleteUser(selectedProfileEmail, name, { skipTypedConfirm: true });
+    });
+}
+
+const openSelectedProfileBtn = document.getElementById("openSelectedProfileBtn");
+if (openSelectedProfileBtn) {
+    openSelectedProfileBtn.addEventListener("click", function() {
+        if (!selectedProfileEmail) return;
+        openMonitorModal(selectedProfileEmail);
+    });
+}
 
 document.getElementById("usersBody").addEventListener("click", function(e) {
+    const row = e.target.closest(".admin-user-row");
+    if (row && !e.target.closest(".admin-row-actions") && row.dataset.email) {
+        selectUserProfile(row.dataset.email);
+        return;
+    }
+
     const viewBtn = e.target.closest(".admin-mini-view");
     const creditBtn = e.target.closest(".admin-mini-credit");
     const debitBtn = e.target.closest(".admin-mini-debit");
@@ -947,8 +1122,22 @@ document.getElementById("usersBody").addEventListener("click", function(e) {
         toggleUserWithdrawalsFrozen(freezeBtn.dataset.email, frozen, reason);
     }
     if (deleteBtn) {
-        confirmDeleteUser(deleteBtn.dataset.email, deleteBtn.dataset.name);
+        confirmDeleteUser(deleteBtn.dataset.email, deleteBtn.dataset.name, { skipTypedConfirm: true });
     }
+});
+
+document.getElementById("monitorModal").addEventListener("click", function(e) {
+    if (e.target === document.getElementById("monitorModal")) {
+        closeMonitorModal();
+    }
+});
+
+document.getElementById("usersBody").addEventListener("keydown", function(e) {
+    const row = e.target.closest(".admin-user-row");
+    if (!row || (e.key !== "Enter" && e.key !== " ")) return;
+    if (e.target.closest(".admin-row-actions")) return;
+    e.preventDefault();
+    selectUserProfile(row.dataset.email);
 });
 
 document.getElementById("pendingTransfersBody").addEventListener("click", function(e) {

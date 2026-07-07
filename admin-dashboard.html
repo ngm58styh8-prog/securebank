@@ -180,6 +180,19 @@
         <p class="admin-sub" id="adminUserStorageHint"></p>
     </div>
 </div>
+<div class="card admin-adjust-card admin-profile-manager">
+    <h3 class="admin-profile-manager-title">Manage user profile</h3>
+    <p class="admin-sub">Select a customer account to review their profile or delete it. The admin login is never shown here and cannot be removed.</p>
+    <div class="admin-filter-row admin-profile-select-row">
+        <label class="form-label" for="profileUserSelect">Customer account</label>
+        <select id="profileUserSelect">
+            <option value="">Select a user…</option>
+        </select>
+        <button type="button" class="admin-mini-view" id="openSelectedProfileBtn" disabled>Open monitor</button>
+        <button type="button" class="admin-mini-delete" id="deleteSelectedUserBtn" disabled>Delete user</button>
+    </div>
+    <div id="selectedUserProfile" class="admin-selected-profile hidden" aria-live="polite"></div>
+</div>
 <div class="table-scroll">
 <table id="usersTable">
 <thead>

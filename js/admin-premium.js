@@ -172,7 +172,7 @@
         var list = document.getElementById("adminRecentUsersList");
         if (!list || typeof getAllUsersSummary !== "function") return;
 
-        var users = getAllUsersSummary().slice().sort(function(a, b) {
+        var users = getManageableUsersSummary().slice().sort(function(a, b) {
             var aTime = a.memberSince ? new Date(a.memberSince).getTime() : 0;
             var bTime = b.memberSince ? new Date(b.memberSince).getTime() : 0;
             return bTime - aTime;
@@ -186,7 +186,7 @@
         list.innerHTML = users.map(function(user) {
             var badge = getUserStatusBadge(user);
             return (
-                '<div class="admin-recent-row">' +
+                '<div class="admin-recent-row admin-recent-row-selectable" data-email="' + escapeHtml(user.email) + '" role="button" tabindex="0" aria-label="Select ' + escapeHtml(user.name) + '">' +
                 '<div class="admin-recent-avatar">' + escapeHtml(getInitials(user.name, user.email)) + '</div>' +
                 '<div class="admin-recent-info">' +
                 '<strong>' + escapeHtml(user.name) + '</strong>' +
@@ -197,6 +197,24 @@
                 '</div>'
             );
         }).join("");
+
+        list.querySelectorAll(".admin-recent-row-selectable").forEach(function(row) {
+            function pickUser() {
+                var select = document.getElementById("profileUserSelect");
+                if (select && row.dataset.email) {
+                    select.value = row.dataset.email;
+                    select.dispatchEvent(new Event("change", { bubbles: true }));
+                }
+                scrollToSection("section-users");
+            }
+            row.addEventListener("click", pickUser);
+            row.addEventListener("keydown", function(e) {
+                if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    pickUser();
+                }
+            });
+        });
     }
 
     function initGlobalSearch() {

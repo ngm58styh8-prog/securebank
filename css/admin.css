@@ -218,6 +218,76 @@
     background: #8e2430;
 }
 
+.admin-profile-manager {
+    margin-bottom: 16px;
+}
+
+.admin-profile-manager-title {
+    margin: 0 0 8px;
+    font-size: 1rem;
+}
+
+.admin-profile-select-row {
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.admin-profile-select-row select {
+    min-width: min(100%, 320px);
+    flex: 1 1 240px;
+}
+
+.admin-selected-profile {
+    margin-top: 16px;
+}
+
+.admin-selected-profile-card {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-selected-profile-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    background: rgba(99, 102, 241, 0.25);
+    color: #c7d2fe;
+    flex-shrink: 0;
+}
+
+.admin-selected-profile-body h4 {
+    margin: 0 0 4px;
+}
+
+.admin-selected-profile-body p {
+    margin: 0 0 6px;
+    font-size: 0.9rem;
+}
+
+#usersBody tr.admin-user-row {
+    cursor: pointer;
+}
+
+#usersBody tr.admin-user-row.is-selected {
+    outline: 2px solid rgba(99, 102, 241, 0.55);
+    background: rgba(99, 102, 241, 0.08);
+}
+
+#usersBody tr.admin-user-row:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .admin-status-chip.frozen {
     background: rgba(230, 126, 34, 0.2);
     border: 1px solid #e67e22;

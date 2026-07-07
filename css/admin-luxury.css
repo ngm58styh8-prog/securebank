@@ -381,6 +381,10 @@ body.admin-dashboard-body.admin-premium.luxury-admin .admin-nav-btn:hover {
     border-color: rgba(109, 94, 248, 0.15);
 }
 
+.admin-recent-row-selectable {
+    cursor: pointer;
+}
+
 .admin-recent-avatar {
     width: 40px;
     height: 40px;
