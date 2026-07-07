@@ -545,7 +545,12 @@
     }
 
     if (typeof bootstrapAdminRegistry === "function") {
-        bootstrapAdminRegistry()
+        const bootstrap = bootstrapAdminRegistry();
+        const timeout = new Promise(function(resolve) {
+            setTimeout(resolve, 8000);
+        });
+
+        Promise.race([bootstrap, timeout])
             .then(revealDashboard)
             .catch(revealDashboard);
         return;

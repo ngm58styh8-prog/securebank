@@ -125,12 +125,15 @@ if (typeof repairAccountsStorage === "function") {
 }
 
 if (typeof reconcileAccountRegistry === "function") {
-    reconcileAccountRegistry()
-        .then(function() {
-            try {
-                window.dispatchEvent(new CustomEvent("globalvest-registry-synced"));
-            } catch (e) { /* ignore */ }
-        });
+    const page = (typeof window !== "undefined" && window.location.pathname.split("/").pop()) || "";
+    if (page !== "admin.html") {
+        reconcileAccountRegistry()
+            .then(function() {
+                try {
+                    window.dispatchEvent(new CustomEvent("globalvest-registry-synced"));
+                } catch (e) { /* ignore */ }
+            });
+    }
 } else if (typeof pullAccountsFromServer === "function") {
     pullAccountsFromServer()
         .then(function() {

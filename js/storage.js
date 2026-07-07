@@ -36,76 +36,75 @@ function resolveRegistryApiOrigin() {
     }
     if (registryOriginPromise) return registryOriginPromise;
 
-    registryOriginPromise = new Promise(function(resolve) {
+    registryOriginPromise = Promise.resolve().then(function() {
         if (typeof window === "undefined") {
             resolvedRegistryApiOrigin = "";
-            resolve("");
-            return;
+            return "";
         }
 
         const meta = document.querySelector('meta[name="globalvest-registry-api"]');
         if (meta && meta.content) {
             resolvedRegistryApiOrigin = String(meta.content).trim().replace(/\/$/, "");
-            resolve(resolvedRegistryApiOrigin);
-            return;
+            return resolvedRegistryApiOrigin;
         }
 
-        const candidates = [];
         const current = window.location.origin;
         if (current && (current.indexOf("http://") === 0 || current.indexOf("https://") === 0)) {
-            candidates.push(current);
-        }
-        if (window.location.hostname === "www.globalvestbank.com") {
-            candidates.push("https://globalvestbank.com");
-        }
-        REGISTRY_API_FALLBACKS.forEach(function(origin) {
-            if (candidates.indexOf(origin) === -1) candidates.push(origin);
-        });
-
-        let index = 0;
-        function tryNext() {
-            if (index >= candidates.length) {
-                resolvedRegistryApiOrigin = current || REGISTRY_API_FALLBACKS[0];
-                resolve(resolvedRegistryApiOrigin);
-                return;
-            }
-
-            const origin = candidates[index++];
-            fetch(origin + "/api/registry-health", { cache: "no-store" })
-                .then(function(res) {
-                    return res.json().then(function(data) {
-                        return { res: res, data: data };
-                    });
-                })
-                .then(function(result) {
-                    if (result.res.ok && result.data && (result.data.ok || result.data.configured)) {
-                        resolvedRegistryApiOrigin = origin;
-                        resolve(origin);
-                    } else {
-                        tryNext();
-                    }
-                })
-                .catch(function() {
-                    tryNext();
-                });
+            resolvedRegistryApiOrigin = current;
+            return current;
         }
 
-        tryNext();
+        resolvedRegistryApiOrigin = REGISTRY_API_FALLBACKS[0];
+        return resolvedRegistryApiOrigin;
     });
 
     return registryOriginPromise;
 }
 
+function fetchWithTimeout(url, options, timeoutMs) {
+    timeoutMs = timeoutMs || 12000;
+    return new Promise(function(resolve, reject) {
+        const timer = setTimeout(function() {
+            reject(new Error("Registry request timed out."));
+        }, timeoutMs);
+
+        fetch(url, options || {})
+            .then(function(response) {
+                clearTimeout(timer);
+                resolve(response);
+            })
+            .catch(function(err) {
+                clearTimeout(timer);
+                reject(err);
+            });
+    });
+}
+
 function registryFetch(path, options) {
     return resolveRegistryApiOrigin().then(function() {
-        return fetch(registryApiUrl(path), options || {});
+        return fetchWithTimeout(registryApiUrl(path), options || {}, 15000);
     });
 }
 
 function bootstrapAdminRegistry() {
-    return resolveRegistryApiOrigin().then(function() {
-        return reconcileAccountRegistry();
-    });
+    return resolveRegistryApiOrigin()
+        .then(function() { return pullAccountsFromServer(); })
+        .then(function(pullResult) {
+            if (typeof pullAdminFromServer === "function") {
+                return pullAdminFromServer().then(function() {
+                    return pullResult;
+                });
+            }
+            return pullResult;
+        })
+        .then(function() {
+            repairAccountsStorage();
+            syncAdminRegisteredUsers(getAdminData());
+            return { ok: true };
+        })
+        .catch(function(err) {
+            return { ok: false, error: String(err) };
+        });
 }
 
 function setServerAccountsCache(accounts) {
