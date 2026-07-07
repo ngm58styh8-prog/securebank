@@ -533,6 +533,9 @@ function confirmDeleteUser(email, name, options) {
         closeMonitorModal();
         renderDashboard({ skipReconcile: true });
         return true;
+    }).catch(function(err) {
+        alert(err.message || "Could not delete user.");
+        return false;
     });
 }
 
@@ -951,6 +954,9 @@ function runAdjustment(email, action, amount, note) {
         }
         renderDashboard({ skipReconcile: true });
         return true;
+    }).catch(function(err) {
+        alert(err.message || "Could not update account balance.");
+        return false;
     });
 }
 
@@ -1266,10 +1272,25 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
     const rejectBtn = e.target.closest(".admin-reject-deposit");
 
     if (approveBtn) {
-        const result = approveDeposit(approveBtn.dataset.id);
-        if (!result.ok) { alert(result.error); return; }
-        alert("Deposit approved — user account credited and confirmation email sent.");
-        renderDashboard();
+        const btn = approveBtn;
+        btn.disabled = true;
+        const approveHandler = typeof approveDepositAsync === "function"
+            ? approveDepositAsync(approveBtn.dataset.id)
+            : Promise.resolve(approveDeposit(approveBtn.dataset.id));
+
+        approveHandler.then(function(result) {
+            btn.disabled = false;
+            if (!result.ok) {
+                alert(result.error || "Could not approve deposit.");
+                return;
+            }
+            alert("Deposit approved — user account credited and confirmation email sent.");
+            renderDashboard({ skipReconcile: true });
+        }).catch(function(err) {
+            btn.disabled = false;
+            alert(err.message || "Could not approve deposit.");
+        });
+        return;
     }
 
     if (rejectBtn) {

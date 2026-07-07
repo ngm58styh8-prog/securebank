@@ -309,12 +309,15 @@ function refreshNotificationsFromStorage() {
 }
 
 function reloadAccountFromRegistry() {
-    const fresh = getAccount(username);
+    const fresh = typeof getRegistryAccount === "function"
+        ? getRegistryAccount(username)
+        : getAccount(username);
     if (!fresh) return;
     account.cash = fresh.cash;
     account.transactions = fresh.transactions || account.transactions;
     account.notifications = fresh.notifications || account.notifications;
     account.holdings = fresh.holdings || account.holdings;
+    account.pendingDeposits = fresh.pendingDeposits || account.pendingDeposits;
     ensureProfile(username, account);
     ensureSettings(username, account);
     ensureHoldings(account);
@@ -886,6 +889,21 @@ function initUI() {
     });
 
     window.addEventListener("globalvest-registry-synced", reloadAccountFromRegistry);
+
+    function refreshUserBalanceFromServer() {
+        if (typeof pullAccountsFromServer !== "function") return;
+        pullAccountsFromServer().then(function() {
+            reloadAccountFromRegistry();
+            refreshNotificationsFromStorage();
+        });
+    }
+
+    document.addEventListener("visibilitychange", function() {
+        if (!document.hidden) refreshUserBalanceFromServer();
+    });
+
+    window.addEventListener("focus", refreshUserBalanceFromServer);
+    setInterval(refreshUserBalanceFromServer, 12000);
 
     setInterval(refreshNotificationsFromStorage, 3000);
 }

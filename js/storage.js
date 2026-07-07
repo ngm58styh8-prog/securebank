@@ -2,6 +2,7 @@ const SESSION_KEY = "securebank_session";
 const ACCOUNTS_KEY = "securebank_accounts";
 const ADMIN_DATA_KEY = "securebank_admin_data";
 const ADMIN_SESSION_KEY = "securebank_admin_session";
+const DELETED_ACCOUNTS_KEY = "securebank_deleted_accounts";
 
 let serverAccountsCache = {};
 
@@ -117,6 +118,41 @@ function getServerAccountsCache() {
     return serverAccountsCache;
 }
 
+function getDeletedAccountMarks() {
+    try {
+        const data = JSON.parse(localStorage.getItem(DELETED_ACCOUNTS_KEY));
+        return data && typeof data === "object" ? data : {};
+    } catch (e) {
+        return {};
+    }
+}
+
+function markAccountDeleted(email) {
+    const key = normalizeEmail(email);
+    if (!key) return;
+    const marks = getDeletedAccountMarks();
+    marks[key] = new Date().toISOString();
+    localStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(marks));
+}
+
+function clearAccountDeletedMark(email) {
+    const key = normalizeEmail(email);
+    if (!key) return;
+    const marks = getDeletedAccountMarks();
+    if (!marks[key]) return;
+    delete marks[key];
+    localStorage.setItem(DELETED_ACCOUNTS_KEY, JSON.stringify(marks));
+}
+
+function isAccountDeletedMark(email) {
+    return !!getDeletedAccountMarks()[normalizeEmail(email)];
+}
+
+function parseRegistrySyncTime(value) {
+    const time = Date.parse(value || "");
+    return isNaN(time) ? 0 : time;
+}
+
 function getMergedAccountsRegistry() {
     const merged = {};
     const local = getAllAccounts();
@@ -132,6 +168,7 @@ function getMergedAccountsRegistry() {
         const key = normalizeEmail(email);
         const serverAcct = server[email];
         if (!key || !serverAcct || typeof serverAcct !== "object") return;
+        if (isAccountDeletedMark(key)) return;
         if (merged[key]) {
             merged[key] = mergeAccountRecords(serverAcct, merged[key]);
         } else {
@@ -1096,6 +1133,10 @@ function mergeAccountRecords(serverAcct, localAcct) {
     if (!serverAcct) return localAcct;
     if (!localAcct) return serverAcct;
 
+    const localSynced = parseRegistrySyncTime(localAcct.serverSyncedAt);
+    const serverSynced = parseRegistrySyncTime(serverAcct.serverSyncedAt);
+    const serverIsNewer = serverSynced >= localSynced;
+
     const merged = Object.assign({}, serverAcct, localAcct);
     merged.profile = Object.assign({}, serverAcct.profile || {}, localAcct.profile || {});
     merged.settings = Object.assign({}, serverAcct.settings || {}, localAcct.settings || {});
@@ -1107,12 +1148,24 @@ function mergeAccountRecords(serverAcct, localAcct) {
 
     const localTx = localAcct.transactions || [];
     const serverTx = serverAcct.transactions || [];
-    merged.transactions = localTx.length >= serverTx.length ? localTx : serverTx;
-    if (typeof localAcct.cash === "number" && !isNaN(localAcct.cash)) {
+    if (serverIsNewer || serverTx.length > localTx.length) {
+        merged.transactions = serverTx.length ? serverTx : localTx;
+    } else {
+        merged.transactions = localTx.length ? localTx : serverTx;
+    }
+
+    if (serverIsNewer && typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
+        merged.cash = serverAcct.cash;
+    } else if (typeof localAcct.cash === "number" && !isNaN(localAcct.cash)) {
         merged.cash = localAcct.cash;
     } else if (typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
         merged.cash = serverAcct.cash;
     }
+
+    merged.serverSyncedAt = serverIsNewer
+        ? (serverAcct.serverSyncedAt || localAcct.serverSyncedAt)
+        : (localAcct.serverSyncedAt || serverAcct.serverSyncedAt);
+
     merged.password = localAcct.password || serverAcct.password;
     merged.emailVerified = localAcct.emailVerified != null ? localAcct.emailVerified : serverAcct.emailVerified;
     if (localAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = localAcct.withdrawalsFrozen;
@@ -1120,6 +1173,13 @@ function mergeAccountRecords(serverAcct, localAcct) {
     merged.withdrawalsFrozenReason = localAcct.withdrawalsFrozenReason || serverAcct.withdrawalsFrozenReason || "";
     merged.withdrawalsFrozenAt = localAcct.withdrawalsFrozenAt || serverAcct.withdrawalsFrozenAt || null;
     return merged;
+}
+
+function normalizeRegistryEventType(eventType) {
+    if (eventType === "login") return "login";
+    if (eventType === "admin-adjust") return "admin-adjust";
+    if (eventType === "deposit-approve") return "deposit-approve";
+    return "signup";
 }
 
 function syncAccountToServer(email, account, eventType) {
@@ -1141,7 +1201,7 @@ function syncAccountToServer(email, account, eventType) {
         body: JSON.stringify({
             email: key,
             account: account,
-            eventType: eventType === "login" ? "login" : "signup"
+            eventType: normalizeRegistryEventType(eventType)
         })
     })
         .then(function(response) {
@@ -1157,7 +1217,11 @@ function syncAccountToServer(email, account, eventType) {
                 cache[key] = account;
                 setServerAccountsCache(cache);
                 syncAdminRegisteredUsers(getAdminData());
-                if (typeof pullAdminFromServer === "function") {
+                if (
+                    typeof pullAdminFromServer === "function" &&
+                    eventType !== "admin-adjust" &&
+                    eventType !== "deposit-approve"
+                ) {
                     return pullAdminFromServer().then(function() {
                         return data;
                     });
@@ -1246,8 +1310,10 @@ function pullAccountsFromServer() {
             Object.keys(serverAccounts).forEach(function(email) {
                 const key = normalizeEmail(email);
                 const serverAcct = serverAccounts[email];
-                if (!serverAcct || typeof serverAcct !== "object") return;
+                if (!key || !serverAcct || typeof serverAcct !== "object") return;
+                if (isAccountDeletedMark(key)) return;
 
+                clearAccountDeletedMark(key);
                 const localKey = findAccountKey(key) || key;
                 if (local[localKey]) {
                     const merged = mergeAccountRecords(serverAcct, local[localKey]);
@@ -1259,6 +1325,15 @@ function pullAccountsFromServer() {
                     local[key] = serverAcct;
                     changed = true;
                 }
+            });
+
+            Object.keys(local).forEach(function(email) {
+                const key = normalizeEmail(email);
+                if (isProtectedAdminAccount(key)) return;
+                if (serverAccounts[key] || serverAccounts[email]) return;
+                if (!isAccountDeletedMark(key)) return;
+                delete local[email];
+                changed = true;
             });
 
             if (changed) {
@@ -1971,14 +2046,16 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
     applyAdminBalanceAdjustment(key, account, action, amount, note);
 
     const admin = getAdminData();
-    const accountSync = syncAccountToServer(key, account, "admin-adjust");
-    const adminSync = syncAdminToServer(admin);
-
-    return Promise.all([accountSync, adminSync])
-        .then(function(results) {
-            const accountResult = results[0];
+    return syncAccountToServer(key, account, "admin-adjust")
+        .then(function(accountResult) {
             if (!accountResult || (!accountResult.ok && !accountResult.offline)) {
                 throw new Error((accountResult && accountResult.error) || "Failed to save balance on server.");
+            }
+            return syncAdminToServer(admin);
+        })
+        .then(function(adminResult) {
+            if (adminResult && adminResult.ok === false && !adminResult.offline) {
+                throw new Error((adminResult && adminResult.error) || "Failed to save admin registry.");
             }
 
             const cache = Object.assign({}, getServerAccountsCache());
@@ -2091,6 +2168,7 @@ function adminDeleteUser(userEmail) {
 
     const userName = account.profile ? account.profile.fullName : key;
     adminRejectPendingForUser(key, "Account deleted by admin");
+    markAccountDeleted(key);
     removeAccountEverywhere(key);
 
     const admin = getAdminData();
@@ -2134,6 +2212,7 @@ function adminDeleteUserAsync(userEmail, options) {
 
     const userName = account.profile ? account.profile.fullName : key;
     adminRejectPendingForUser(key, "Account deleted by admin");
+    markAccountDeleted(key);
     removeAccountEverywhere(key);
 
     const admin = getAdminData();
@@ -2173,7 +2252,11 @@ function adminDeleteUserAsync(userEmail, options) {
             }
             return null;
         })
-        .then(function() {
+        .then(function(pullResult) {
+            if (pullResult && pullResult.accounts && pullResult.accounts[key]) {
+                throw new Error("Account still exists on server after delete.");
+            }
+            clearAccountDeletedMark(key);
             if (!options.skipRegistrySync) {
                 syncAdminRegisteredUsers(getAdminData());
             }
@@ -2798,9 +2881,10 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
     return { ok: true, deposit: deposit, payTo: payTo };
 }
 
-function resolveDepositOnAccount(userEmail, depositId, message) {
-    const account = getAccount(userEmail);
-    if (!account) return;
+function resolveDepositOnAccount(userEmail, depositId, message, options) {
+    options = options || {};
+    const account = options.account || getRegistryAccount(userEmail) || getAccount(userEmail);
+    if (!account) return null;
 
     if (account.pendingDeposits) {
         account.pendingDeposits = account.pendingDeposits.filter(function(d) {
@@ -2818,7 +2902,8 @@ function resolveDepositOnAccount(userEmail, depositId, message) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
-    saveAccount(userEmail, account);
+    saveAccount(userEmail, account, { skipServerSync: options.skipServerSync === true });
+    return account;
 }
 
 function approveDeposit(depositId) {
@@ -2830,33 +2915,61 @@ function approveDeposit(depositId) {
         return { ok: false, error: "Deposit request not found." };
     }
 
-    const account = getAccount(deposit.userEmail);
+    const key = normalizeEmail(deposit.userEmail);
+    const account = getRegistryAccount(key);
     if (!account) {
         return { ok: false, error: "User account not found." };
     }
 
-    account.cash += deposit.amount;
+    account.cash = (account.cash || 0) + deposit.amount;
     account.transactions.unshift({
         date: new Date().toLocaleString(),
         description: "Deposit Approved (" + deposit.method + ") — paid to admin",
         amount: deposit.amount
     });
+    account.serverSyncedAt = new Date().toISOString();
 
     deposit.status = "approved";
     deposit.resolvedAt = new Date().toLocaleString();
 
-    sendDepositApprovedEmail(account, deposit.userEmail, deposit.amount, deposit.method);
-    saveAccount(deposit.userEmail, account);
-    recordUserPayment(deposit.userEmail, "deposit", deposit.amount, deposit.method);
-    saveAdminData(admin);
+    sendDepositApprovedEmail(account, key, deposit.amount, deposit.method);
+    recordUserPayment(key, "deposit", deposit.amount, deposit.method);
 
     resolveDepositOnAccount(
-        deposit.userEmail,
+        key,
         depositId,
-        "Your deposit of $" + deposit.amount.toFixed(2) + " was approved and credited — check your email for confirmation"
+        "Your deposit of $" + deposit.amount.toFixed(2) + " was approved and credited — check your email for confirmation",
+        { account: account, skipServerSync: true }
     );
 
-    return { ok: true, emailQueued: true };
+    saveAdminData(admin);
+
+    return { ok: true, emailQueued: true, email: key, account: account };
+}
+
+function approveDepositAsync(depositId) {
+    const result = approveDeposit(depositId);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    return syncAccountToServer(result.email, result.account, "deposit-approve")
+        .then(function(syncResult) {
+            if (!syncResult || (!syncResult.ok && !syncResult.offline)) {
+                throw new Error((syncResult && syncResult.error) || "Failed to credit deposit on server.");
+            }
+
+            const admin = getAdminData();
+            return syncAdminToServer(admin).then(function() {
+                const cache = Object.assign({}, getServerAccountsCache());
+                cache[result.email] = result.account;
+                setServerAccountsCache(cache);
+                return { ok: true, emailQueued: true };
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function rejectDeposit(depositId, reason) {
