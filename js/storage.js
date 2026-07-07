@@ -1309,6 +1309,13 @@ function importLocalAdminToServer() {
     return syncAdminToServer(ensureAdminDataShape(local));
 }
 
+function syncCurrentUserToServer(email) {
+    if (!email || !isServerSyncAvailable()) return;
+    const account = getAccount(email);
+    if (!account || !isCompleteAccount(account)) return;
+    syncAccountToServer(email, account, "login");
+}
+
 function requireAuth() {
     repairAccountsStorage();
     const session = getSession();
@@ -1323,7 +1330,9 @@ function requireAuth() {
         window.location.href = "login.html";
         return null;
     }
-    return normalizeEmail(email);
+    const key = normalizeEmail(email);
+    syncCurrentUserToServer(key);
+    return key;
 }
 
 function isLegacyAdminEmail(email) {

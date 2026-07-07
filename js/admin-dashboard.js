@@ -549,9 +549,9 @@ function renderUsersTable(admin, allUsers) {
             return "";
         })();
         if (storedCount === 0) {
-            hintEl.innerHTML = "No accounts in this browser yet. Users must register at " +
-                "<code>http://localhost:8765/login.html</code> via <code>./start.sh</code> " +
-                "(accounts sync to the server registry automatically)." + canonicalHint;
+            hintEl.innerHTML = "No accounts loaded yet. Users who sign up on " +
+                "<code>https://globalvestbank.com</code> (or this Vercel URL) sync to the shared server registry. " +
+                "Click <strong>Repair registry</strong> after a user logs in." + canonicalHint;
         } else if (userSearchQuery && !users.length) {
             const diagnosis = typeof diagnoseAccountEmail === "function"
                 ? diagnoseAccountEmail(userSearchQuery)
@@ -559,8 +559,11 @@ function renderUsersTable(admin, allUsers) {
             if (diagnosis && diagnosis.found) {
                 hintEl.textContent = "Account found in storage but filtered out. Click Clear search.";
             } else if (diagnosis && !diagnosis.found && isValidEmail(normalizeEmail(userSearchQuery))) {
-                hintEl.textContent = "No account for \"" + userSearchQuery + "\" in this browser or server registry. " +
-                    "Ask the user to log in once (syncs their account), then click Repair registry." + canonicalHint;
+                const userSite = typeof getProductionSiteUrl === "function"
+                    ? getProductionSiteUrl()
+                    : "https://globalvestbank.com";
+                hintEl.textContent = "No account for \"" + userSearchQuery + "\" on the server yet. " +
+                    "Have them log in at " + userSite + " once, then click Repair registry." + canonicalHint;
             } else {
                 hintEl.textContent = "No users match your search. Click Clear search to see all accounts.";
             }
@@ -622,19 +625,24 @@ function updateRegistryBanner(syncResult) {
 
         if (health.tableReady === false) {
             banner.className = "site-announcement admin-registry-warn";
-            banner.textContent = "Supabase migration missing: run supabase/migrations/002_app_registry.sql in your Supabase SQL editor, then click Repair registry. Until then, accounts only sync within the same browser.";
+            banner.textContent = "Supabase migration missing: run supabase/migrations/002_app_registry.sql in your Supabase SQL editor, then click Repair registry.";
             banner.classList.remove("hidden");
             return;
         }
+
+        const userSite = typeof getProductionSiteUrl === "function"
+            ? getProductionSiteUrl()
+            : "https://globalvestbank.com";
+        banner.className = "site-announcement";
+        banner.textContent = "Shared registry active. User signups on " + userSite +
+            " and securebank-1.vercel.app sync to this admin panel. Click Repair registry to refresh.";
+        banner.classList.remove("hidden");
 
         if (syncResult && syncResult.registryError) {
             banner.className = "site-announcement admin-registry-warn";
-            banner.textContent = "Could not load accounts from server: " + syncResult.registryError + " Click Repair registry to retry.";
-            banner.classList.remove("hidden");
-            return;
+            banner.textContent = "Could not load accounts from server: " + syncResult.registryError +
+                " User site: " + userSite + ". Click Repair registry to retry.";
         }
-
-        banner.classList.add("hidden");
     }).catch(function() {
         banner.className = "site-announcement admin-registry-warn";
         banner.textContent = "Could not reach the account registry. Users in this browser are shown locally; run Repair registry after fixing the server.";

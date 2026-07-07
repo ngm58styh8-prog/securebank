@@ -105,7 +105,7 @@ Open the admin console at **`/admin.html`** (not linked from the public user sit
 
 Local: `./start.sh` → http://localhost:8765/admin.html
 
-Vercel: https://your-app.vercel.app/admin.html
+Production: https://globalvestbank.com/admin.html (also https://securebank-1.vercel.app/admin.html — same shared registry)
 
 ### Shared user registry (required for production admin)
 

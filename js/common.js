@@ -31,6 +31,26 @@ const LOCAL_SERVER_PORT = 8765;
     }
 })();
 
+function getProductionSiteUrl() {
+    if (typeof window === "undefined") return "https://globalvestbank.com";
+    const host = window.location.hostname;
+    if (host === "globalvestbank.com" || host === "www.globalvestbank.com") {
+        return "https://globalvestbank.com";
+    }
+    if (host.indexOf("vercel.app") !== -1) {
+        return window.location.origin;
+    }
+    return "https://globalvestbank.com";
+}
+
+function isProductionSite() {
+    if (typeof window === "undefined") return false;
+    const host = window.location.hostname;
+    return host === "globalvestbank.com" ||
+        host === "www.globalvestbank.com" ||
+        host.indexOf("vercel.app") !== -1;
+}
+
 function getCanonicalAppOrigin() {
     return "http://localhost:" + LOCAL_SERVER_PORT;
 }
