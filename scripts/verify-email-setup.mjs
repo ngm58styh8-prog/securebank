@@ -57,8 +57,11 @@ console.log("  ✓ RESEND_FROM_EMAIL");
 if (deliverabilityWarnings.length) {
     console.log("\nDeliverability warnings (codes may go to spam until fixed):");
     deliverabilityWarnings.forEach(function(w) { console.log("  ⚠ " + w); });
-    console.log("\nIn Resend → Domains, verify globalvestbank.com (SPF + DKIM), then set:");
+    console.log("\nSet in Vercel:");
     console.log("  RESEND_FROM_EMAIL=GlobalVest Bank <noreply@globalvestbank.com>");
+    console.log("  RESEND_REPLY_TO=support@globalvestbank.com");
+    console.log("  RESEND_SITE_URL=https://globalvestbank.com");
+    console.log("\nFull report: npm run email:report");
 } else {
     console.log("\n✓ Sender settings look good for inbox delivery");
 }

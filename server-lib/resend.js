@@ -6,39 +6,64 @@ const {
     buildVerificationEmailContent
 } = require("./email-deliverability");
 
+let resendClient = null;
+
 function getResendClient() {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
         throw new Error("Resend is not configured. Set RESEND_API_KEY.");
     }
-    return new Resend(apiKey);
+    if (!resendClient) {
+        resendClient = new Resend(apiKey);
+    }
+    return resendClient;
 }
 
-async function sendVerificationEmail(to, code) {
+/**
+ * Production Resend sender — multipart HTML/text, aligned headers, no open tracking.
+ */
+async function sendTransactionalEmail(options) {
     const warnings = getDeliverabilityWarnings();
     if (warnings.length) {
         console.warn("[resend] deliverability:", warnings.join(" "));
     }
 
     const resend = getResendClient();
+    const payload = {
+        from: options.from || getFromAddress(),
+        to: options.to,
+        replyTo: options.replyTo || getReplyTo(),
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+        headers: options.headers || {},
+        tags: options.tags || []
+    };
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) {
+        throw new Error(error.message || "Failed to send email via Resend.");
+    }
+
+    return data;
+}
+
+async function sendVerificationEmail(to, code) {
     const content = buildVerificationEmailContent(code, to);
 
-    const { data, error } = await resend.emails.send({
-        from: getFromAddress(),
+    return sendTransactionalEmail({
         to: to,
-        replyTo: getReplyTo(),
         subject: content.subject,
         text: content.text,
         html: content.html,
         headers: content.headers,
         tags: content.tags
     });
-
-    if (error) {
-        throw new Error(error.message || "Failed to send verification email.");
-    }
-
-    return data;
 }
 
-module.exports = { sendVerificationEmail, getDeliverabilityWarnings };
+module.exports = {
+    sendTransactionalEmail,
+    sendVerificationEmail,
+    getDeliverabilityWarnings
+};

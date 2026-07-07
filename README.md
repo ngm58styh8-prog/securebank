@@ -75,6 +75,12 @@ curl https://globalvestbank.com/api/verification-health
 
 Emails are sent as multipart HTML + plain text with a reply-to address and branded template (see `server-lib/email-deliverability.js`).
 
+Full deliverability audit: [docs/EMAIL_DELIVERABILITY.md](docs/EMAIL_DELIVERABILITY.md)
+
+```bash
+npm run email:report
+```
+
 ### 3. Deploy
 
 ```bash

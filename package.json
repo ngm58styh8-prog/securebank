@@ -6,7 +6,8 @@
     "dev": "vercel dev",
     "build": "echo \"Static site — no build step\"",
     "verify:check": "node scripts/verify-email-setup.mjs",
-    "verify:send": "node scripts/verify-email-setup.mjs"
+    "verify:send": "node scripts/verify-email-setup.mjs",
+    "email:report": "node scripts/email-deliverability-report.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

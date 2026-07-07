@@ -193,7 +193,18 @@ function getSupabaseEnvChecks() {
         RESEND_API_KEY: { set: !!cleanEnvValue(process.env.RESEND_API_KEY) },
         RESEND_FROM_EMAIL: {
             set: !!cleanEnvValue(process.env.RESEND_FROM_EMAIL),
-            value: cleanEnvValue(process.env.RESEND_FROM_EMAIL) || null
+            value: cleanEnvValue(process.env.RESEND_FROM_EMAIL) || null,
+            recommended: "GlobalVest Bank <noreply@globalvestbank.com>"
+        },
+        RESEND_REPLY_TO: {
+            set: !!cleanEnvValue(process.env.RESEND_REPLY_TO),
+            value: cleanEnvValue(process.env.RESEND_REPLY_TO) || null,
+            recommended: "support@globalvestbank.com"
+        },
+        RESEND_SITE_URL: {
+            set: !!cleanEnvValue(process.env.RESEND_SITE_URL),
+            value: cleanEnvValue(process.env.RESEND_SITE_URL) || null,
+            recommended: "https://globalvestbank.com"
         },
         deliverability: {
             ok: deliverabilityWarnings.length === 0,
