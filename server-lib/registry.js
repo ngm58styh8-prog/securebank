@@ -110,6 +110,12 @@ async function upsertAccount(email, account, options) {
         if (Array.isArray(account.transactions)) {
             merged.transactions = account.transactions;
         }
+        if (Array.isArray(account.pendingDeposits)) {
+            merged.pendingDeposits = account.pendingDeposits;
+        }
+        if (Array.isArray(account.notifications)) {
+            merged.notifications = account.notifications;
+        }
 
         const incomingCash = typeof account.cash === "number" && !isNaN(account.cash) ? account.cash : null;
         const existingCash = typeof existing.account.cash === "number" && !isNaN(existing.account.cash)
@@ -386,6 +392,46 @@ function normalizePendingDeposit(deposit) {
     };
 }
 
+async function mirrorPendingDepositOnUserAccount(deposit) {
+    const key = normalizeRegistryEmail(deposit.userEmail);
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) {
+        console.warn("[registry] mirrorPendingDeposit skipped — account not found", { userEmail: key });
+        return null;
+    }
+
+    const pendingDeposits = Array.isArray(account.pendingDeposits) ? account.pendingDeposits.slice() : [];
+    const exists = pendingDeposits.some(function(entry) {
+        return String(entry.id) === String(deposit.id);
+    });
+    if (!exists) {
+        pendingDeposits.push({
+            id: deposit.id,
+            amount: deposit.amount,
+            btcAmount: deposit.btcAmount,
+            method: deposit.method,
+            payTo: deposit.payTo,
+            status: "pending",
+            date: deposit.date
+        });
+    }
+
+    const updated = Object.assign({}, account, { pendingDeposits: pendingDeposits });
+    const saved = await upsertAccount(key, updated, {
+        eventType: "deposit-submit",
+        source: "mirrorPendingDepositOnUserAccount"
+    });
+    return saved.account;
+}
+
+function getPendingDepositsFromAdmin(admin) {
+    if (!admin || !Array.isArray(admin.pendingDeposits)) return [];
+    return admin.pendingDeposits.filter(function(entry) {
+        return entry && (!entry.status || entry.status === "pending");
+    });
+}
+
 async function appendPendingDeposit(deposit) {
     const normalized = normalizePendingDeposit(deposit);
     const admin = await ensureAdminRegistry();
@@ -395,7 +441,21 @@ async function appendPendingDeposit(deposit) {
         return String(entry.id) === String(normalized.id);
     });
     if (duplicate) {
-        return { ok: true, duplicate: true, deposit: duplicate, emailSent: !!duplicate.submittedEmailSentAt };
+        let account = null;
+        try {
+            account = await mirrorPendingDepositOnUserAccount(duplicate);
+        } catch (mirrorErr) {
+            console.error("[registry] appendPendingDeposit duplicate mirror failed:", mirrorErr.message || mirrorErr);
+        }
+        return {
+            ok: true,
+            duplicate: true,
+            deposit: duplicate,
+            pendingCount: getPendingDepositsFromAdmin(admin).length,
+            pendingDeposits: getPendingDepositsFromAdmin(admin),
+            account: account,
+            emailSent: !!duplicate.submittedEmailSentAt
+        };
     }
 
     admin.pendingDeposits.unshift(normalized);
@@ -417,10 +477,15 @@ async function appendPendingDeposit(deposit) {
 
     let account = null;
     try {
-        const accounts = await loadAllAccounts();
-        account = accounts[normalized.userEmail] || null;
-    } catch (loadErr) {
-        console.error("[registry] appendPendingDeposit account load failed:", loadErr.message || loadErr);
+        account = await mirrorPendingDepositOnUserAccount(normalized);
+    } catch (mirrorErr) {
+        console.error("[registry] appendPendingDeposit account mirror failed:", mirrorErr.message || mirrorErr);
+        try {
+            const accounts = await loadAllAccounts();
+            account = accounts[normalized.userEmail] || null;
+        } catch (loadErr) {
+            console.error("[registry] appendPendingDeposit account load failed:", loadErr.message || loadErr);
+        }
     }
 
     const emailResult = await sendDepositReceivedEmailSafely(normalized, account, admin);
@@ -438,7 +503,10 @@ async function appendPendingDeposit(deposit) {
     return {
         ok: true,
         deposit: normalized,
-        pendingCount: admin.pendingDeposits.length,
+        pendingCount: getPendingDepositsFromAdmin(admin).length,
+        pendingDeposits: getPendingDepositsFromAdmin(admin),
+        account: account,
+        duplicate: false,
         emailSent: !!emailResult.sent,
         emailSkipped: !!emailResult.skipped,
         emailError: emailResult.error || null

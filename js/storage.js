@@ -1183,6 +1183,7 @@ function normalizeRegistryEventType(eventType) {
     if (eventType === "login") return "login";
     if (eventType === "admin-adjust") return "admin-adjust";
     if (eventType === "deposit-approve") return "deposit-approve";
+    if (eventType === "deposit-submit") return "deposit-submit";
     return "signup";
 }
 
@@ -1406,12 +1407,16 @@ function reconcileAccountRegistry(options) {
         })
         .then(function(pullResult) {
             if (adminPullOnly || pullOnly) {
-                return {
-                    pull: pullResult,
-                    import: { ok: true, imported: 0, skipped: true },
-                    secondPull: pullResult,
-                    pullOnly: true
-                };
+                return syncOrphanAccountDepositsToAdmin().then(function(repairResult) {
+                    return {
+                        pull: pullResult,
+                        import: { ok: true, imported: 0, skipped: true },
+                        secondPull: pullResult,
+                        pullOnly: true,
+                        repair: repairResult,
+                        pendingDeposits: getPendingDeposits().length
+                    };
+                });
             }
 
             return importLocalAccountsToServer().then(function(importResult) {
@@ -1465,8 +1470,84 @@ function reconcileAccountRegistry(options) {
         });
 }
 
+function applyPendingDepositToLocalRegistry(deposit, pendingDeposits) {
+    const admin = getAdminData();
+    if (Array.isArray(pendingDeposits)) {
+        admin.pendingDeposits = pendingDeposits.slice();
+    } else if (deposit) {
+        if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
+        const exists = admin.pendingDeposits.some(function(entry) {
+            return String(entry.id) === String(deposit.id);
+        });
+        if (!exists) {
+            admin.pendingDeposits.unshift(Object.assign({}, deposit));
+        }
+    }
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+    return admin;
+}
+
+function syncOrphanAccountDepositsToAdmin() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: true, synced: 0, offline: true });
+    }
+
+    const admin = getAdminData();
+    const adminIds = {};
+    (admin.pendingDeposits || []).forEach(function(entry) {
+        if (entry && entry.id != null) {
+            adminIds[String(entry.id)] = true;
+        }
+    });
+
+    const orphans = getPendingDepositsFromAccounts().filter(function(dep) {
+        return dep && dep.id != null && !adminIds[String(dep.id)];
+    });
+
+    if (!orphans.length) {
+        return Promise.resolve({ ok: true, synced: 0 });
+    }
+
+    return Promise.all(orphans.map(function(dep) {
+        return appendPendingDepositOnServer(dep);
+    })).then(function() {
+        return pullAdminFromServer();
+    }).then(function() {
+        return { ok: true, synced: orphans.length };
+    }).catch(function(err) {
+        return { ok: false, synced: 0, error: err.message || String(err) };
+    });
+}
+
+function refreshUnifiedRegistry(options) {
+    options = options || {};
+
+    return resolveRegistryApiOrigin().then(function() {
+        return Promise.all([
+            pullAccountsFromServer(),
+            pullAdminFromServer()
+        ]);
+    }).then(function() {
+        linkAccountPendingDepositsToAdmin();
+        if (options.repairDeposits !== false) {
+            return syncOrphanAccountDepositsToAdmin();
+        }
+        return { ok: true, synced: 0 };
+    }).then(function(repairResult) {
+        syncAdminRegisteredUsers(getAdminData());
+        return {
+            ok: true,
+            pendingDeposits: getPendingDeposits().length,
+            accountCount: Object.keys(getMergedAccountsRegistry()).length,
+            repair: repairResult
+        };
+    }).catch(function(err) {
+        return { ok: false, error: String(err) };
+    });
+}
+
 function reconcileAdminQueues() {
-    return reconcileAccountRegistry({ adminPullOnly: true });
+    return refreshUnifiedRegistry({ repairDeposits: true });
 }
 
 function importLocalAccountsToServer() {
@@ -3039,6 +3120,9 @@ function linkAccountPendingDepositsToAdmin() {
 
     if (changed) {
         localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+        if (isAdminPanelPage()) {
+            saveAdminData(admin);
+        }
     }
 
     return admin;
@@ -3163,7 +3247,7 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
-    saveAccount(key, account, { eventType: "login" });
+    saveAccount(key, account, { skipServerSync: true });
 
     return { ok: true, deposit: deposit, payTo: payTo, account: account };
 }
@@ -3176,10 +3260,13 @@ function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
 
     const key = normalizeEmail(userEmail);
 
-    return syncAccountToServer(key, result.account, "login")
+    return syncAccountToServer(key, result.account, "deposit-submit")
         .then(function(syncResult) {
             if (!syncResult || (!syncResult.ok && !syncResult.offline)) {
                 throw new Error((syncResult && syncResult.error) || "Could not save deposit to your account.");
+            }
+            if (syncResult.account) {
+                applyServerAccountLocally(key, syncResult.account);
             }
             return appendPendingDepositOnServer(result.deposit);
         })
@@ -3207,6 +3294,11 @@ function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
                         emailSent: !!(emailResult && emailResult.ok)
                     };
                 });
+            }
+
+            applyPendingDepositToLocalRegistry(serverResult.deposit, serverResult.pendingDeposits);
+            if (serverResult.account) {
+                applyServerAccountLocally(key, serverResult.account);
             }
 
             return {

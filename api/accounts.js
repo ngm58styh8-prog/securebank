@@ -54,7 +54,9 @@ module.exports = async function handler(req, res) {
                     ? "admin-adjust"
                     : eventType === "deposit-approve"
                         ? "deposit-approve"
-                        : "signup";
+                        : eventType === "deposit-submit"
+                            ? "deposit-submit"
+                            : "signup";
             const result = await registerUserAccount(email, account, {
                 eventType: normalizedEvent,
                 logSignup: normalizedEvent === "signup"

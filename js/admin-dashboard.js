@@ -924,11 +924,13 @@ function renderDashboard(options) {
 
     const syncRegistry = options.skipReconcile
         ? null
-        : (typeof reconcileAdminQueues === "function"
-            ? reconcileAdminQueues
-            : (typeof reconcileAccountRegistry === "function"
-                ? function() { return reconcileAccountRegistry({ adminPullOnly: true }); }
-                : null));
+        : (typeof refreshUnifiedRegistry === "function"
+            ? function() { return refreshUnifiedRegistry({ repairDeposits: true }); }
+            : (typeof reconcileAdminQueues === "function"
+                ? reconcileAdminQueues
+                : (typeof reconcileAccountRegistry === "function"
+                    ? function() { return reconcileAccountRegistry({ adminPullOnly: true }); }
+                    : null)));
 
     if (!syncRegistry) {
         doRender(null);
@@ -1403,9 +1405,17 @@ window.addEventListener("focus", renderDashboard);
 setInterval(renderDashboard, 2000);
 
 setInterval(function() {
-    if (typeof reconcileAdminQueues === "function") {
-        reconcileAdminQueues().then(function(result) {
+    const refreshHandler = typeof refreshUnifiedRegistry === "function"
+        ? refreshUnifiedRegistry
+        : (typeof reconcileAdminQueues === "function" ? reconcileAdminQueues : null);
+
+    if (!refreshHandler) {
+        if (typeof pullAdminFromServer !== "function") return;
+        pullAdminFromServer().then(function(result) {
             if (!result || !result.ok) return;
+            if (typeof linkAccountPendingDepositsToAdmin === "function") {
+                linkAccountPendingDepositsToAdmin();
+            }
             renderPendingDepositsAdmin();
             renderPendingTransfersAdmin();
             renderActivityFeed();
@@ -1413,12 +1423,8 @@ setInterval(function() {
         return;
     }
 
-    if (typeof pullAdminFromServer !== "function") return;
-    pullAdminFromServer().then(function(result) {
+    refreshHandler({ repairDeposits: true }).then(function(result) {
         if (!result || !result.ok) return;
-        if (typeof linkAccountPendingDepositsToAdmin === "function") {
-            linkAccountPendingDepositsToAdmin();
-        }
         renderPendingDepositsAdmin();
         renderPendingTransfersAdmin();
         renderActivityFeed();

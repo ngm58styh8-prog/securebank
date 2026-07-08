@@ -37,6 +37,8 @@ module.exports = async function handler(req, res) {
                     ok: true,
                     deposit: result.deposit,
                     pendingCount: result.pendingCount,
+                    pendingDeposits: result.pendingDeposits || [],
+                    account: result.account || null,
                     duplicate: !!result.duplicate,
                     emailSent: !!result.emailSent,
                     emailSkipped: !!result.emailSkipped,
