@@ -628,12 +628,15 @@ function submitDepositFromPanel() {
         closeDepositPanel();
 
         const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
+        const emailNote = result.emailSent === false
+            ? "We could not send a confirmation email right now — check in-app notifications or contact support."
+            : "A confirmation email was sent to your inbox.";
         alert("Deposit submitted for admin approval.\n\n" +
             "USD amount: $" + amount.toFixed(2) + "\n" +
             "Send " + btcLine + " to:\n\n" +
             result.payTo + "\n\n" +
             "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
-            "A confirmation email was sent to your inbox.");
+            emailNote);
     }).catch(function(err) {
         if (submitBtn) submitBtn.disabled = false;
         alert(err.message || "Could not submit deposit.");

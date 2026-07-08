@@ -455,6 +455,78 @@ function buildVerificationEmailContent(code, recipientEmail) {
     };
 }
 
+function buildTransactionalEmailContent(subject, textBody, recipientEmail, options) {
+    options = options || {};
+    const siteUrl = getSiteUrl();
+    const supportEmail = getSupportEmail();
+    const physicalAddress = getPhysicalAddress();
+    const safeSubject = escapeHtml(subject);
+    const safeEmail = escapeHtml(recipientEmail);
+    const safeSiteUrl = escapeHtml(siteUrl);
+    const safeSupport = escapeHtml(supportEmail);
+    const safeAddress = escapeHtml(physicalAddress);
+    const loginUrl = siteUrl + "/login.html";
+    const safeLoginUrl = escapeHtml(loginUrl);
+    const category = options.category || "transactional";
+    const referenceId = options.referenceId || ("gv-" + category + "-" + Date.now());
+    const headline = options.headline || subject;
+    const safeHeadline = escapeHtml(headline);
+
+    const paragraphs = String(textBody || "")
+        .split(/\n\n+/)
+        .map(function(block) {
+            return block.trim();
+        })
+        .filter(Boolean)
+        .map(function(block) {
+            const lines = block.split("\n").map(escapeHtml).join("<br>");
+            return '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;">' + lines + "</p>";
+        })
+        .join("");
+
+    const text = String(textBody || "").trim();
+
+    const html =
+        "<!DOCTYPE html>" +
+        '<html lang="en" xmlns="http://www.w3.org/1999/xhtml">' +
+        "<head>" +
+        '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+        "<title>" + safeSubject + "</title>" +
+        "</head>" +
+        '<body style="margin:0;padding:0;background-color:#f4f6f8;color:#1f2937;">' +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f4f6f8;">' +
+        "<tr><td align=\"center\" style=\"padding:32px 16px;\">" +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">' +
+        "<tr><td style=\"padding:32px 32px 16px;\">" +
+        '<p style="margin:0 0 4px;font-size:12px;line-height:1.4;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase;">' +
+        escapeHtml(BRAND_NAME) +
+        "</p>" +
+        '<h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:600;color:#111827;">' +
+        safeHeadline +
+        "</h1>" +
+        paragraphs +
+        '<p style="margin:0 0 24px;">' +
+        '<a href="' + safeLoginUrl + '" style="color:#ffffff;background-color:#1f2937;text-decoration:none;display:inline-block;padding:12px 18px;border-radius:6px;font-size:14px;font-weight:600;">View your account</a>' +
+        "</p>" +
+        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6b7280;">Sent to <strong style="color:#374151;">' + safeEmail + "</strong></p>" +
+        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6b7280;">Support: <a href="mailto:' + safeSupport + '" style="color:#374151;text-decoration:underline;">' + safeSupport + "</a></p>" +
+        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#6b7280;">Website: <a href="' + safeSiteUrl + '" style="color:#374151;text-decoration:underline;">' + safeSiteUrl + "</a></p>" +
+        '<p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">' + safeAddress + "</p>" +
+        "</td></tr></table></td></tr></table></body></html>";
+
+    return {
+        subject: subject,
+        text: text,
+        html: html,
+        headers: buildTransactionalHeaders(recipientEmail, referenceId),
+        tags: [
+            { name: "category", value: category },
+            { name: "environment", value: "production" }
+        ]
+    };
+}
+
 module.exports = {
     BRAND_NAME,
     DEFAULT_FROM,
@@ -472,6 +544,7 @@ module.exports = {
     getAuthenticationAlignment,
     getDeliverabilityReport,
     buildVerificationEmailContent,
+    buildTransactionalEmailContent,
     buildTransactionalHeaders,
     escapeHtml
 };

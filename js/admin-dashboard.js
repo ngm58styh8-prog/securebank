@@ -1305,7 +1305,10 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
                 alert(result.error || "Could not approve deposit.");
                 return;
             }
-            alert("Deposit approved — user account credited and confirmation email sent.");
+            const emailNote = result.emailSent === false
+                ? "User account credited. Confirmation email could not be sent."
+                : "Deposit approved — user account credited and confirmation email sent.";
+            alert(emailNote);
             renderDashboard({ skipReconcile: true });
         }).catch(function(err) {
             btn.disabled = false;
@@ -1328,7 +1331,10 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
                 alert(result.error || "Could not reject deposit.");
                 return;
             }
-            alert("Deposit rejected — user notified by email.");
+            const emailNote = result.emailSent === false
+                ? "Deposit rejected. Email notification could not be sent."
+                : "Deposit rejected — user notified by email.";
+            alert(emailNote);
             renderDashboard({ skipReconcile: true });
         }).catch(function(err) {
             rejectBtn.disabled = false;

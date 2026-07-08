@@ -4,7 +4,9 @@ const {
     registryConfigError,
     loadAdminRegistry,
     saveAdminRegistry,
-    appendPendingDeposit
+    appendPendingDeposit,
+    approvePendingDeposit,
+    rejectPendingDeposit
 } = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
@@ -35,8 +37,23 @@ module.exports = async function handler(req, res) {
                     ok: true,
                     deposit: result.deposit,
                     pendingCount: result.pendingCount,
-                    duplicate: !!result.duplicate
+                    duplicate: !!result.duplicate,
+                    emailSent: !!result.emailSent,
+                    emailSkipped: !!result.emailSkipped,
+                    emailError: result.emailError || null
                 });
+                return;
+            }
+
+            if (body.action === "approve-deposit" && body.depositId) {
+                const result = await approvePendingDeposit(body.depositId);
+                res.status(200).json(result);
+                return;
+            }
+
+            if (body.action === "reject-deposit" && body.depositId) {
+                const result = await rejectPendingDeposit(body.depositId, body.reason);
+                res.status(200).json(result);
                 return;
             }
 

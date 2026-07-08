@@ -510,7 +510,7 @@ function dispatchAccountEmail(account, userEmail, subject, body, type) {
     if (typeof sendRealEmail !== "function") {
         return Promise.resolve({ ok: false, error: "Email service unavailable." });
     }
-    return sendRealEmail(userEmail, subject, body);
+    return sendRealEmail(userEmail, subject, body, { category: type || "general" });
 }
 
 function sendDepositSubmittedEmail(account, userEmail, amount, method, payTo) {
@@ -1699,6 +1699,105 @@ function appendPendingDepositOnServer(deposit) {
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };
         });
+}
+
+function approveDepositOnServer(depositId) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "approve-deposit",
+            depositId: depositId
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not approve deposit on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function rejectDepositOnServer(depositId, reason) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "reject-deposit",
+            depositId: depositId,
+            reason: reason || ""
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not reject deposit on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function mergeServerDepositResolutionLocally(serverResult) {
+    if (!serverResult || !serverResult.email) return;
+
+    const key = normalizeEmail(serverResult.email);
+    if (serverResult.account) {
+        const accounts = getAllAccounts();
+        accounts[key] = serverResult.account;
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        notifyAccountsChanged();
+        const cache = Object.assign({}, getServerAccountsCache());
+        cache[key] = serverResult.account;
+        setServerAccountsCache(cache);
+    }
+
+    if (serverResult.depositId) {
+        const admin = getAdminData();
+        if (Array.isArray(admin.pendingDeposits)) {
+            admin.pendingDeposits = admin.pendingDeposits.map(function(entry) {
+                if (String(entry.id) !== String(serverResult.depositId)) return entry;
+                return Object.assign({}, entry, {
+                    status: serverResult.reason ? "rejected" : "approved",
+                    resolvedAt: new Date().toLocaleString(),
+                    rejectReason: serverResult.reason || entry.rejectReason
+                });
+            });
+            saveAdminData(admin, { skipServerSync: true });
+        }
+        resolveDepositOnAccount(
+            key,
+            serverResult.depositId,
+            serverResult.reason
+                ? "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) + " was rejected" +
+                    (serverResult.reason ? ": " + serverResult.reason : "")
+                : "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) +
+                    " was approved and credited — check your email for confirmation",
+            { skipServerSync: true }
+        );
+    }
 }
 
 function mergeServerAdminLocally(serverAdmin) {
@@ -3043,7 +3142,6 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
-    sendDepositSubmittedEmail(account, key, amount, method, payTo);
     saveAccount(key, account, { eventType: "login" });
 
     return { ok: true, deposit: deposit, payTo: payTo, account: account };
@@ -3055,7 +3153,15 @@ function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
         return Promise.resolve(result);
     }
 
-    return appendPendingDepositOnServer(result.deposit)
+    const key = normalizeEmail(userEmail);
+
+    return syncAccountToServer(key, result.account, "login")
+        .then(function(syncResult) {
+            if (!syncResult || (!syncResult.ok && !syncResult.offline)) {
+                throw new Error((syncResult && syncResult.error) || "Could not save deposit to your account.");
+            }
+            return appendPendingDepositOnServer(result.deposit);
+        })
         .then(function(serverResult) {
             if (!serverResult || (!serverResult.ok && !serverResult.offline)) {
                 throw new Error((serverResult && serverResult.error) || "Could not send deposit to admin.");
@@ -3066,12 +3172,27 @@ function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
                 if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
                 admin.pendingDeposits.unshift(result.deposit);
                 saveAdminData(admin, { skipServerSync: true });
+                return sendDepositSubmittedEmail(
+                    result.account,
+                    key,
+                    amount,
+                    method,
+                    result.payTo
+                ).then(function(emailResult) {
+                    return {
+                        ok: true,
+                        deposit: result.deposit,
+                        payTo: result.payTo,
+                        emailSent: !!(emailResult && emailResult.ok)
+                    };
+                });
             }
 
             return {
                 ok: true,
                 deposit: result.deposit,
-                payTo: result.payTo
+                payTo: result.payTo,
+                emailSent: serverResult.emailSent !== false
             };
         })
         .catch(function(err) {
@@ -3131,7 +3252,6 @@ function approveDeposit(depositId) {
     deposit.status = "approved";
     deposit.resolvedAt = new Date().toLocaleString();
 
-    sendDepositApprovedEmail(account, key, deposit.amount, deposit.method);
     recordUserPayment(key, "deposit", deposit.amount, deposit.method);
 
     resolveDepositOnAccount(
@@ -3143,10 +3263,41 @@ function approveDeposit(depositId) {
 
     saveAdminData(admin);
 
-    return { ok: true, emailQueued: true, email: key, account: account };
+    return {
+        ok: true,
+        email: key,
+        account: account,
+        amount: deposit.amount,
+        method: deposit.method
+    };
 }
 
 function rejectDepositAsync(depositId, reason) {
+    return rejectDepositOnServer(depositId, reason)
+        .then(function(serverResult) {
+            if (serverResult && serverResult.offline) {
+                return rejectDepositOfflineAsync(depositId, reason);
+            }
+            if (!serverResult || !serverResult.ok) {
+                return {
+                    ok: false,
+                    error: (serverResult && serverResult.error) || "Could not reject deposit."
+                };
+            }
+            mergeServerDepositResolutionLocally(serverResult);
+            return pullAdminFromServer().then(function() {
+                return {
+                    ok: true,
+                    emailSent: serverResult.emailSent !== false
+                };
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function rejectDepositOfflineAsync(depositId, reason) {
     const result = rejectDeposit(depositId, reason);
     if (!result.ok) {
         return Promise.resolve(result);
@@ -3158,7 +3309,22 @@ function rejectDepositAsync(depositId, reason) {
             if (syncResult && syncResult.ok === false && !syncResult.offline) {
                 throw new Error((syncResult && syncResult.error) || "Failed to save rejection on server.");
             }
-            return { ok: true, emailQueued: true };
+            if (!result.account) {
+                return { ok: true, emailSent: false };
+            }
+            return sendDepositRejectedEmail(
+                result.account,
+                result.email,
+                result.amount,
+                result.method,
+                result.reason
+            );
+        })
+        .then(function(emailResult) {
+            if (emailResult && emailResult.ok !== undefined) {
+                return { ok: true, emailSent: !!emailResult.ok };
+            }
+            return emailResult;
         })
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };
@@ -3166,6 +3332,31 @@ function rejectDepositAsync(depositId, reason) {
 }
 
 function approveDepositAsync(depositId) {
+    return approveDepositOnServer(depositId)
+        .then(function(serverResult) {
+            if (serverResult && serverResult.offline) {
+                return approveDepositOfflineAsync(depositId);
+            }
+            if (!serverResult || !serverResult.ok) {
+                return {
+                    ok: false,
+                    error: (serverResult && serverResult.error) || "Could not approve deposit."
+                };
+            }
+            mergeServerDepositResolutionLocally(serverResult);
+            return pullAdminFromServer().then(function() {
+                return {
+                    ok: true,
+                    emailSent: serverResult.emailSent !== false
+                };
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function approveDepositOfflineAsync(depositId) {
     const result = approveDeposit(depositId);
     if (!result.ok) {
         return Promise.resolve(result);
@@ -3182,8 +3373,16 @@ function approveDepositAsync(depositId) {
                 const cache = Object.assign({}, getServerAccountsCache());
                 cache[result.email] = result.account;
                 setServerAccountsCache(cache);
-                return { ok: true, emailQueued: true };
+                return sendDepositApprovedEmail(
+                    result.account,
+                    result.email,
+                    result.amount,
+                    result.method
+                );
             });
+        })
+        .then(function(emailResult) {
+            return { ok: true, emailSent: !!(emailResult && emailResult.ok) };
         })
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };
@@ -3212,7 +3411,6 @@ function rejectDeposit(depositId, reason) {
             description: "Deposit Rejected (" + deposit.method + ")",
             amount: 0
         });
-        sendDepositRejectedEmail(accountTx, key, deposit.amount, deposit.method, deposit.rejectReason);
         saveAccount(key, accountTx, { eventType: "login" });
     }
 
@@ -3225,5 +3423,12 @@ function rejectDeposit(depositId, reason) {
             (reason ? ": " + reason : "") + " — check your email for details"
     );
 
-    return { ok: true, emailQueued: true };
+    return {
+        ok: true,
+        email: key,
+        account: accountTx,
+        amount: deposit.amount,
+        method: deposit.method,
+        reason: deposit.rejectReason
+    };
 }

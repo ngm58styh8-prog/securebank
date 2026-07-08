@@ -241,11 +241,17 @@ function formatAuthDateTime(iso) {
     }
 }
 
-function sendRealEmail(to, subject, body) {
+function sendRealEmail(to, subject, body, options) {
+    options = options || {};
     return fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: to, subject: subject, body: body })
+        body: JSON.stringify({
+            to: to,
+            subject: subject,
+            body: body,
+            category: options.category || options.type || "transactional"
+        })
     })
         .then(function(response) {
             return response.json().catch(function() {

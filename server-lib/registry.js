@@ -1,4 +1,9 @@
 const { getSupabaseServiceRoleClient } = require("./supabase");
+const {
+    sendDepositReceivedEmailSafely,
+    sendDepositCreditedEmailSafely,
+    sendDepositDeclinedEmailSafely
+} = require("./deposit-emails");
 
 const ACCOUNTS_TABLE = "user_accounts";
 const ADMIN_TABLE = "admin_registry";
@@ -342,7 +347,7 @@ async function appendPendingDeposit(deposit) {
         return String(entry.id) === String(normalized.id);
     });
     if (duplicate) {
-        return { ok: true, duplicate: true, deposit: duplicate };
+        return { ok: true, duplicate: true, deposit: duplicate, emailSent: !!duplicate.submittedEmailSentAt };
     }
 
     admin.pendingDeposits.unshift(normalized);
@@ -361,7 +366,234 @@ async function appendPendingDeposit(deposit) {
     }
 
     await saveAdminRegistry(admin);
-    return { ok: true, deposit: normalized, pendingCount: admin.pendingDeposits.length };
+
+    let account = null;
+    try {
+        const accounts = await loadAllAccounts();
+        account = accounts[normalized.userEmail] || null;
+    } catch (loadErr) {
+        console.error("[registry] appendPendingDeposit account load failed:", loadErr.message || loadErr);
+    }
+
+    const emailResult = await sendDepositReceivedEmailSafely(normalized, account, admin);
+    if (emailResult.sent) {
+        normalized.submittedEmailSentAt = new Date().toISOString();
+        const entry = admin.pendingDeposits.find(function(item) {
+            return String(item.id) === String(normalized.id);
+        });
+        if (entry) {
+            entry.submittedEmailSentAt = normalized.submittedEmailSentAt;
+            await saveAdminRegistry(admin);
+        }
+    }
+
+    return {
+        ok: true,
+        deposit: normalized,
+        pendingCount: admin.pendingDeposits.length,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
+function findPendingDepositInAdmin(admin, depositId) {
+    if (!admin || !Array.isArray(admin.pendingDeposits)) return null;
+    return admin.pendingDeposits.find(function(entry) {
+        return String(entry.id) === String(depositId);
+    }) || null;
+}
+
+function recordAdminDepositPayment(admin, deposit) {
+    admin.balance = (admin.balance || 0) + deposit.amount;
+    admin.payments = admin.payments || [];
+    admin.payments.unshift({
+        id: Date.now() + Math.random(),
+        userEmail: deposit.userEmail,
+        userName: deposit.userName || deposit.userEmail,
+        type: "deposit",
+        amount: deposit.amount,
+        method: deposit.method || "crypto",
+        date: new Date().toLocaleString()
+    });
+}
+
+async function approvePendingDeposit(depositId) {
+    const admin = await ensureAdminRegistry();
+    const deposit = findPendingDepositInAdmin(admin, depositId);
+    if (!deposit) {
+        throw new Error("Deposit request not found.");
+    }
+    if (deposit.status && deposit.status !== "pending") {
+        return {
+            ok: true,
+            alreadyResolved: true,
+            status: deposit.status,
+            email: deposit.userEmail,
+            emailSent: !!(deposit.approvedEmailSentAt || deposit.rejectedEmailSentAt)
+        };
+    }
+
+    const key = normalizeRegistryEmail(deposit.userEmail);
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) {
+        throw new Error("User account not found.");
+    }
+
+    account.cash = (account.cash || 0) + deposit.amount;
+    account.transactions = Array.isArray(account.transactions) ? account.transactions : [];
+    account.transactions.unshift({
+        date: new Date().toLocaleString(),
+        description: "Deposit Approved (" + deposit.method + ") — paid to admin",
+        amount: deposit.amount
+    });
+    if (Array.isArray(account.pendingDeposits)) {
+        account.pendingDeposits = account.pendingDeposits.filter(function(item) {
+            return String(item.id) !== String(depositId);
+        });
+    }
+    account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Your deposit of $" + Number(deposit.amount).toFixed(2) +
+            " was approved and credited — check your email for confirmation",
+        time: new Date().toISOString(),
+        read: false
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+
+    deposit.status = "approved";
+    deposit.resolvedAt = new Date().toISOString();
+    recordAdminDepositPayment(admin, deposit);
+
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: deposit.resolvedAt,
+        userEmail: deposit.userEmail,
+        userName: deposit.userName || deposit.userEmail,
+        type: "deposit",
+        description: "Deposit approved and credited",
+        amount: deposit.amount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    const saved = await upsertAccount(key, account);
+    await saveAdminRegistry(admin);
+
+    const emailResult = await sendDepositCreditedEmailSafely(deposit, saved.account, admin);
+    if (emailResult.sent) {
+        deposit.approvedEmailSentAt = new Date().toISOString();
+        await saveAdminRegistry(admin);
+    }
+
+    return {
+        ok: true,
+        email: key,
+        account: saved.account,
+        amount: deposit.amount,
+        method: deposit.method,
+        depositId: deposit.id,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
+async function rejectPendingDeposit(depositId, reason) {
+    const admin = await ensureAdminRegistry();
+    const deposit = findPendingDepositInAdmin(admin, depositId);
+    if (!deposit) {
+        throw new Error("Deposit request not found.");
+    }
+    if (deposit.status && deposit.status !== "pending") {
+        return {
+            ok: true,
+            alreadyResolved: true,
+            status: deposit.status,
+            email: deposit.userEmail,
+            emailSent: !!(deposit.approvedEmailSentAt || deposit.rejectedEmailSentAt)
+        };
+    }
+
+    const key = normalizeRegistryEmail(deposit.userEmail);
+    const rejectionReason = String(reason || "Rejected by admin").trim() || "Rejected by admin";
+
+    deposit.status = "rejected";
+    deposit.resolvedAt = new Date().toISOString();
+    deposit.rejectReason = rejectionReason;
+
+    let account = null;
+    try {
+        const accounts = await loadAllAccounts();
+        account = accounts[key] || null;
+    } catch (loadErr) {
+        console.error("[registry] rejectPendingDeposit account load failed:", loadErr.message || loadErr);
+    }
+
+    if (account) {
+        account.transactions = Array.isArray(account.transactions) ? account.transactions : [];
+        account.transactions.unshift({
+            date: new Date().toLocaleString(),
+            description: "Deposit Rejected (" + deposit.method + ")",
+            amount: 0
+        });
+        if (Array.isArray(account.pendingDeposits)) {
+            account.pendingDeposits = account.pendingDeposits.filter(function(item) {
+                return String(item.id) !== String(depositId);
+            });
+        }
+        account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
+        account.notifications.unshift({
+            id: Date.now() + Math.random(),
+            message: "Your deposit of $" + Number(deposit.amount).toFixed(2) + " was rejected" +
+                (rejectionReason ? ": " + rejectionReason : "") + " — check your email for details",
+            time: new Date().toISOString(),
+            read: false
+        });
+        if (account.notifications.length > 30) {
+            account.notifications = account.notifications.slice(0, 30);
+        }
+        account = (await upsertAccount(key, account)).account;
+    }
+
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: deposit.resolvedAt,
+        userEmail: deposit.userEmail,
+        userName: deposit.userName || deposit.userEmail,
+        type: "deposit",
+        description: "Deposit rejected" + (rejectionReason ? ": " + rejectionReason : ""),
+        amount: deposit.amount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    await saveAdminRegistry(admin);
+
+    const emailResult = await sendDepositDeclinedEmailSafely(deposit, account, admin, rejectionReason);
+    if (emailResult.sent) {
+        deposit.rejectedEmailSentAt = new Date().toISOString();
+        await saveAdminRegistry(admin);
+    }
+
+    return {
+        ok: true,
+        email: key,
+        account: account,
+        amount: deposit.amount,
+        method: deposit.method,
+        reason: rejectionReason,
+        depositId: deposit.id,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
 }
 
 module.exports = {
@@ -375,5 +607,7 @@ module.exports = {
     deleteAccount,
     loadAdminRegistry,
     saveAdminRegistry,
-    appendPendingDeposit
+    appendPendingDeposit,
+    approvePendingDeposit,
+    rejectPendingDeposit
 };
