@@ -304,6 +304,66 @@ async function saveAdminRegistry(admin) {
     return { email: admin.email };
 }
 
+function normalizePendingDeposit(deposit) {
+    if (!deposit || typeof deposit !== "object") {
+        throw new Error("Missing or invalid deposit payload.");
+    }
+
+    const key = normalizeRegistryEmail(deposit.userEmail);
+    if (!key || key.indexOf("@") === -1) {
+        throw new Error("Missing or invalid user email.");
+    }
+
+    const amount = Number(deposit.amount);
+    if (!amount || amount <= 0 || isNaN(amount)) {
+        throw new Error("Missing or invalid deposit amount.");
+    }
+
+    return {
+        id: String(deposit.id || ("dep-" + Date.now())),
+        userEmail: key,
+        userName: String(deposit.userName || key),
+        amount: amount,
+        btcAmount: deposit.btcAmount != null ? Number(deposit.btcAmount) : null,
+        method: deposit.method || "crypto",
+        payTo: String(deposit.payTo || ""),
+        status: deposit.status || "pending",
+        requestedAt: deposit.requestedAt || new Date().toISOString(),
+        date: deposit.date || new Date().toLocaleString()
+    };
+}
+
+async function appendPendingDeposit(deposit) {
+    const normalized = normalizePendingDeposit(deposit);
+    const admin = await ensureAdminRegistry();
+    if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
+
+    const duplicate = admin.pendingDeposits.find(function(entry) {
+        return String(entry.id) === String(normalized.id);
+    });
+    if (duplicate) {
+        return { ok: true, duplicate: true, deposit: duplicate };
+    }
+
+    admin.pendingDeposits.unshift(normalized);
+    ensureAdminRegistryShape(admin);
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: normalized.date,
+        userEmail: normalized.userEmail,
+        userName: normalized.userName,
+        type: "deposit",
+        description: "Deposit request submitted — " + normalized.method,
+        amount: normalized.amount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    await saveAdminRegistry(admin);
+    return { ok: true, deposit: normalized, pendingCount: admin.pendingDeposits.length };
+}
+
 module.exports = {
     normalizeRegistryEmail,
     isRegistryConfigured,
@@ -314,5 +374,6 @@ module.exports = {
     linkAccountToAdminRegistry,
     deleteAccount,
     loadAdminRegistry,
-    saveAdminRegistry
+    saveAdminRegistry,
+    appendPendingDeposit
 };

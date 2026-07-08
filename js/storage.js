@@ -1488,9 +1488,9 @@ function pullAdminFromServer() {
             }
 
             const admin = ensureAdminDataShape(migrateAdminBranding(payload.admin));
-            localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
-            syncAdminRegisteredUsers(admin);
-            return { ok: true };
+            mergeServerAdminLocally(admin);
+            syncAdminRegisteredUsers(getAdminData());
+            return { ok: true, admin: admin };
         })
         .catch(function() {
             return { ok: false };
@@ -1630,9 +1630,54 @@ function getAdminData() {
     return syncAdminRegisteredUsers(migrateAdminBranding(fresh));
 }
 
-function saveAdminData(data) {
+function isAdminPanelPage() {
+    if (typeof window === "undefined") return false;
+    const page = window.location.pathname.split("/").pop() || "";
+    return page === "admin-dashboard.html" || page === "admin.html";
+}
+
+function saveAdminData(data, options) {
+    options = options || {};
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(data));
-    syncAdminToServer(data);
+    if (options.skipServerSync !== true && isAdminPanelPage()) {
+        syncAdminToServer(data);
+    }
+}
+
+function appendPendingDepositOnServer(deposit) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "append-deposit",
+            deposit: deposit
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not submit deposit to admin."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function mergeServerAdminLocally(serverAdmin) {
+    if (!serverAdmin || !serverAdmin.email) return getAdminData();
+    const admin = ensureAdminDataShape(migrateAdminBranding(serverAdmin));
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+    return admin;
 }
 
 function authenticateAdmin(email, password) {
@@ -2791,7 +2836,7 @@ function getAdminNotificationLog() {
 
 function getPendingDeposits() {
     return (getAdminData().pendingDeposits || []).filter(function(d) {
-        return d.status === "pending";
+        return !d.status || d.status === "pending";
     });
 }
 
@@ -2803,7 +2848,7 @@ function getUserPendingDeposits(userEmail) {
 
 function submitDepositRequest(userEmail, amount, method, btcAmount) {
     const key = normalizeEmail(userEmail);
-    const account = getAccount(key);
+    const account = getRegistryAccount(key) || getAccount(key);
     if (!account) {
         return { ok: false, error: "Account not found." };
     }
@@ -2831,7 +2876,6 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
         btcAmount = null;
     }
 
-    const admin = getAdminData();
     const userName = account.profile ? account.profile.fullName : key;
 
     const deposit = {
@@ -2846,9 +2890,6 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
         requestedAt: new Date().toISOString(),
         date: new Date().toLocaleString()
     };
-
-    admin.pendingDeposits.unshift(deposit);
-    saveAdminData(admin);
 
     if (!account.pendingDeposits) account.pendingDeposits = [];
     account.pendingDeposits.push({
@@ -2875,9 +2916,39 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
     }
 
     sendDepositSubmittedEmail(account, key, amount, method, payTo);
-    saveAccount(key, account);
-    recordAdminUserEvent(key, "deposit", "Deposit request submitted — " + method, amount);
-    return { ok: true, deposit: deposit, payTo: payTo };
+    saveAccount(key, account, { eventType: "login" });
+
+    return { ok: true, deposit: deposit, payTo: payTo, account: account };
+}
+
+function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
+    const result = submitDepositRequest(userEmail, amount, method, btcAmount);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    return appendPendingDepositOnServer(result.deposit)
+        .then(function(serverResult) {
+            if (!serverResult || (!serverResult.ok && !serverResult.offline)) {
+                throw new Error((serverResult && serverResult.error) || "Could not send deposit to admin.");
+            }
+
+            if (serverResult.offline) {
+                const admin = getAdminData();
+                if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
+                admin.pendingDeposits.unshift(result.deposit);
+                saveAdminData(admin, { skipServerSync: true });
+            }
+
+            return {
+                ok: true,
+                deposit: result.deposit,
+                payTo: result.payTo
+            };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function resolveDepositOnAccount(userEmail, depositId, message, options) {
@@ -2908,7 +2979,7 @@ function resolveDepositOnAccount(userEmail, depositId, message, options) {
 function approveDeposit(depositId) {
     const admin = getAdminData();
     const deposit = (admin.pendingDeposits || []).find(function(d) {
-        return d.id === depositId && d.status === "pending";
+        return String(d.id) === String(depositId) && (!d.status || d.status === "pending");
     });
     if (!deposit) {
         return { ok: false, error: "Deposit request not found." };
@@ -2946,6 +3017,25 @@ function approveDeposit(depositId) {
     return { ok: true, emailQueued: true, email: key, account: account };
 }
 
+function rejectDepositAsync(depositId, reason) {
+    const result = rejectDeposit(depositId, reason);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    const admin = getAdminData();
+    return syncAdminToServer(admin)
+        .then(function(syncResult) {
+            if (syncResult && syncResult.ok === false && !syncResult.offline) {
+                throw new Error((syncResult && syncResult.error) || "Failed to save rejection on server.");
+            }
+            return { ok: true, emailQueued: true };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
 function approveDepositAsync(depositId) {
     const result = approveDeposit(depositId);
     if (!result.ok) {
@@ -2974,7 +3064,7 @@ function approveDepositAsync(depositId) {
 function rejectDeposit(depositId, reason) {
     const admin = getAdminData();
     const deposit = (admin.pendingDeposits || []).find(function(d) {
-        return d.id === depositId && d.status === "pending";
+        return String(d.id) === String(depositId) && (!d.status || d.status === "pending");
     });
     if (!deposit) {
         return { ok: false, error: "Deposit request not found." };
@@ -2984,21 +3074,22 @@ function rejectDeposit(depositId, reason) {
     deposit.resolvedAt = new Date().toLocaleString();
     deposit.rejectReason = reason || "Rejected by admin";
 
-    const accountTx = getAccount(deposit.userEmail);
+    const key = normalizeEmail(deposit.userEmail);
+    const accountTx = getRegistryAccount(key) || getAccount(key);
     if (accountTx) {
         accountTx.transactions.unshift({
             date: new Date().toLocaleString(),
             description: "Deposit Rejected (" + deposit.method + ")",
             amount: 0
         });
-        sendDepositRejectedEmail(accountTx, deposit.userEmail, deposit.amount, deposit.method, deposit.rejectReason);
-        saveAccount(deposit.userEmail, accountTx);
+        sendDepositRejectedEmail(accountTx, key, deposit.amount, deposit.method, deposit.rejectReason);
+        saveAccount(key, accountTx, { eventType: "login" });
     }
 
     saveAdminData(admin);
 
     resolveDepositOnAccount(
-        deposit.userEmail,
+        key,
         depositId,
         "Your deposit of $" + deposit.amount.toFixed(2) + " was rejected" +
             (reason ? ": " + reason : "") + " — check your email for details"

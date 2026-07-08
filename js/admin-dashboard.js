@@ -1296,10 +1296,23 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
     if (rejectBtn) {
         const reason = prompt("Rejection reason (optional):");
         if (reason === null) return;
-        const result = rejectDeposit(rejectBtn.dataset.id, reason.trim());
-        if (!result.ok) { alert(result.error); return; }
-        alert("Deposit rejected — user notified by email.");
-        renderDashboard();
+        const rejectHandler = typeof rejectDepositAsync === "function"
+            ? rejectDepositAsync(rejectBtn.dataset.id, reason.trim())
+            : Promise.resolve(rejectDeposit(rejectBtn.dataset.id, reason.trim()));
+
+        rejectBtn.disabled = true;
+        rejectHandler.then(function(result) {
+            rejectBtn.disabled = false;
+            if (!result.ok) {
+                alert(result.error || "Could not reject deposit.");
+                return;
+            }
+            alert("Deposit rejected — user notified by email.");
+            renderDashboard({ skipReconcile: true });
+        }).catch(function(err) {
+            rejectBtn.disabled = false;
+            alert(err.message || "Could not reject deposit.");
+        });
     }
 });
 
@@ -1361,4 +1374,14 @@ document.addEventListener("visibilitychange", function() {
 window.addEventListener("focus", renderDashboard);
 
 setInterval(renderDashboard, 2000);
+
+setInterval(function() {
+    if (typeof pullAdminFromServer !== "function") return;
+    pullAdminFromServer().then(function(result) {
+        if (!result || !result.ok) return;
+        renderPendingDepositsAdmin();
+        renderPendingTransfersAdmin();
+        renderActivityFeed();
+    });
+}, 8000);
 })();

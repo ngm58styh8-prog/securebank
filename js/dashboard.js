@@ -609,23 +609,35 @@ function submitDepositFromPanel() {
     }
 
     const btcAmount = getDepositBtcAmount(amount);
-    const result = submitDepositRequest(username, amount, "crypto", btcAmount);
-    if (!result.ok) {
-        alert(result.error);
-        return;
-    }
+    const submitHandler = typeof submitDepositRequestAsync === "function"
+        ? submitDepositRequestAsync(username, amount, "crypto", btcAmount)
+        : Promise.resolve(submitDepositRequest(username, amount, "crypto", btcAmount));
 
-    saveState();
-    updateUI();
-    closeDepositPanel();
+    const submitBtn = document.getElementById("depositSubmitBtn");
+    if (submitBtn) submitBtn.disabled = true;
 
-    const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
-    alert("Deposit submitted for admin approval.\n\n" +
-        "USD amount: $" + amount.toFixed(2) + "\n" +
-        "Send " + btcLine + " to:\n\n" +
-        result.payTo + "\n\n" +
-        "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
-        "A confirmation email was sent to your inbox.");
+    submitHandler.then(function(result) {
+        if (submitBtn) submitBtn.disabled = false;
+        if (!result.ok) {
+            alert(result.error || "Could not submit deposit.");
+            return;
+        }
+
+        saveState();
+        updateUI();
+        closeDepositPanel();
+
+        const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
+        alert("Deposit submitted for admin approval.\n\n" +
+            "USD amount: $" + amount.toFixed(2) + "\n" +
+            "Send " + btcLine + " to:\n\n" +
+            result.payTo + "\n\n" +
+            "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
+            "A confirmation email was sent to your inbox.");
+    }).catch(function(err) {
+        if (submitBtn) submitBtn.disabled = false;
+        alert(err.message || "Could not submit deposit.");
+    });
 }
 
 function renderPendingTransfers() {

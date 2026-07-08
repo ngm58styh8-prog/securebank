@@ -3,7 +3,8 @@ const {
     isRegistryConfigured,
     registryConfigError,
     loadAdminRegistry,
-    saveAdminRegistry
+    saveAdminRegistry,
+    appendPendingDeposit
 } = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
@@ -26,7 +27,30 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        if (req.method === "PUT" || req.method === "POST") {
+        if (req.method === "POST") {
+            const body = req.body || {};
+            if (body.action === "append-deposit" && body.deposit) {
+                const result = await appendPendingDeposit(body.deposit);
+                res.status(200).json({
+                    ok: true,
+                    deposit: result.deposit,
+                    pendingCount: result.pendingCount,
+                    duplicate: !!result.duplicate
+                });
+                return;
+            }
+
+            if (body.admin) {
+                const result = await saveAdminRegistry(body.admin);
+                res.status(200).json({ ok: true, email: result.email });
+                return;
+            }
+
+            res.status(400).json({ ok: false, error: "Missing or invalid POST payload." });
+            return;
+        }
+
+        if (req.method === "PUT") {
             const admin = req.body && req.body.admin;
             const result = await saveAdminRegistry(admin);
             res.status(200).json({ ok: true, email: result.email });
