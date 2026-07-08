@@ -1154,12 +1154,16 @@ function mergeAccountRecords(serverAcct, localAcct) {
         merged.transactions = localTx.length ? localTx : serverTx;
     }
 
-    if (serverIsNewer && typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
-        merged.cash = serverAcct.cash;
+    if (typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
+        if (typeof localAcct.cash !== "number" || isNaN(localAcct.cash)) {
+            merged.cash = serverAcct.cash;
+        } else if (serverIsNewer || serverAcct.cash > localAcct.cash) {
+            merged.cash = serverAcct.cash;
+        } else {
+            merged.cash = localAcct.cash;
+        }
     } else if (typeof localAcct.cash === "number" && !isNaN(localAcct.cash)) {
         merged.cash = localAcct.cash;
-    } else if (typeof serverAcct.cash === "number" && !isNaN(serverAcct.cash)) {
-        merged.cash = serverAcct.cash;
     }
 
     merged.serverSyncedAt = serverIsNewer
@@ -1180,6 +1184,21 @@ function normalizeRegistryEventType(eventType) {
     if (eventType === "admin-adjust") return "admin-adjust";
     if (eventType === "deposit-approve") return "deposit-approve";
     return "signup";
+}
+
+function applyServerAccountLocally(email, serverAccount) {
+    if (!serverAccount || typeof serverAccount !== "object") return null;
+    const key = normalizeEmail(email);
+    const accounts = getAllAccounts();
+    const localKey = findAccountKey(key) || key;
+    const merged = mergeAccountRecords(serverAccount, accounts[localKey] || serverAccount);
+    accounts[localKey] = merged;
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    notifyAccountsChanged();
+    const cache = Object.assign({}, getServerAccountsCache());
+    cache[key] = serverAccount;
+    setServerAccountsCache(cache);
+    return merged;
 }
 
 function syncAccountToServer(email, account, eventType) {
@@ -1213,9 +1232,13 @@ function syncAccountToServer(email, account, eventType) {
                         status: response.status
                     };
                 }
-                const cache = getServerAccountsCache();
-                cache[key] = account;
-                setServerAccountsCache(cache);
+                if (data.account) {
+                    applyServerAccountLocally(key, data.account);
+                } else {
+                    const cache = getServerAccountsCache();
+                    cache[key] = account;
+                    setServerAccountsCache(cache);
+                }
                 syncAdminRegisteredUsers(getAdminData());
                 if (
                     typeof pullAdminFromServer === "function" &&
@@ -1366,6 +1389,7 @@ function reconcileAccountRegistry(options) {
     }
 
     const adminPullOnly = options.adminPullOnly === true || (isAdminPanelPage() && options.fullSync !== true);
+    const pullOnly = options.fullSync !== true;
 
     return resolveRegistryApiOrigin().then(function() {
         return pullAccountsFromServer();
@@ -1381,12 +1405,12 @@ function reconcileAccountRegistry(options) {
             return pullResult;
         })
         .then(function(pullResult) {
-            if (adminPullOnly) {
+            if (adminPullOnly || pullOnly) {
                 return {
                     pull: pullResult,
                     import: { ok: true, imported: 0, skipped: true },
                     secondPull: pullResult,
-                    adminSkipped: true
+                    pullOnly: true
                 };
             }
 
@@ -1765,13 +1789,7 @@ function mergeServerDepositResolutionLocally(serverResult) {
 
     const key = normalizeEmail(serverResult.email);
     if (serverResult.account) {
-        const accounts = getAllAccounts();
-        accounts[key] = serverResult.account;
-        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-        notifyAccountsChanged();
-        const cache = Object.assign({}, getServerAccountsCache());
-        cache[key] = serverResult.account;
-        setServerAccountsCache(cache);
+        applyServerAccountLocally(key, serverResult.account);
     }
 
     if (serverResult.depositId) {
@@ -1795,7 +1813,10 @@ function mergeServerDepositResolutionLocally(serverResult) {
                     (serverResult.reason ? ": " + serverResult.reason : "")
                 : "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) +
                     " was approved and credited — check your email for confirmation",
-            { skipServerSync: true }
+            {
+                account: serverResult.account || getRegistryAccount(key),
+                skipServerSync: true
+            }
         );
     }
 }

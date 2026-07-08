@@ -43,8 +43,17 @@ ALL_ASSETS.forEach(function(a) {
     changes[a.key] = 0;
 });
 
-function saveState() {
-    saveAccount(username, account);
+function saveState(options) {
+    options = options || {};
+    const syncOptions = Object.assign({ skipServerSync: true }, options);
+    saveAccount(username, account, syncOptions);
+}
+
+function saveStateAndSync(eventType) {
+    saveAccount(username, account, {
+        eventType: eventType || "signup",
+        skipServerSync: false
+    });
 }
 
 function getAsset(key) {
@@ -314,6 +323,7 @@ function reloadAccountFromRegistry() {
         : getAccount(username);
     if (!fresh) return;
     account.cash = fresh.cash;
+    account.serverSyncedAt = fresh.serverSyncedAt;
     account.transactions = fresh.transactions || account.transactions;
     account.notifications = fresh.notifications || account.notifications;
     account.holdings = fresh.holdings || account.holdings;
@@ -456,7 +466,7 @@ function tradeAsset(assetKey, type) {
         addNotification("Sold " + formatQuantity(asset, qty));
     }
 
-    saveState();
+    saveStateAndSync("trade");
     updateUI();
 }
 
@@ -923,4 +933,18 @@ function initUI() {
     setInterval(refreshNotificationsFromStorage, 3000);
 }
 
-initUI();
+function bootstrapDashboard() {
+    function startDashboard() {
+        reloadAccountFromRegistry();
+        initUI();
+    }
+
+    if (typeof pullAccountsFromServer === "function") {
+        pullAccountsFromServer().then(startDashboard).catch(startDashboard);
+        return;
+    }
+
+    startDashboard();
+}
+
+bootstrapDashboard();

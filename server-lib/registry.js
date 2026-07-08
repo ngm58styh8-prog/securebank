@@ -1,4 +1,4 @@
-const { getSupabaseServiceRoleClient } = require("./supabase");
+const { getSupabaseServiceRoleClient, normalizeSupabaseErrorMessage } = require("./supabase");
 const {
     sendDepositReceivedEmailSafely,
     sendDepositCreditedEmailSafely,
@@ -62,7 +62,7 @@ async function loadAllAccounts() {
         .select("email, account");
 
     if (error) {
-        throw new Error(error.message || "Failed to load accounts.");
+        throw new Error(normalizeSupabaseErrorMessage(error.message || "Failed to load accounts."));
     }
 
     const accounts = {};
@@ -76,7 +76,8 @@ async function loadAllAccounts() {
     return accounts;
 }
 
-async function upsertAccount(email, account) {
+async function upsertAccount(email, account, options) {
+    options = options || {};
     const key = normalizeRegistryEmail(email);
     if (!key || key.indexOf("@") === -1) {
         throw new Error("Missing or invalid email.");
@@ -93,8 +94,12 @@ async function upsertAccount(email, account) {
         .maybeSingle();
 
     if (readError) {
-        throw new Error(readError.message || "Failed to read account.");
+        throw new Error(normalizeSupabaseErrorMessage(readError.message || "Failed to read account."));
     }
+
+    const balanceBefore = existing && existing.account && typeof existing.account.cash === "number"
+        ? existing.account.cash
+        : null;
 
     let merged = account;
     if (existing && existing.account && typeof existing.account === "object") {
@@ -105,8 +110,31 @@ async function upsertAccount(email, account) {
         if (Array.isArray(account.transactions)) {
             merged.transactions = account.transactions;
         }
-        if (typeof account.cash === "number" && !isNaN(account.cash)) {
-            merged.cash = account.cash;
+
+        const incomingCash = typeof account.cash === "number" && !isNaN(account.cash) ? account.cash : null;
+        const existingCash = typeof existing.account.cash === "number" && !isNaN(existing.account.cash)
+            ? existing.account.cash
+            : null;
+
+        if (incomingCash !== null) {
+            if (options.cashAuthoritative) {
+                merged.cash = incomingCash;
+            } else if (existingCash !== null && incomingCash < existingCash) {
+                console.warn("[registry] blocked cash downgrade", {
+                    userEmail: key,
+                    table: ACCOUNTS_TABLE,
+                    column: "account.cash",
+                    balanceBefore: existingCash,
+                    attemptedBalance: incomingCash,
+                    eventType: options.eventType || "sync",
+                    source: options.source || "client-sync"
+                });
+                merged.cash = existingCash;
+            } else {
+                merged.cash = incomingCash;
+            }
+        } else if (existingCash !== null) {
+            merged.cash = existingCash;
         }
     }
 
@@ -123,7 +151,20 @@ async function upsertAccount(email, account) {
         }, { onConflict: "email" });
 
     if (error) {
-        throw new Error(error.message || "Failed to save account.");
+        throw new Error(normalizeSupabaseErrorMessage(error.message || "Failed to save account."));
+    }
+
+    if (typeof merged.cash === "number" && balanceBefore !== null && merged.cash !== balanceBefore) {
+        console.log("[registry] balance updated", {
+            userEmail: key,
+            table: ACCOUNTS_TABLE,
+            column: "account.cash",
+            balanceBefore: balanceBefore,
+            balanceAfter: merged.cash,
+            delta: merged.cash - balanceBefore,
+            eventType: options.eventType || "sync",
+            source: options.source || "upsertAccount"
+        });
     }
 
     return { email: key, account: merged };
@@ -222,7 +263,14 @@ async function linkAccountToAdminRegistry(email, account, options) {
 }
 
 async function registerUserAccount(email, account, options) {
-    const result = await upsertAccount(email, account);
+    options = options || {};
+    const cashAuthoritative = options.eventType === "deposit-approve" ||
+        options.eventType === "admin-adjust";
+    const result = await upsertAccount(email, account, {
+        eventType: options.eventType || "signup",
+        cashAuthoritative: cashAuthoritative,
+        source: options.source || "registerUserAccount"
+    });
     const link = await linkAccountToAdminRegistry(result.email, result.account, options || { eventType: "signup" });
     return {
         email: result.email,
@@ -275,7 +323,7 @@ async function loadAdminRegistry() {
         .maybeSingle();
 
     if (error) {
-        throw new Error(error.message || "Failed to load admin registry.");
+        throw new Error(normalizeSupabaseErrorMessage(error.message || "Failed to load admin registry."));
     }
 
     if (!data || !data.admin || typeof data.admin !== "object" || !data.admin.email) {
@@ -303,7 +351,7 @@ async function saveAdminRegistry(admin) {
         }, { onConflict: "id" });
 
     if (error) {
-        throw new Error(error.message || "Failed to save admin registry.");
+        throw new Error(normalizeSupabaseErrorMessage(error.message || "Failed to save admin registry."));
     }
 
     return { email: admin.email };
@@ -441,28 +489,60 @@ async function approvePendingDeposit(depositId) {
         throw new Error("User account not found.");
     }
 
-    account.cash = (account.cash || 0) + deposit.amount;
-    account.transactions = Array.isArray(account.transactions) ? account.transactions : [];
-    account.transactions.unshift({
+    const balanceBefore = Number(account.cash || 0);
+    const depositAmount = Number(deposit.amount);
+    const balanceAfter = balanceBefore + depositAmount;
+
+    console.log("[registry] deposit approval started", {
+        userEmail: key,
+        depositId: deposit.id,
+        balanceBefore: balanceBefore,
+        depositAmount: depositAmount,
+        balanceAfter: balanceAfter,
+        table: ACCOUNTS_TABLE
+    });
+
+    const updatedAccount = Object.assign({}, account);
+    updatedAccount.cash = balanceAfter;
+    updatedAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+    updatedAccount.transactions.unshift({
         date: new Date().toLocaleString(),
         description: "Deposit Approved (" + deposit.method + ") — paid to admin",
-        amount: deposit.amount
+        amount: depositAmount
     });
-    if (Array.isArray(account.pendingDeposits)) {
-        account.pendingDeposits = account.pendingDeposits.filter(function(item) {
+    if (Array.isArray(updatedAccount.pendingDeposits)) {
+        updatedAccount.pendingDeposits = updatedAccount.pendingDeposits.filter(function(item) {
             return String(item.id) !== String(depositId);
         });
     }
-    account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
-    account.notifications.unshift({
+    updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Your deposit of $" + Number(deposit.amount).toFixed(2) +
+        message: "Your deposit of $" + depositAmount.toFixed(2) +
             " was approved and credited — check your email for confirmation",
         time: new Date().toISOString(),
         read: false
     });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
+    if (updatedAccount.notifications.length > 30) {
+        updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
+    }
+
+    let saved;
+    try {
+        saved = await upsertAccount(key, updatedAccount, {
+            cashAuthoritative: true,
+            eventType: "deposit-approve",
+            source: "approvePendingDeposit"
+        });
+    } catch (err) {
+        console.error("[registry] deposit approval balance update failed", {
+            userEmail: key,
+            depositId: deposit.id,
+            balanceBefore: balanceBefore,
+            depositAmount: depositAmount,
+            error: err && err.message ? err.message : String(err)
+        });
+        throw err;
     }
 
     deposit.status = "approved";
@@ -476,14 +556,40 @@ async function approvePendingDeposit(depositId) {
         userName: deposit.userName || deposit.userEmail,
         type: "deposit",
         description: "Deposit approved and credited",
-        amount: deposit.amount
+        amount: depositAmount
     });
     if (admin.userActivityLog.length > 500) {
         admin.userActivityLog = admin.userActivityLog.slice(0, 500);
     }
 
-    const saved = await upsertAccount(key, account);
-    await saveAdminRegistry(admin);
+    try {
+        await saveAdminRegistry(admin);
+    } catch (err) {
+        console.error("[registry] deposit approval admin save failed — rolling back balance", {
+            userEmail: key,
+            depositId: deposit.id,
+            balanceBefore: balanceBefore,
+            error: err && err.message ? err.message : String(err)
+        });
+        const rollbackAccount = Object.assign({}, account);
+        rollbackAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+        await upsertAccount(key, rollbackAccount, {
+            cashAuthoritative: true,
+            eventType: "deposit-approve-rollback",
+            source: "approvePendingDeposit"
+        });
+        throw err;
+    }
+
+    console.log("[registry] deposit approved", {
+        userEmail: key,
+        depositId: deposit.id,
+        balanceBefore: balanceBefore,
+        depositAmount: depositAmount,
+        balanceAfter: saved.account.cash,
+        table: ACCOUNTS_TABLE,
+        column: "account.cash"
+    });
 
     const emailResult = await sendDepositCreditedEmailSafely(deposit, saved.account, admin);
     if (emailResult.sent) {
@@ -495,9 +601,11 @@ async function approvePendingDeposit(depositId) {
         ok: true,
         email: key,
         account: saved.account,
-        amount: deposit.amount,
+        amount: depositAmount,
         method: deposit.method,
         depositId: deposit.id,
+        balanceBefore: balanceBefore,
+        balanceAfter: saved.account.cash,
         emailSent: !!emailResult.sent,
         emailSkipped: !!emailResult.skipped,
         emailError: emailResult.error || null

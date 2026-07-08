@@ -8,7 +8,9 @@
     "verify:check": "node scripts/verify-email-setup.mjs",
     "verify:send": "node scripts/verify-email-setup.mjs",
     "email:report": "node scripts/email-deliverability-report.mjs",
-    "test:deposit-emails": "node scripts/test-deposit-email-workflow.js"
+    "test:deposit-emails": "node scripts/test-deposit-email-workflow.js",
+    "test:deposit-balance": "node scripts/test-deposit-balance-sync.js",
+    "check:registry": "node scripts/check-registry.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
