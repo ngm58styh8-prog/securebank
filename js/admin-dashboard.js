@@ -577,7 +577,7 @@ function renderPendingDepositsAdmin() {
     if (!tbody) return;
 
     if (!pending.length) {
-        tbody.innerHTML = '<tr><td colspan="6">No pending deposit requests.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6">No pending deposit requests. User deposits sync from accounts on the server — click <strong>Repair registry</strong> to refresh.</td></tr>';
         return;
     }
 
@@ -922,12 +922,20 @@ function renderDashboard(options) {
     }
     };
 
-    if (options.skipReconcile || typeof reconcileAccountRegistry !== "function") {
+    const syncRegistry = options.skipReconcile
+        ? null
+        : (typeof reconcileAdminQueues === "function"
+            ? reconcileAdminQueues
+            : (typeof reconcileAccountRegistry === "function"
+                ? function() { return reconcileAccountRegistry({ adminPullOnly: true }); }
+                : null));
+
+    if (!syncRegistry) {
         doRender(null);
         return;
     }
 
-    reconcileAccountRegistry().then(doRender).catch(function(err) {
+    syncRegistry().then(doRender).catch(function(err) {
         doRender({ registryError: String(err) });
     });
 }
@@ -995,7 +1003,7 @@ function closeAdjustModal() {
 }
 
 function startDashboard() {
-    renderDashboard({ skipReconcile: true });
+    renderDashboard();
 }
 
 if (document.body.classList.contains("admin-auth-ready")) {
@@ -1027,11 +1035,21 @@ document.getElementById("refreshUsersBtn").addEventListener("click", function() 
                 (report.removed.length ? "Removed invalid: " + report.removed.join(", ") : "") +
                 (syncResult && syncResult.localCount != null ? "\nAccounts linked: " + syncResult.localCount : ""));
         } else if (syncResult && syncResult.localCount != null) {
-            alert("Users refreshed. " + syncResult.localCount + " account(s) linked to admin.");
+            let msg = "Users refreshed. " + syncResult.localCount + " account(s) linked to admin.";
+            if (syncResult.pendingDeposits != null) {
+                msg += "\nPending deposits: " + syncResult.pendingDeposits;
+            }
+            alert(msg);
         }
     };
-    if (typeof reconcileAccountRegistry === "function") {
-        reconcileAccountRegistry().then(finish).catch(function(err) {
+    const refreshQueues = typeof reconcileAdminQueues === "function"
+        ? reconcileAdminQueues
+        : (typeof reconcileAccountRegistry === "function"
+            ? function() { return reconcileAccountRegistry({ adminPullOnly: true }); }
+            : null);
+
+    if (refreshQueues) {
+        refreshQueues().then(finish).catch(function(err) {
             finish({ registryError: String(err) });
         });
     } else {
@@ -1056,6 +1074,9 @@ if (repairUsersBtn) {
             if (report.incomplete.length) {
                 msg += "\nIncomplete: " + report.incomplete.join(", ");
             }
+            if (syncResult && syncResult.pendingDeposits != null) {
+                msg += "\nPending deposits: " + syncResult.pendingDeposits;
+            }
             if (syncResult && syncResult.registryError) {
                 msg += "\n\nServer error: " + syncResult.registryError;
                 msg += "\n\nRun supabase/migrations/002_app_registry.sql in Supabase if not done yet.";
@@ -1063,7 +1084,7 @@ if (repairUsersBtn) {
             alert(msg);
         };
         if (typeof reconcileAccountRegistry === "function") {
-            reconcileAccountRegistry().then(finish).catch(function(err) {
+            reconcileAccountRegistry({ fullSync: true }).then(finish).catch(function(err) {
                 finish({ registryError: String(err) });
             });
         } else {
@@ -1376,9 +1397,22 @@ window.addEventListener("focus", renderDashboard);
 setInterval(renderDashboard, 2000);
 
 setInterval(function() {
+    if (typeof reconcileAdminQueues === "function") {
+        reconcileAdminQueues().then(function(result) {
+            if (!result || !result.ok) return;
+            renderPendingDepositsAdmin();
+            renderPendingTransfersAdmin();
+            renderActivityFeed();
+        });
+        return;
+    }
+
     if (typeof pullAdminFromServer !== "function") return;
     pullAdminFromServer().then(function(result) {
         if (!result || !result.ok) return;
+        if (typeof linkAccountPendingDepositsToAdmin === "function") {
+            linkAccountPendingDepositsToAdmin();
+        }
         renderPendingDepositsAdmin();
         renderPendingTransfersAdmin();
         renderActivityFeed();
