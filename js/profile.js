@@ -124,19 +124,43 @@ function applyTheme(theme) {
     saveAccount(username, account);
 }
 
+function scrollToSsnSection() {
+    const kyc = document.getElementById("kyc");
+    if (!kyc || kyc.classList.contains("hidden")) return;
+    kyc.scrollIntoView({ behavior: "smooth", block: "start" });
+    const ssnInput = document.getElementById("ssnInput");
+    if (ssnInput) {
+        window.setTimeout(function() { ssnInput.focus(); }, 400);
+    }
+}
+
 function openEditModal() {
+    const isVerified = profile.verificationStatus === "Verified" && profile.ssnLast4;
     document.getElementById("editFullName").value = profile.fullName;
     document.getElementById("editEmail").value = profile.email;
     document.getElementById("editPhone").value = profile.phone;
+
+    const ssnSection = document.getElementById("editSsnSection");
+    const editSsnInput = document.getElementById("editSsnInput");
+    if (ssnSection) {
+        ssnSection.classList.toggle("hidden", !!isVerified);
+    }
+    if (editSsnInput) {
+        editSsnInput.value = "";
+    }
+
     document.getElementById("editOverlay").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+    document.getElementById("editFullName").focus();
 }
 
 function closeEditModal() {
     document.getElementById("editOverlay").classList.add("hidden");
+    document.body.style.overflow = "";
 }
 
 function saveProfile(e) {
-    e.preventDefault();
+    if (e) e.preventDefault();
 
     profile.fullName = document.getElementById("editFullName").value.trim();
     profile.email = document.getElementById("editEmail").value.trim();
@@ -149,6 +173,19 @@ function saveProfile(e) {
 
     account.profile = profile;
     saveAccount(username, account);
+
+    const editSsnInput = document.getElementById("editSsnInput");
+    const ssnValue = editSsnInput ? editSsnInput.value.trim() : "";
+    if (ssnValue) {
+        const ssnResult = submitSsnVerification(username, ssnValue);
+        if (!ssnResult.ok) {
+            alert(ssnResult.error);
+            return;
+        }
+        Object.assign(profile, account.profile);
+        if (editSsnInput) editSsnInput.value = "";
+    }
+
     renderProfile();
     closeEditModal();
 }
@@ -164,14 +201,23 @@ renderProfile();
 document.getElementById("editProfileBtn").addEventListener("click", openEditModal);
 document.getElementById("cancelEditBtn").addEventListener("click", closeEditModal);
 document.getElementById("editProfileForm").addEventListener("submit", saveProfile);
+document.getElementById("saveProfileBtn").addEventListener("click", saveProfile);
 document.getElementById("ssnVerificationForm").addEventListener("submit", submitSsnForm);
 
-const ssnInput = document.getElementById("ssnInput");
-if (ssnInput) {
-    ssnInput.addEventListener("input", function() {
-        ssnInput.value = formatSsnInput(ssnInput.value);
+const scrollToSsnBtn = document.getElementById("scrollToSsnBtn");
+if (scrollToSsnBtn) {
+    scrollToSsnBtn.addEventListener("click", scrollToSsnSection);
+}
+
+function bindSsnInput(el) {
+    if (!el) return;
+    el.addEventListener("input", function() {
+        el.value = formatSsnInput(el.value);
     });
 }
+
+bindSsnInput(document.getElementById("ssnInput"));
+bindSsnInput(document.getElementById("editSsnInput"));
 document.getElementById("themeToggle").addEventListener("click", function() {
     applyTheme(account.theme === "dark" ? "light" : "dark");
 });

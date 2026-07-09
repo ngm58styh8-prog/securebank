@@ -14,7 +14,7 @@
 <link rel="stylesheet" href="css/dashboard-premium.css">
 <link rel="stylesheet" href="css/luxury.css">
 </head>
-<body class="luxury-app dashboard-premium" data-theme="dark">
+<body class="luxury-app dashboard-premium profile-page-body" data-theme="dark">
 
 <header>
     <div class="header-left">
@@ -43,9 +43,30 @@
         <span class="verification-banner-icon">🔒</span>
         <div>
             <strong>Identity verification required</strong>
-            <p>Check your email for instructions, then submit your SSN below to unlock full account access.</p>
+            <p>Check your email for instructions, then submit your SSN in the Identity Verification section below.</p>
+            <button type="button" class="verification-scroll-btn" id="scrollToSsnBtn">Go to SSN verification</button>
         </div>
     </div>
+</div>
+
+<div id="kyc" class="card profile-card profile-kyc-card hidden">
+    <h2 class="section-heading">🔒 Identity Verification</h2>
+    <p class="section-desc">Federal regulations require us to verify your identity. Enter your Social Security Number (SSN) below to unlock deposits, transfers, and full account access.</p>
+    <form id="ssnVerificationForm" class="ssn-form">
+        <label class="form-label" for="ssnInput">Social Security Number</label>
+        <input id="ssnInput" type="text" inputmode="numeric" placeholder="XXX-XX-XXXX" maxlength="11" autocomplete="off" required>
+        <p class="form-hint">Your SSN is encrypted and used only for identity verification. We never store your full SSN.</p>
+        <button class="edit-profile-btn" type="submit">Submit for Verification</button>
+    </form>
+</div>
+
+<div id="ssnVerifiedCard" class="card profile-card hidden">
+    <h2 class="section-heading">🔒 Identity Verification</h2>
+    <div class="profile-field">
+        <span class="field-label">SSN on File</span>
+        <span class="field-value" id="displaySsn">—</span>
+    </div>
+    <p class="form-hint verified-hint">✓ Your identity has been verified.</p>
 </div>
 
 <div class="card profile-card">
@@ -83,26 +104,6 @@
     <button class="edit-profile-btn" type="button" id="editProfileBtn">✏️ Edit Profile</button>
 </div>
 
-<div id="kyc" class="card profile-card hidden">
-    <h2 class="section-heading">🔒 Identity Verification</h2>
-    <p class="section-desc">Federal regulations require us to verify your identity. Enter your Social Security Number (SSN) to complete verification.</p>
-    <form id="ssnVerificationForm" class="ssn-form">
-        <label class="form-label" for="ssnInput">Social Security Number</label>
-        <input id="ssnInput" type="text" inputmode="numeric" placeholder="XXX-XX-XXXX" maxlength="11" autocomplete="off" required>
-        <p class="form-hint">Your SSN is encrypted and used only for identity verification.</p>
-        <button class="edit-profile-btn" type="submit">Submit for Verification</button>
-    </form>
-</div>
-
-<div id="ssnVerifiedCard" class="card profile-card hidden">
-    <h2 class="section-heading">🔒 Identity Verification</h2>
-    <div class="profile-field">
-        <span class="field-label">SSN on File</span>
-        <span class="field-value" id="displaySsn">—</span>
-    </div>
-    <p class="form-hint verified-hint">✓ Your identity has been verified.</p>
-</div>
-
 <div class="card profile-card">
     <h2 class="section-heading">📧 Email Inbox</h2>
     <p class="section-desc">Messages sent to your registered email address.</p>
@@ -113,24 +114,32 @@
 
 </div>
 
-<div id="editOverlay" class="modal-overlay hidden">
-    <div class="modal">
-        <h3>✏️ Edit Profile</h3>
-        <form id="editProfileForm">
-            <label class="form-label" for="editFullName">Full Name</label>
-            <input id="editFullName" type="text" required>
+<div id="editOverlay" class="modal-overlay profile-edit-overlay hidden">
+    <div class="modal profile-edit-modal" role="dialog" aria-labelledby="editProfileTitle">
+        <h3 id="editProfileTitle">✏️ Edit Profile</h3>
+        <div class="modal-scroll-body">
+            <form id="editProfileForm">
+                <label class="form-label" for="editFullName">Full Name</label>
+                <input id="editFullName" type="text" required>
 
-            <label class="form-label" for="editEmail">Email</label>
-            <input id="editEmail" type="email" required>
+                <label class="form-label" for="editEmail">Email</label>
+                <input id="editEmail" type="email" required>
 
-            <label class="form-label" for="editPhone">Phone</label>
-            <input id="editPhone" type="tel" placeholder="Phone number" required>
+                <label class="form-label" for="editPhone">Phone</label>
+                <input id="editPhone" type="tel" placeholder="Phone number" required>
 
-            <div class="modal-actions">
-                <button class="modal-cancel" type="button" id="cancelEditBtn">Cancel</button>
-                <button class="modal-confirm" type="submit">Save Changes</button>
-            </div>
-        </form>
+                <div id="editSsnSection" class="profile-edit-ssn hidden">
+                    <h4 class="profile-edit-ssn-title">Identity Verification</h4>
+                    <p class="form-hint">Submit your SSN to unlock full account access. You can also use the verification section on this page.</p>
+                    <label class="form-label" for="editSsnInput">Social Security Number</label>
+                    <input id="editSsnInput" type="text" inputmode="numeric" placeholder="XXX-XX-XXXX" maxlength="11" autocomplete="off">
+                </div>
+            </form>
+        </div>
+        <div class="modal-actions modal-actions-sticky">
+            <button class="modal-cancel" type="button" id="cancelEditBtn">Cancel</button>
+            <button class="modal-confirm" type="button" id="saveProfileBtn">Save Changes</button>
+        </div>
     </div>
 </div>
 
