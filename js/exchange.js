@@ -79,6 +79,12 @@ function convertCryptoCash(amount, direction) {
             details: "Cash → BTC",
             amount: formatPrice(amount) + " → " + btcReceived.toFixed(8) + " BTC"
         });
+        if (typeof pushAccountNotification === "function") {
+            pushAccountNotification(account,
+                "Converted " + formatPrice(amount) + " to " + btcReceived.toFixed(8) + " BTC",
+                { type: "trade" }
+            );
+        }
         return { ok: true, message: "Converted " + formatPrice(amount) + " to " + btcReceived.toFixed(8) + " BTC." };
     }
 
@@ -99,6 +105,12 @@ function convertCryptoCash(amount, direction) {
         details: "BTC → Cash",
         amount: amount.toFixed(8) + " BTC → " + formatPrice(cashReceived)
     });
+    if (typeof pushAccountNotification === "function") {
+        pushAccountNotification(account,
+            "Converted " + amount.toFixed(8) + " BTC to " + formatPrice(cashReceived),
+            { type: "trade" }
+        );
+    }
     return { ok: true, message: "Converted " + amount.toFixed(8) + " BTC to " + formatPrice(cashReceived) + "." };
 }
 

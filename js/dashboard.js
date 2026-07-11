@@ -120,18 +120,34 @@ function ensureBaseline() {
     saveState();
 }
 
-function addNotification(message) {
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: message,
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
+function addNotification(message, options) {
+    options = options || {};
+    if (typeof pushAccountNotification === "function") {
+        pushAccountNotification(account, message, options);
+    } else {
+        ensureNotifications(account);
+        account.notifications.unshift({
+            id: Date.now() + Math.random(),
+            message: message,
+            time: new Date().toISOString(),
+            read: false,
+            type: options.type || null
+        });
+        if (account.notifications.length > 30) {
+            account.notifications = account.notifications.slice(0, 30);
+        }
     }
     saveState();
     renderNotifications();
+}
+
+function formatTradeNotification(asset, type, qty, price) {
+    const qtyLabel = formatQuantity(asset, qty);
+    const total = formatPrice(price * qty);
+    if (type === "buy") {
+        return "Bought " + qtyLabel + " " + asset.label + " for " + total;
+    }
+    return "Sold " + qtyLabel + " " + asset.label + " for " + total;
 }
 
 function renderNotifications() {
@@ -369,7 +385,7 @@ function checkPriceAlerts() {
         const sign = change >= 0 ? "+" : "";
 
         if (Math.abs(change) >= 2 && (!prev || Math.abs(change - prev) >= 0.5)) {
-            addNotification(asset.label + " price " + sign + change.toFixed(1) + "% today");
+            addNotification(asset.label + " price " + sign + change.toFixed(1) + "% today", { type: "market" });
             account.lastAlerts[asset.key] = change;
         }
     });
@@ -450,20 +466,23 @@ function tradeAsset(assetKey, type) {
     if (type === "buy") {
         const cost = price * qty;
         if (account.cash < cost) {
-            addNotification("Buy failed — insufficient cash for " + asset.label);
+            addNotification("Buy failed — insufficient cash for " + asset.label, { type: "trade" });
             return;
         }
         account.cash -= cost;
         setHoldings(assetKey, getHoldings(assetKey) + qty);
-        addNotification(asset.label + " purchased successfully");
+        addNotification(formatTradeNotification(asset, "buy", qty, price), { type: "trade" });
         addTransaction("Buy " + formatQuantity(asset, qty), -cost);
     } else {
-        if (getHoldings(assetKey) < qty) return;
+        if (getHoldings(assetKey) < qty) {
+            addNotification("Sell failed — insufficient " + asset.label + " holdings", { type: "trade" });
+            return;
+        }
         const proceeds = price * qty;
         setHoldings(assetKey, getHoldings(assetKey) - qty);
         account.cash += proceeds;
         addTransaction("Sell " + formatQuantity(asset, qty), proceeds);
-        addNotification("Sold " + formatQuantity(asset, qty));
+        addNotification(formatTradeNotification(asset, "sell", qty, price), { type: "trade" });
     }
 
     saveStateAndSync("trade");
@@ -633,8 +652,7 @@ function submitDepositFromPanel() {
             return;
         }
 
-        saveState();
-        updateUI();
+        reloadAccountFromRegistry();
         closeDepositPanel();
 
         const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
@@ -733,8 +751,7 @@ function confirmModal(e) {
         return;
     }
 
-    saveState();
-    updateUI();
+    reloadAccountFromRegistry();
     closeModal();
     alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.\n\nA confirmation email was sent to your inbox.");
 }

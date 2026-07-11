@@ -1084,6 +1084,24 @@ function ensureNotifications(account) {
     return account.notifications;
 }
 
+function pushAccountNotification(account, message, options) {
+    options = options || {};
+    if (!account || !message) return ensureNotifications(account);
+    ensureNotifications(account);
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: message,
+        time: options.time || new Date().toISOString(),
+        read: false,
+        type: options.type || null,
+        fromAdmin: !!options.fromAdmin
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+    return account.notifications;
+}
+
 function syncAccountNotifications(email, account) {
     const stored = getAllAccounts()[normalizeEmail(email)];
     account.notifications = mergeNotificationLists(
@@ -2269,17 +2287,11 @@ function applyAdminBalanceAdjustment(key, account, action, amount, note) {
     });
 
     ensureNotifications(account);
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: action === "credit"
-            ? "Your account was credited $" + amount.toFixed(2)
-            : "Your account was debited $" + amount.toFixed(2),
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
-    }
+    pushAccountNotification(account, action === "credit"
+        ? "Your account was credited $" + amount.toFixed(2)
+        : "Your account was debited $" + amount.toFixed(2),
+        { type: "admin" }
+    );
 
     account.serverSyncedAt = new Date().toISOString();
 
@@ -2682,15 +2694,10 @@ function submitTransferRequest(userEmail, amount, destination, method) {
         description: "Transfer Request (Pending) — " + dest,
         amount: 0
     });
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: "Transfer of $" + amount.toFixed(2) + " submitted — awaiting admin approval",
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
-    }
+    pushAccountNotification(account,
+        "Withdrawal request of $" + amount.toFixed(2) + " to " + dest + " submitted — awaiting admin approval",
+        { type: "withdrawal" }
+    );
 
     sendWithdrawalSubmittedEmail(account, key, amount, dest, transfer.method);
     saveAccount(key, account);
@@ -2698,7 +2705,8 @@ function submitTransferRequest(userEmail, amount, destination, method) {
     return { ok: true, transfer: transfer };
 }
 
-function resolveTransferOnAccount(userEmail, transferId, message) {
+function resolveTransferOnAccount(userEmail, transferId, message, options) {
+    options = options || {};
     const account = getAccount(userEmail);
     if (!account) return;
 
@@ -2708,15 +2716,7 @@ function resolveTransferOnAccount(userEmail, transferId, message) {
         });
     }
 
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: message,
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
-    }
+    pushAccountNotification(account, message, { type: options.type || "transfer" });
 
     saveAccount(userEmail, account);
 }
@@ -2756,7 +2756,8 @@ function approveTransfer(transferId) {
     resolveTransferOnAccount(
         transfer.userEmail,
         transferId,
-        "Your transfer of $" + transfer.amount.toFixed(2) + " was approved — check your email for confirmation"
+        "Withdrawal of $" + transfer.amount.toFixed(2) + " to " + transfer.destination + " was approved",
+        { type: "withdrawal" }
     );
 
     return { ok: true, emailQueued: true };
@@ -2791,8 +2792,9 @@ function rejectTransfer(transferId, reason) {
     resolveTransferOnAccount(
         transfer.userEmail,
         transferId,
-        "Your transfer of $" + transfer.amount.toFixed(2) + " was rejected" +
-            (reason ? ": " + reason : "") + " — check your email for details"
+        "Withdrawal of $" + transfer.amount.toFixed(2) + " was rejected" +
+            (reason ? ": " + reason : ""),
+        { type: "withdrawal" }
     );
 
     return { ok: true, emailQueued: true };
@@ -3235,17 +3237,11 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
             : "Deposit Request (Pending) — " + method + " → Admin",
         amount: 0
     });
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: method === "crypto"
-            ? "BTC deposit of $" + amount.toFixed(2) + " submitted — send to " + payTo + ". Awaiting admin approval."
-            : "Deposit of $" + amount.toFixed(2) + " submitted — awaiting admin approval before funds are credited.",
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
-    }
+    pushAccountNotification(account, method === "crypto"
+        ? "Deposit of $" + amount.toFixed(2) + " submitted — send BTC to " + payTo + ". Awaiting admin approval."
+        : "Deposit of $" + amount.toFixed(2) + " submitted — awaiting admin approval before funds are credited.",
+        { type: "deposit" }
+    );
 
     saveAccount(key, account, { skipServerSync: true });
 
@@ -3324,15 +3320,7 @@ function resolveDepositOnAccount(userEmail, depositId, message, options) {
         });
     }
 
-    account.notifications.unshift({
-        id: Date.now() + Math.random(),
-        message: message,
-        time: new Date().toISOString(),
-        read: false
-    });
-    if (account.notifications.length > 30) {
-        account.notifications = account.notifications.slice(0, 30);
-    }
+    pushAccountNotification(account, message, { type: "deposit" });
 
     saveAccount(userEmail, account, { skipServerSync: options.skipServerSync === true });
     return account;
@@ -3370,7 +3358,7 @@ function approveDeposit(depositId) {
     resolveDepositOnAccount(
         key,
         depositId,
-        "Your deposit of $" + deposit.amount.toFixed(2) + " was approved and credited — check your email for confirmation",
+        "Deposit of $" + deposit.amount.toFixed(2) + " was approved and credited to your balance",
         { account: account, skipServerSync: true }
     );
 
@@ -3532,8 +3520,8 @@ function rejectDeposit(depositId, reason) {
     resolveDepositOnAccount(
         key,
         depositId,
-        "Your deposit of $" + deposit.amount.toFixed(2) + " was rejected" +
-            (reason ? ": " + reason : "") + " — check your email for details"
+        "Deposit of $" + deposit.amount.toFixed(2) + " was rejected" +
+            (reason ? ": " + reason : "")
     );
 
     return {

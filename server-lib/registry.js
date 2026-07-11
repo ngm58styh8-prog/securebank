@@ -9,6 +9,19 @@ const ACCOUNTS_TABLE = "user_accounts";
 const ADMIN_TABLE = "admin_registry";
 const ADMIN_ROW_ID = "default";
 
+function mergeNotificationLists(primary, secondary) {
+    const map = new Map();
+    (secondary || []).forEach(function(n) {
+        map.set(String(n.id), n);
+    });
+    (primary || []).forEach(function(n) {
+        map.set(String(n.id), n);
+    });
+    return Array.from(map.values())
+        .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
+        .slice(0, 30);
+}
+
 const DEFAULT_ADMIN_REGISTRY = {
     email: "admin@globalvest.com",
     password: "admin123",
@@ -113,8 +126,11 @@ async function upsertAccount(email, account, options) {
         if (Array.isArray(account.pendingDeposits)) {
             merged.pendingDeposits = account.pendingDeposits;
         }
-        if (Array.isArray(account.notifications)) {
-            merged.notifications = account.notifications;
+        if (Array.isArray(account.notifications) || Array.isArray(existing.account.notifications)) {
+            merged.notifications = mergeNotificationLists(
+                account.notifications || [],
+                existing.account.notifications || []
+            );
         }
 
         const incomingCash = typeof account.cash === "number" && !isNaN(account.cash) ? account.cash : null;
@@ -586,10 +602,10 @@ async function approvePendingDeposit(depositId) {
     updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Your deposit of $" + depositAmount.toFixed(2) +
-            " was approved and credited — check your email for confirmation",
+        message: "Deposit of $" + depositAmount.toFixed(2) + " was approved and credited to your balance",
         time: new Date().toISOString(),
-        read: false
+        read: false,
+        type: "deposit"
     });
     if (updatedAccount.notifications.length > 30) {
         updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
@@ -726,10 +742,11 @@ async function rejectPendingDeposit(depositId, reason) {
         account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
         account.notifications.unshift({
             id: Date.now() + Math.random(),
-            message: "Your deposit of $" + Number(deposit.amount).toFixed(2) + " was rejected" +
-                (rejectionReason ? ": " + rejectionReason : "") + " — check your email for details",
+            message: "Deposit of $" + Number(deposit.amount).toFixed(2) + " was rejected" +
+                (rejectionReason ? ": " + rejectionReason : ""),
             time: new Date().toISOString(),
-            read: false
+            read: false,
+            type: "deposit"
         });
         if (account.notifications.length > 30) {
             account.notifications = account.notifications.slice(0, 30);
