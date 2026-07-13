@@ -203,12 +203,7 @@
             var fab = e.target.closest("#lvTransferFab");
             if (!fab) return;
             e.preventDefault();
-            var withdrawBtn = document.getElementById("withdrawBtn");
-            if (withdrawBtn) {
-                withdrawBtn.click();
-                return;
-            }
-            window.location.href = "dashboard.html#transfer";
+            window.location.href = "send-money.html";
         });
     }
 

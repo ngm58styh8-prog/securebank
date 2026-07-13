@@ -77,10 +77,9 @@
 
     function initTransferBtn() {
         const transferBtn = document.getElementById("transferQuickBtn");
-        const withdrawBtn = document.getElementById("withdrawBtn");
-        if (transferBtn && withdrawBtn) {
+        if (transferBtn) {
             transferBtn.addEventListener("click", function() {
-                withdrawBtn.click();
+                window.location.href = "send-money.html";
             });
         }
     }

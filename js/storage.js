@@ -243,11 +243,14 @@ const DEFAULT_TRANSACTIONS = [
 ];
 
 const DEFAULT_HOLDINGS = {
-    btc: 0.4825, eth: 8.16, sol: 8.5, xrp: 1250,
+    btc: 0.4825, eth: 8.16, sol: 8.5, xrp: 1250, usdt: 0,
     gold: 1.5,
     aapl: 12, googl: 6, msft: 10, nvda: 8,
     spy: 20, qqq: 15, vti: 25
 };
+
+const SEND_MONEY_CURRENCIES = ["USD", "BTC", "ETH", "USDT"];
+const SEND_MONEY_HOLDING_KEYS = { BTC: "btc", ETH: "eth", USDT: "usdt" };
 
 function getDefaultAccount() {
     return {
@@ -1762,6 +1765,9 @@ function ensureAdminDataShape(data) {
     if (!data.notificationLog) data.notificationLog = [];
     if (!data.userActivityLog) data.userActivityLog = [];
     if (!data.registeredUsers) data.registeredUsers = {};
+    if (!data.internalTransfers) data.internalTransfers = [];
+    if (!data.sendMoneyAuditLog) data.sendMoneyAuditLog = [];
+    if (!data.processedSendMoneyKeys) data.processedSendMoneyKeys = {};
     return data;
 }
 
@@ -3532,4 +3538,409 @@ function rejectDeposit(depositId, reason) {
         method: deposit.method,
         reason: deposit.rejectReason
     };
+}
+
+function isValidGvWalletAddress(address) {
+    return /^GV[A-Z0-9]{12,28}$/i.test(String(address || "").trim());
+}
+
+function generateGvWalletAddress(email) {
+    const normalized = normalizeEmail(email);
+    let hash = 5381;
+    for (let i = 0; i < normalized.length; i++) {
+        hash = ((hash << 5) + hash) + normalized.charCodeAt(i);
+        hash |= 0;
+    }
+    const partA = Math.abs(hash).toString(36).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(8, "0").slice(0, 8);
+    let sum = 0;
+    for (let j = 0; j < normalized.length; j++) {
+        sum += normalized.charCodeAt(j);
+    }
+    const partB = sum.toString(36).toUpperCase().replace(/[^A-Z0-9]/g, "Y").padEnd(6, "0").slice(0, 6);
+    return "GV" + partA + partB;
+}
+
+function ensureGvWallet(account, email) {
+    if (!account) return "";
+    if (!account.gvWalletAddress) {
+        account.gvWalletAddress = generateGvWalletAddress(email);
+    }
+    return account.gvWalletAddress;
+}
+
+function maskSendMoneyEmail(email) {
+    const parts = String(email || "").split("@");
+    if (parts.length !== 2) return "—";
+    const local = parts[0];
+    const masked = local.length <= 2
+        ? local.charAt(0) + "***"
+        : local.charAt(0) + "***" + local.charAt(local.length - 1);
+    return masked + "@" + parts[1];
+}
+
+function maskSendMoneyWallet(address) {
+    const value = String(address || "");
+    if (value.length <= 10) return value;
+    return value.slice(0, 6) + "••••" + value.slice(-4);
+}
+
+function getSendMoneyBalance(account, currency) {
+    currency = String(currency || "USD").toUpperCase();
+    if (!account) return 0;
+    if (currency === "USD") {
+        return Number(account.cash || 0);
+    }
+    const key = SEND_MONEY_HOLDING_KEYS[currency];
+    if (!key) return 0;
+    ensureHoldings(account);
+    return Number(account.holdings[key] || 0);
+}
+
+function calculateSendMoneyFee(amount, currency) {
+    currency = String(currency || "USD").toUpperCase();
+    amount = Number(amount);
+    if (!amount || amount <= 0) return 0;
+    if (currency === "USD") return 0;
+    return Math.max(amount * 0.001, 0.00000001);
+}
+
+function buildSendMoneyRecipientPreview(email, account) {
+    const verified = account.profile &&
+        account.profile.verificationStatus === "Verified" &&
+        !!account.profile.ssnLast4;
+    const fullName = account.profile && account.profile.fullName
+        ? account.profile.fullName
+        : email;
+    const initials = fullName.split(" ").map(function(part) {
+        return part.charAt(0);
+    }).join("").slice(0, 2).toUpperCase();
+
+    return {
+        found: true,
+        email: email,
+        fullName: fullName,
+        initials: initials || "GV",
+        verified: verified,
+        country: (account.profile && account.profile.country) || "—",
+        maskedEmail: maskSendMoneyEmail(email),
+        walletAddress: ensureGvWallet(account, email),
+        maskedWallet: maskSendMoneyWallet(ensureGvWallet(account, email)),
+        walletType: "GlobalVest Internal Wallet"
+    };
+}
+
+function lookupSendMoneyRecipientLocal(query) {
+    const value = String(query || "").trim();
+    if (!value) {
+        return { ok: false, error: "Enter a recipient email or wallet address." };
+    }
+
+    if (isValidEmail(value)) {
+        const key = findAccountKey(value) || normalizeEmail(value);
+        const account = getAccount(key);
+        if (!account) {
+            return { ok: false, found: false, error: "Recipient not found." };
+        }
+        return {
+            ok: true,
+            method: "email",
+            recipient: buildSendMoneyRecipientPreview(key, account)
+        };
+    }
+
+    if (!isValidGvWalletAddress(value)) {
+        return { ok: false, error: "Enter a valid GlobalVest email or wallet address." };
+    }
+
+    const target = value.toUpperCase();
+    const accounts = getAllAccounts();
+    const keys = Object.keys(accounts);
+    for (let i = 0; i < keys.length; i++) {
+        const email = keys[i];
+        const account = accounts[email];
+        if (!account) continue;
+        const wallet = ensureGvWallet(account, email);
+        if (String(wallet).toUpperCase() === target) {
+            return {
+                ok: true,
+                method: "wallet",
+                recipient: buildSendMoneyRecipientPreview(email, account)
+            };
+        }
+    }
+
+    return { ok: false, found: false, error: "Recipient not found." };
+}
+
+function lookupSendMoneyRecipientAsync(query) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve(lookupSendMoneyRecipientLocal(query));
+    }
+
+    return registryFetch("/api/send-money", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "lookup", recipient: query })
+    })
+        .then(function(response) { return response.json(); })
+        .catch(function() {
+            return lookupSendMoneyRecipientLocal(query);
+        });
+}
+
+function applySendMoneyBalanceDelta(account, currency, delta) {
+    currency = String(currency || "USD").toUpperCase();
+    delta = Number(delta);
+    if (currency === "USD") {
+        account.cash = Number(account.cash || 0) + delta;
+        return;
+    }
+    const key = SEND_MONEY_HOLDING_KEYS[currency];
+    if (!key) throw new Error("Invalid currency.");
+    ensureHoldings(account);
+    account.holdings[key] = Number(account.holdings[key] || 0) + delta;
+}
+
+function executeSendMoneyOffline(payload) {
+    const senderEmail = normalizeEmail(payload.senderEmail);
+    const lookup = lookupSendMoneyRecipientLocal(payload.recipient);
+    if (!lookup.ok || !lookup.recipient) {
+        return { ok: false, error: lookup.error || "Recipient not found." };
+    }
+
+    const recipientEmail = normalizeEmail(lookup.recipient.email);
+    if (recipientEmail === senderEmail) {
+        return { ok: false, error: "You cannot send money to yourself." };
+    }
+
+    const sender = getAccount(senderEmail);
+    const recipient = getAccount(recipientEmail);
+    if (!sender || !recipient) {
+        return { ok: false, error: "Sender or recipient account not found." };
+    }
+    if (isWithdrawalsFrozen(senderEmail)) {
+        return { ok: false, error: getWithdrawalsFrozenMessage(senderEmail) };
+    }
+    if (isWithdrawalsFrozen(recipientEmail)) {
+        return { ok: false, error: "Recipient account cannot receive transfers." };
+    }
+
+    const currency = String(payload.currency || "USD").toUpperCase();
+    const amount = Number(payload.amount);
+    if (!SEND_MONEY_CURRENCIES.includes(currency)) {
+        return { ok: false, error: "Invalid currency." };
+    }
+    if (!amount || amount <= 0) {
+        return { ok: false, error: "Enter a valid amount greater than zero." };
+    }
+
+    const fee = calculateSendMoneyFee(amount, currency);
+    const totalDebit = amount + fee;
+    const available = getSendMoneyBalance(sender, currency);
+    if (available < totalDebit) {
+        return { ok: false, error: "Insufficient balance." };
+    }
+
+    const reference = "GV-TXN-" + Date.now().toString(36).toUpperCase() + "-" +
+        Math.random().toString(36).slice(2, 8).toUpperCase();
+    const now = new Date().toISOString();
+    const txDate = new Date().toLocaleString();
+
+    applySendMoneyBalanceDelta(sender, currency, -totalDebit);
+    applySendMoneyBalanceDelta(recipient, currency, amount);
+
+    if (!Array.isArray(sender.sendMoneyHistory)) sender.sendMoneyHistory = [];
+    if (!Array.isArray(recipient.sendMoneyHistory)) recipient.sendMoneyHistory = [];
+
+    const transfer = {
+        id: "smt-" + Date.now(),
+        reference: reference,
+        senderEmail: senderEmail,
+        recipientEmail: recipientEmail,
+        senderWallet: ensureGvWallet(sender, senderEmail),
+        recipientWallet: ensureGvWallet(recipient, recipientEmail),
+        method: lookup.method,
+        currency: currency,
+        amount: amount,
+        fee: fee,
+        totalDebit: totalDebit,
+        status: "completed",
+        note: String(payload.note || "").trim().slice(0, 280),
+        ipAddress: payload.ipAddress || "",
+        deviceInfo: payload.deviceInfo || "",
+        createdAt: now,
+        completedAt: now
+    };
+
+    sender.transactions.unshift({
+        date: txDate,
+        description: "Send Money to " + maskSendMoneyEmail(recipientEmail) + " (" + reference + ")",
+        amount: currency === "USD" ? -totalDebit : 0
+    });
+    recipient.transactions.unshift({
+        date: txDate,
+        description: "Funds received from " + maskSendMoneyEmail(senderEmail) + " (" + reference + ")",
+        amount: currency === "USD" ? amount : 0
+    });
+
+    pushAccountNotification(sender,
+        "Transfer sent: " + amount + " " + currency + " to " + lookup.recipient.fullName + " — Ref " + reference,
+        { type: "transfer" }
+    );
+    pushAccountNotification(recipient,
+        "Funds received: " + amount + " " + currency + " from " + (sender.profile ? sender.profile.fullName : senderEmail) + " — Ref " + reference,
+        { type: "transfer" }
+    );
+
+    sender.sendMoneyHistory.unshift(Object.assign({}, transfer, { direction: "sent" }));
+    recipient.sendMoneyHistory.unshift(Object.assign({}, transfer, { direction: "received" }));
+
+    saveAccount(senderEmail, sender);
+    saveAccount(recipientEmail, recipient);
+
+    const admin = getAdminData();
+    if (!admin.internalTransfers) admin.internalTransfers = [];
+    if (!admin.sendMoneyAuditLog) admin.sendMoneyAuditLog = [];
+    admin.internalTransfers.unshift(transfer);
+    admin.sendMoneyAuditLog.unshift({
+        id: "audit-" + Date.now(),
+        transferId: transfer.id,
+        reference: reference,
+        action: "transfer-completed",
+        senderEmail: senderEmail,
+        recipientEmail: recipientEmail,
+        currency: currency,
+        amount: amount,
+        timestamp: now
+    });
+    saveAdminData(admin);
+
+    return {
+        ok: true,
+        transfer: transfer,
+        senderAccount: sender,
+        recipientAccount: recipient,
+        offline: true
+    };
+}
+
+function submitSendMoneyAsync(payload) {
+    payload = payload || {};
+    if (!payload.senderEmail) {
+        return Promise.resolve({ ok: false, error: "You must be logged in." });
+    }
+
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve(executeSendMoneyOffline(payload));
+    }
+
+    return registryFetch("/api/send-money", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "send",
+            senderEmail: payload.senderEmail,
+            recipient: payload.recipient,
+            currency: payload.currency,
+            amount: payload.amount,
+            note: payload.note,
+            ipAddress: payload.ipAddress,
+            deviceInfo: payload.deviceInfo,
+            idempotencyKey: payload.idempotencyKey
+        })
+    })
+        .then(function(response) { return response.json(); })
+        .then(function(result) {
+            if (!result.ok) return result;
+            if (result.senderAccount) {
+                applyServerAccountLocally(payload.senderEmail, result.senderAccount);
+            }
+            if (result.recipientAccount && result.transfer) {
+                applyServerAccountLocally(result.transfer.recipientEmail, result.recipientAccount);
+            }
+            return result;
+        })
+        .catch(function(err) {
+            return executeSendMoneyOffline(payload);
+        });
+}
+
+function getSendMoneyHistory(email, filters) {
+    filters = filters || {};
+    const account = getAccount(email);
+    if (!account) return [];
+    let history = Array.isArray(account.sendMoneyHistory) ? account.sendMoneyHistory.slice() : [];
+
+    if (filters.status && filters.status !== "all") {
+        history = history.filter(function(item) { return item.status === filters.status; });
+    }
+    if (filters.period && filters.period !== "all") {
+        const now = Date.now();
+        const ranges = { today: 86400000, week: 604800000, month: 2592000000, year: 31536000000 };
+        const ms = ranges[filters.period];
+        if (ms) {
+            history = history.filter(function(item) {
+                return now - new Date(item.createdAt).getTime() <= ms;
+            });
+        }
+    }
+    return history;
+}
+
+function getAdminInternalTransfers() {
+    const admin = getAdminData();
+    return {
+        transfers: admin.internalTransfers || [],
+        auditLog: admin.sendMoneyAuditLog || []
+    };
+}
+
+function reverseSendMoneyTransfer(transferId, reason) {
+    const admin = getAdminData();
+    const transfers = admin.internalTransfers || [];
+    const transfer = transfers.find(function(entry) {
+        return String(entry.id) === String(transferId);
+    });
+    if (!transfer) return { ok: false, error: "Transfer not found." };
+    if (transfer.status === "reversed") return { ok: false, error: "Already reversed." };
+
+    if (isServerSyncAvailable()) {
+        return registryFetch("/api/send-money", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                action: "reverse",
+                transferId: transferId,
+                reason: reason,
+                adminId: "admin"
+            })
+        }).then(function(response) { return response.json(); });
+    }
+
+    const sender = getAccount(transfer.senderEmail);
+    const recipient = getAccount(transfer.recipientEmail);
+    if (!sender || !recipient) return { ok: false, error: "Accounts not found." };
+
+    const currency = transfer.currency;
+    const amount = Number(transfer.amount);
+    const totalDebit = Number(transfer.totalDebit || amount);
+
+    if (getSendMoneyBalance(recipient, currency) < amount) {
+        return { ok: false, error: "Recipient has insufficient balance to reverse." };
+    }
+
+    applySendMoneyBalanceDelta(recipient, currency, -amount);
+    applySendMoneyBalanceDelta(sender, currency, totalDebit);
+    transfer.status = "reversed";
+    transfer.reversedAt = new Date().toISOString();
+    transfer.reverseReason = reason || "Reversed by admin";
+
+    pushAccountNotification(sender, "Transfer reversed — Ref " + transfer.reference, { type: "transfer" });
+    pushAccountNotification(recipient, "Transfer reversed — Ref " + transfer.reference, { type: "transfer" });
+
+    saveAccount(transfer.senderEmail, sender);
+    saveAccount(transfer.recipientEmail, recipient);
+    saveAdminData(admin);
+
+    return Promise.resolve({ ok: true, transfer: transfer, offline: true });
 }

@@ -568,6 +568,103 @@ function renderPendingTransfersAdmin() {
     }).join("");
 }
 
+let internalTransferFilterQuery = "";
+
+function renderInternalTransfersAdmin() {
+    const data = typeof getAdminInternalTransfers === "function"
+        ? getAdminInternalTransfers()
+        : { transfers: [], auditLog: [] };
+    const transfers = data.transfers || [];
+    const auditLog = data.auditLog || [];
+    const tbody = document.getElementById("internalTransfersBody");
+    const auditBody = document.getElementById("sendMoneyAuditBody");
+    const query = internalTransferFilterQuery.toLowerCase().trim();
+
+    if (tbody) {
+        let filtered = transfers;
+        if (query) {
+            filtered = transfers.filter(function(t) {
+                const hay = [
+                    t.reference, t.senderEmail, t.recipientEmail,
+                    t.senderWallet, t.recipientWallet, t.note, t.status
+                ].join(" ").toLowerCase();
+                return hay.indexOf(query) !== -1;
+            });
+        }
+
+        if (!filtered.length) {
+            tbody.innerHTML = '<tr><td colspan="8">No internal transfers found.</td></tr>';
+        } else {
+            tbody.innerHTML = filtered.map(function(t) {
+                const amt = (t.currency === "USD")
+                    ? formatMoney(t.amount)
+                    : t.amount + " " + t.currency;
+                const canReverse = t.status === "completed";
+                return '<tr>' +
+                    '<td>' + (t.createdAt ? new Date(t.createdAt).toLocaleString() : "—") + '</td>' +
+                    '<td><code>' + (t.reference || "—") + '</code></td>' +
+                    '<td>' + (t.senderEmail || "—") + '</td>' +
+                    '<td>' + (t.recipientEmail || "—") + '</td>' +
+                    '<td>' + amt + '</td>' +
+                    '<td>' + (t.method || "—") + '</td>' +
+                    '<td>' + (t.status || "—") + '</td>' +
+                    '<td class="admin-row-actions">' +
+                    (canReverse
+                        ? '<button type="button" class="admin-reject-btn admin-reverse-transfer" data-id="' + t.id + '">Reverse</button>'
+                        : "—") +
+                    '</td>' +
+                    '</tr>';
+            }).join("");
+        }
+    }
+
+    if (auditBody) {
+        if (!auditLog.length) {
+            auditBody.innerHTML = '<tr><td colspan="6">No audit entries yet.</td></tr>';
+        } else {
+            auditBody.innerHTML = auditLog.slice(0, 50).map(function(entry) {
+                const amt = entry.currency && entry.amount != null
+                    ? (entry.currency === "USD" ? formatMoney(entry.amount) : entry.amount + " " + entry.currency)
+                    : "—";
+                return '<tr>' +
+                    '<td>' + (entry.timestamp ? new Date(entry.timestamp).toLocaleString() : "—") + '</td>' +
+                    '<td>' + (entry.action || "—") + '</td>' +
+                    '<td><code>' + (entry.reference || "—") + '</code></td>' +
+                    '<td>' + (entry.senderEmail || "—") + '</td>' +
+                    '<td>' + (entry.recipientEmail || "—") + '</td>' +
+                    '<td>' + amt + '</td>' +
+                    '</tr>';
+            }).join("");
+        }
+    }
+}
+
+function exportInternalTransfersCsv() {
+    const data = getAdminInternalTransfers();
+    const rows = [["Date", "Reference", "Sender", "Recipient", "Amount", "Currency", "Method", "Status", "Note"]];
+    (data.transfers || []).forEach(function(t) {
+        rows.push([
+            t.createdAt ? new Date(t.createdAt).toLocaleString() : "",
+            t.reference || "",
+            t.senderEmail || "",
+            t.recipientEmail || "",
+            t.amount,
+            t.currency || "",
+            t.method || "",
+            t.status || "",
+            t.note || ""
+        ]);
+    });
+    const csv = rows.map(function(r) {
+        return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(",");
+    }).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "globalvest-internal-transfers.csv";
+    link.click();
+}
+
 function renderPendingDepositsAdmin() {
     const pending = getPendingDeposits();
     const countEl = document.getElementById("pendingDepositCount");
@@ -898,6 +995,7 @@ function renderDashboard(options) {
     renderActivityFeed();
     renderPendingDepositsAdmin();
     renderPendingTransfersAdmin();
+    renderInternalTransfersAdmin();
     loadWalletSettings();
     loadWebsiteSettingsForm();
     renderNotificationLog();
@@ -1427,7 +1525,59 @@ setInterval(function() {
         if (!result || !result.ok) return;
         renderPendingDepositsAdmin();
         renderPendingTransfersAdmin();
+        renderInternalTransfersAdmin();
         renderActivityFeed();
     });
 }, 8000);
+
+const internalSearch = document.getElementById("internalTransferSearch");
+if (internalSearch) {
+    internalSearch.addEventListener("input", function() {
+        internalTransferFilterQuery = internalSearch.value;
+        renderInternalTransfersAdmin();
+    });
+}
+
+const exportInternalCsvBtn = document.getElementById("exportInternalCsvBtn");
+if (exportInternalCsvBtn) {
+    exportInternalCsvBtn.addEventListener("click", exportInternalTransfersCsv);
+}
+
+const printInternalBtn = document.getElementById("printInternalBtn");
+if (printInternalBtn) {
+    printInternalBtn.addEventListener("click", function() {
+        const table = document.getElementById("internalTransfersTable");
+        if (!table) return;
+        const win = window.open("", "_blank");
+        win.document.write("<html><head><title>Internal Transfers</title></head><body>" + table.outerHTML + "</body></html>");
+        win.document.close();
+        win.print();
+    });
+}
+
+const internalTransfersBody = document.getElementById("internalTransfersBody");
+if (internalTransfersBody) {
+    internalTransfersBody.addEventListener("click", function(e) {
+        const reverseBtn = e.target.closest(".admin-reverse-transfer");
+        if (!reverseBtn) return;
+        const reason = prompt("Reason for reversing this transfer (required):");
+        if (!reason || !reason.trim()) return;
+        if (!confirm("Reverse transfer " + reverseBtn.dataset.id + "? This will restore sender balance and debit recipient.")) return;
+
+        reverseBtn.disabled = true;
+        const handler = typeof reverseSendMoneyTransfer === "function"
+            ? reverseSendMoneyTransfer(reverseBtn.dataset.id, reason.trim())
+            : Promise.resolve({ ok: false, error: "Reverse not available." });
+
+        Promise.resolve(handler).then(function(result) {
+            reverseBtn.disabled = false;
+            if (!result.ok) {
+                alert(result.error || "Could not reverse transfer.");
+                return;
+            }
+            alert("Transfer reversed successfully.");
+            renderDashboard();
+        });
+    });
+}
 })();

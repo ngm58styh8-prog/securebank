@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#070B18">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/brand.css">
+<title>GlobalVest — Send Money</title>
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/dashboard-premium.css">
+<link rel="stylesheet" href="css/luxury.css">
+<link rel="stylesheet" href="css/send-money.css">
+</head>
+<body class="luxury-app dashboard-premium send-money-page-body" data-theme="dark">
+
+<header>
+    <div class="header-left">
+        <h2>⇄ Send Money</h2>
+        <p>Instant transfers between GlobalVest members</p>
+    </div>
+    <div class="header-right">
+        <nav class="main-nav" id="mainNav">
+            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="exchange.html" class="nav-link" data-page="exchange">Exchange</a>
+            <a href="support.html" class="nav-link" data-page="support">Support</a>
+            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+        </nav>
+        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
+        <button id="themeToggle" class="icon-btn" type="button" title="Toggle dark mode">🌙</button>
+        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
+    </div>
+</header>
+
+<div class="container send-money-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<div class="sm-hero lv-animate-in">
+    <div class="sm-hero-glow"></div>
+    <h1>Send Money Securely</h1>
+    <p>Transfer to any registered GlobalVest member by email or wallet address.</p>
+    <div class="sm-wallet-chip">
+        <span class="sm-wallet-label">Your GlobalVest Wallet</span>
+        <code id="myWalletAddress">—</code>
+        <button type="button" class="sm-copy-btn" id="copyWalletBtn" title="Copy wallet">📋</button>
+    </div>
+</div>
+
+<div class="sm-grid">
+    <div class="sm-card lv-glass-card lv-animate-in">
+        <form id="sendMoneyForm" class="sm-form" novalidate>
+            <div class="sm-field">
+                <label class="form-label" for="recipientInput">Recipient</label>
+                <div class="sm-input-wrap">
+                    <input id="recipientInput" type="text" placeholder="Email or GlobalVest Wallet (GV…)" autocomplete="off" required>
+                    <button type="button" class="sm-lookup-btn" id="lookupBtn">Look up</button>
+                </div>
+                <p class="form-hint">Registered email address or GlobalVest wallet address only.</p>
+            </div>
+
+            <div id="recipientPreview" class="sm-recipient-preview hidden">
+                <div class="sm-recipient-avatar" id="recipientAvatar">GV</div>
+                <div class="sm-recipient-info">
+                    <div class="sm-recipient-name-row">
+                        <strong id="recipientName">—</strong>
+                        <span id="recipientBadge" class="sm-verified-badge hidden">✓ Verified</span>
+                    </div>
+                    <div class="sm-recipient-meta" id="recipientMeta">—</div>
+                    <div class="sm-recipient-masked" id="recipientMasked">—</div>
+                </div>
+            </div>
+
+            <div id="recipientNotFound" class="sm-not-found hidden">Recipient not found.</div>
+
+            <div class="sm-field-row">
+                <div class="sm-field">
+                    <label class="form-label" for="amountInput">Amount</label>
+                    <input id="amountInput" type="number" min="0" step="any" placeholder="0.00" required>
+                </div>
+                <div class="sm-field">
+                    <label class="form-label" for="currencySelect">Currency</label>
+                    <select id="currencySelect">
+                        <option value="USD">USD</option>
+                        <option value="BTC">BTC</option>
+                        <option value="ETH">ETH</option>
+                        <option value="USDT">USDT</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sm-field">
+                <label class="form-label" for="noteInput">Note <span class="sm-optional">(optional)</span></label>
+                <textarea id="noteInput" rows="2" maxlength="280" placeholder="What's this transfer for?"></textarea>
+            </div>
+
+            <div class="sm-summary lv-glass-card">
+                <div class="sm-summary-row">
+                    <span>Available Balance</span>
+                    <strong id="availableBalance">—</strong>
+                </div>
+                <div class="sm-summary-row">
+                    <span>Estimated Fee</span>
+                    <strong id="estimatedFee">Free</strong>
+                </div>
+                <div class="sm-summary-row sm-summary-total">
+                    <span>Total Debit</span>
+                    <strong id="totalDebit">—</strong>
+                </div>
+                <div class="sm-summary-row">
+                    <span>Transfer Reference</span>
+                    <code id="transferReference" class="sm-ref">Generated on send</code>
+                </div>
+            </div>
+
+            <div class="sm-actions">
+                <button type="button" class="sm-cancel-btn" id="cancelBtn">Cancel</button>
+                <button type="submit" class="sm-send-btn" id="sendBtn" disabled>
+                    <span class="sm-send-btn-text">Send Money</span>
+                    <span class="sm-send-btn-loader hidden"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <aside class="sm-side lv-animate-in">
+        <div class="sm-side-card lv-glass-card">
+            <h3>Transfer Preview</h3>
+            <div id="previewEmpty" class="sm-preview-empty">Enter recipient and amount to preview your transfer.</div>
+            <div id="previewContent" class="sm-preview-content hidden">
+                <div class="sm-preview-line"><span>To</span><strong id="previewRecipient">—</strong></div>
+                <div class="sm-preview-line"><span>Amount</span><strong id="previewAmount">—</strong></div>
+                <div class="sm-preview-line"><span>Method</span><strong id="previewMethod">—</strong></div>
+                <div class="sm-preview-line"><span>Fee</span><strong id="previewFee">—</strong></div>
+            </div>
+        </div>
+        <a href="transfer-history.html" class="sm-history-link">View transfer history →</a>
+    </aside>
+</div>
+
+</div>
+
+<div id="confirmOverlay" class="sm-modal-overlay hidden">
+    <div class="sm-modal lv-glass-card" role="dialog">
+        <h3>Confirm Transfer</h3>
+        <p id="confirmMessage">—</p>
+        <div class="sm-modal-actions">
+            <button type="button" class="sm-cancel-btn" id="confirmCancelBtn">Go Back</button>
+            <button type="button" class="sm-send-btn" id="confirmSendBtn">Confirm Send</button>
+        </div>
+    </div>
+</div>
+
+<div id="resultOverlay" class="sm-modal-overlay hidden">
+    <div class="sm-modal lv-glass-card sm-result-modal" role="dialog">
+        <div id="resultIcon" class="sm-result-icon success">✓</div>
+        <h3 id="resultTitle">Transfer Successful</h3>
+        <p id="resultMessage">—</p>
+        <div class="sm-modal-actions">
+            <a href="transfer-history.html" class="sm-send-btn sm-link-btn">View History</a>
+            <button type="button" class="sm-cancel-btn" id="resultCloseBtn">Done</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/send-money.js"></script>
+<script src="js/luxury-ui.js"></script>
+
+</body>
+</html>

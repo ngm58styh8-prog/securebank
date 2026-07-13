@@ -5,6 +5,7 @@
         { id: "section-dashboard", label: "Dashboard", icon: "📊", bottom: true },
         { id: "section-users", label: "Users", icon: "👤", bottom: true },
         { id: "section-activity", label: "Transactions", icon: "💳", bottom: true },
+        { id: "section-send-money", label: "Send Money", icon: "⇄", bottom: false },
         { id: "section-approvals", label: "Approvals", icon: "✅", bottom: false },
         { id: "section-support", label: "Support", icon: "💬", bottom: false },
         { id: "section-settings", label: "Settings", icon: "⚙️", bottom: true }

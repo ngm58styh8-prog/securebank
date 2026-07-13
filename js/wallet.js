@@ -12,7 +12,8 @@ let filtered = [];
 function classifyTransaction(t) {
     const d = t.description.toLowerCase();
     if (d.includes("deposit")) return "deposit";
-    if (d.includes("withdraw")) return "withdraw";
+    if (d.includes("send money") || d.includes("funds received")) return "transfer";
+    if (d.includes("withdraw") || d.includes("transfer request")) return "withdraw";
     if (d.includes("gold")) return "gold";
     if (d.includes("spy") || d.includes("qqq") || d.includes("vti")) return "investment";
     if (d.includes("aapl") || d.includes("googl") || d.includes("msft") || d.includes("nvda")) return "stock";

@@ -204,6 +204,9 @@ function ensureAdminRegistryShape(admin) {
     if (!Array.isArray(admin.pendingTransfers)) admin.pendingTransfers = [];
     if (!Array.isArray(admin.pendingDeposits)) admin.pendingDeposits = [];
     if (!Array.isArray(admin.notificationLog)) admin.notificationLog = [];
+    if (!Array.isArray(admin.internalTransfers)) admin.internalTransfers = [];
+    if (!Array.isArray(admin.sendMoneyAuditLog)) admin.sendMoneyAuditLog = [];
+    if (!admin.processedSendMoneyKeys) admin.processedSendMoneyKeys = {};
     return admin;
 }
 
