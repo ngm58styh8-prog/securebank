@@ -6,7 +6,10 @@ const {
     saveAdminRegistry,
     appendPendingDeposit,
     approvePendingDeposit,
-    rejectPendingDeposit
+    rejectPendingDeposit,
+    appendPendingTransfer,
+    approvePendingTransfer,
+    rejectPendingTransfer
 } = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
@@ -55,6 +58,34 @@ module.exports = async function handler(req, res) {
 
             if (body.action === "reject-deposit" && body.depositId) {
                 const result = await rejectPendingDeposit(body.depositId, body.reason);
+                res.status(200).json(result);
+                return;
+            }
+
+            if (body.action === "append-transfer" && body.transfer) {
+                const result = await appendPendingTransfer(body.transfer);
+                res.status(200).json({
+                    ok: true,
+                    transfer: result.transfer,
+                    pendingCount: result.pendingCount,
+                    pendingTransfers: result.pendingTransfers || [],
+                    account: result.account || null,
+                    duplicate: !!result.duplicate,
+                    emailSent: !!result.emailSent,
+                    emailSkipped: !!result.emailSkipped,
+                    emailError: result.emailError || null
+                });
+                return;
+            }
+
+            if (body.action === "approve-transfer" && body.transferId) {
+                const result = await approvePendingTransfer(body.transferId);
+                res.status(200).json(result);
+                return;
+            }
+
+            if (body.action === "reject-transfer" && body.transferId) {
+                const result = await rejectPendingTransfer(body.transferId, body.reason);
                 res.status(200).json(result);
                 return;
             }

@@ -745,15 +745,24 @@ function confirmModal(e) {
         return;
     }
 
-    const result = submitTransferRequest(username, amount, destination, method);
-    if (!result.ok) {
-        alert(result.error);
-        return;
-    }
+    const submitHandler = typeof submitTransferRequestAsync === "function"
+        ? submitTransferRequestAsync(username, amount, destination, method)
+        : Promise.resolve(submitTransferRequest(username, amount, destination, method));
 
-    reloadAccountFromRegistry();
-    closeModal();
-    alert("Transfer submitted for admin approval. Your balance is not affected until an admin approves it.\n\nA confirmation email was sent to your inbox.");
+    submitHandler.then(function(result) {
+        if (!result.ok) {
+            alert(result.error);
+            return;
+        }
+
+        reloadAccountFromRegistry();
+        closeModal();
+        if (typeof showToast === "function") {
+            showToast("Withdrawal submitted for admin approval.");
+        } else {
+            alert("Withdrawal submitted for admin approval.");
+        }
+    });
 }
 
 function applyTheme(theme) {

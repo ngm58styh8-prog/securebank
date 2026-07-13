@@ -4,6 +4,11 @@ const {
     sendDepositCreditedEmailSafely,
     sendDepositDeclinedEmailSafely
 } = require("./deposit-emails");
+const {
+    sendWithdrawalReceivedEmailSafely,
+    sendWithdrawalProcessedEmailSafely,
+    sendWithdrawalDeclinedEmailSafely
+} = require("./withdrawal-emails");
 
 const ACCOUNTS_TABLE = "user_accounts";
 const ADMIN_TABLE = "admin_registry";
@@ -125,6 +130,9 @@ async function upsertAccount(email, account, options) {
         }
         if (Array.isArray(account.pendingDeposits)) {
             merged.pendingDeposits = account.pendingDeposits;
+        }
+        if (Array.isArray(account.pendingTransfers)) {
+            merged.pendingTransfers = account.pendingTransfers;
         }
         if (Array.isArray(account.notifications) || Array.isArray(existing.account.notifications)) {
             merged.notifications = mergeNotificationLists(
@@ -792,6 +800,430 @@ async function rejectPendingDeposit(depositId, reason) {
     };
 }
 
+function normalizePendingTransfer(transfer) {
+    if (!transfer || typeof transfer !== "object") {
+        throw new Error("Missing or invalid transfer payload.");
+    }
+
+    const key = normalizeRegistryEmail(transfer.userEmail);
+    if (!key || key.indexOf("@") === -1) {
+        throw new Error("Missing or invalid user email.");
+    }
+
+    const amount = Number(transfer.amount);
+    if (!amount || amount <= 0 || isNaN(amount)) {
+        throw new Error("Missing or invalid transfer amount.");
+    }
+
+    return {
+        id: String(transfer.id || ("tx-" + Date.now())),
+        userEmail: key,
+        userName: String(transfer.userName || key),
+        amount: amount,
+        destination: String(transfer.destination || "Bank Account").trim(),
+        method: transfer.method || "bank",
+        status: transfer.status || "pending",
+        requestedAt: transfer.requestedAt || new Date().toISOString(),
+        date: transfer.date || new Date().toLocaleString()
+    };
+}
+
+function getPendingTransfersFromAdmin(admin) {
+    if (!admin || !Array.isArray(admin.pendingTransfers)) return [];
+    return admin.pendingTransfers.filter(function(entry) {
+        return entry && (!entry.status || entry.status === "pending");
+    });
+}
+
+function findPendingTransferInAdmin(admin, transferId) {
+    if (!admin || !Array.isArray(admin.pendingTransfers)) return null;
+    return admin.pendingTransfers.find(function(entry) {
+        return String(entry.id) === String(transferId);
+    }) || null;
+}
+
+async function mirrorPendingTransferOnUserAccount(transfer) {
+    const key = normalizeRegistryEmail(transfer.userEmail);
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) {
+        console.warn("[registry] mirrorPendingTransfer skipped — account not found", { userEmail: key });
+        return null;
+    }
+
+    const pendingTransfers = Array.isArray(account.pendingTransfers) ? account.pendingTransfers.slice() : [];
+    const exists = pendingTransfers.some(function(entry) {
+        return String(entry.id) === String(transfer.id);
+    });
+    if (!exists) {
+        pendingTransfers.push({
+            id: transfer.id,
+            amount: transfer.amount,
+            destination: transfer.destination,
+            status: "pending",
+            date: transfer.date
+        });
+    }
+
+    const updated = Object.assign({}, account, { pendingTransfers: pendingTransfers });
+    updated.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+    updated.transactions.unshift({
+        date: transfer.date,
+        description: "Transfer Request (Pending) — " + transfer.destination,
+        amount: 0
+    });
+    updated.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    updated.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Withdrawal request of $" + Number(transfer.amount).toFixed(2) +
+            " to " + transfer.destination + " submitted — awaiting admin approval",
+        time: new Date().toISOString(),
+        read: false,
+        type: "withdrawal"
+    });
+    if (updated.notifications.length > 30) {
+        updated.notifications = updated.notifications.slice(0, 30);
+    }
+
+    const saved = await upsertAccount(key, updated, {
+        eventType: "transfer-submit",
+        source: "mirrorPendingTransferOnUserAccount"
+    });
+    return saved.account;
+}
+
+function recordAdminWithdrawalPayment(admin, transfer) {
+    admin.payments = admin.payments || [];
+    admin.payments.unshift({
+        id: Date.now() + Math.random(),
+        userEmail: transfer.userEmail,
+        userName: transfer.userName || transfer.userEmail,
+        type: "withdraw",
+        amount: transfer.amount,
+        method: transfer.method || "bank",
+        date: new Date().toLocaleString()
+    });
+}
+
+async function appendPendingTransfer(transfer) {
+    const normalized = normalizePendingTransfer(transfer);
+    const admin = await ensureAdminRegistry();
+    if (!Array.isArray(admin.pendingTransfers)) admin.pendingTransfers = [];
+
+    const duplicate = admin.pendingTransfers.find(function(entry) {
+        return String(entry.id) === String(normalized.id);
+    });
+    if (duplicate) {
+        let account = null;
+        try {
+            account = await mirrorPendingTransferOnUserAccount(duplicate);
+        } catch (mirrorErr) {
+            console.error("[registry] appendPendingTransfer duplicate mirror failed:", mirrorErr.message || mirrorErr);
+        }
+        return {
+            ok: true,
+            duplicate: true,
+            transfer: duplicate,
+            pendingCount: getPendingTransfersFromAdmin(admin).length,
+            pendingTransfers: getPendingTransfersFromAdmin(admin),
+            account: account,
+            emailSent: !!duplicate.submittedEmailSentAt
+        };
+    }
+
+    admin.pendingTransfers.unshift(normalized);
+    ensureAdminRegistryShape(admin);
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: normalized.date,
+        userEmail: normalized.userEmail,
+        userName: normalized.userName,
+        type: "withdrawal",
+        description: "Withdrawal request submitted — " + normalized.destination,
+        amount: -normalized.amount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    await saveAdminRegistry(admin);
+
+    let account = null;
+    try {
+        account = await mirrorPendingTransferOnUserAccount(normalized);
+    } catch (mirrorErr) {
+        console.error("[registry] appendPendingTransfer account mirror failed:", mirrorErr.message || mirrorErr);
+        try {
+            const accounts = await loadAllAccounts();
+            account = accounts[normalized.userEmail] || null;
+        } catch (loadErr) {
+            console.error("[registry] appendPendingTransfer account load failed:", loadErr.message || loadErr);
+        }
+    }
+
+    const emailResult = await sendWithdrawalReceivedEmailSafely(normalized, account, admin);
+    if (emailResult.sent) {
+        normalized.submittedEmailSentAt = new Date().toISOString();
+        const entry = admin.pendingTransfers.find(function(item) {
+            return String(item.id) === String(normalized.id);
+        });
+        if (entry) {
+            entry.submittedEmailSentAt = normalized.submittedEmailSentAt;
+            await saveAdminRegistry(admin);
+        }
+    }
+
+    return {
+        ok: true,
+        transfer: normalized,
+        pendingCount: getPendingTransfersFromAdmin(admin).length,
+        pendingTransfers: getPendingTransfersFromAdmin(admin),
+        account: account,
+        duplicate: false,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
+async function approvePendingTransfer(transferId) {
+    const admin = await ensureAdminRegistry();
+    const transfer = findPendingTransferInAdmin(admin, transferId);
+    if (!transfer) {
+        throw new Error("Transfer request not found.");
+    }
+    if (transfer.status && transfer.status !== "pending") {
+        return {
+            ok: true,
+            alreadyResolved: true,
+            status: transfer.status,
+            email: transfer.userEmail,
+            emailSent: !!(transfer.approvedEmailSentAt || transfer.rejectedEmailSentAt)
+        };
+    }
+
+    const key = normalizeRegistryEmail(transfer.userEmail);
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) {
+        throw new Error("User account not found.");
+    }
+
+    const balanceBefore = Number(account.cash || 0);
+    const transferAmount = Number(transfer.amount);
+    if (balanceBefore < transferAmount) {
+        throw new Error("User no longer has sufficient funds.");
+    }
+    const balanceAfter = balanceBefore - transferAmount;
+
+    console.log("[registry] transfer approval started", {
+        userEmail: key,
+        transferId: transfer.id,
+        balanceBefore: balanceBefore,
+        transferAmount: transferAmount,
+        balanceAfter: balanceAfter
+    });
+
+    const updatedAccount = Object.assign({}, account);
+    updatedAccount.cash = balanceAfter;
+    updatedAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+    updatedAccount.transactions.unshift({
+        date: new Date().toLocaleString(),
+        description: "Transfer Approved — " + transfer.destination,
+        amount: -transferAmount
+    });
+    if (Array.isArray(updatedAccount.pendingTransfers)) {
+        updatedAccount.pendingTransfers = updatedAccount.pendingTransfers.filter(function(item) {
+            return String(item.id) !== String(transferId);
+        });
+    }
+    updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    updatedAccount.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Withdrawal of $" + transferAmount.toFixed(2) + " to " + transfer.destination + " was approved",
+        time: new Date().toISOString(),
+        read: false,
+        type: "withdrawal"
+    });
+    if (updatedAccount.notifications.length > 30) {
+        updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
+    }
+
+    let saved;
+    try {
+        saved = await upsertAccount(key, updatedAccount, {
+            cashAuthoritative: true,
+            eventType: "transfer-approve",
+            source: "approvePendingTransfer"
+        });
+    } catch (err) {
+        console.error("[registry] transfer approval balance update failed", {
+            userEmail: key,
+            transferId: transfer.id,
+            error: err && err.message ? err.message : String(err)
+        });
+        throw err;
+    }
+
+    transfer.status = "approved";
+    transfer.resolvedAt = new Date().toISOString();
+    recordAdminWithdrawalPayment(admin, transfer);
+
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: transfer.resolvedAt,
+        userEmail: transfer.userEmail,
+        userName: transfer.userName || transfer.userEmail,
+        type: "withdrawal",
+        description: "Withdrawal approved and processed",
+        amount: -transferAmount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    try {
+        await saveAdminRegistry(admin);
+    } catch (err) {
+        console.error("[registry] transfer approval admin save failed — rolling back balance", {
+            userEmail: key,
+            transferId: transfer.id,
+            error: err && err.message ? err.message : String(err)
+        });
+        const rollbackAccount = Object.assign({}, account);
+        rollbackAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+        await upsertAccount(key, rollbackAccount, {
+            cashAuthoritative: true,
+            eventType: "transfer-approve-rollback",
+            source: "approvePendingTransfer"
+        });
+        throw err;
+    }
+
+    const emailResult = await sendWithdrawalProcessedEmailSafely(transfer, saved.account, admin);
+    if (emailResult.sent) {
+        transfer.approvedEmailSentAt = new Date().toISOString();
+        await saveAdminRegistry(admin);
+    }
+
+    return {
+        ok: true,
+        email: key,
+        account: saved.account,
+        amount: transferAmount,
+        method: transfer.method,
+        transferId: transfer.id,
+        balanceBefore: balanceBefore,
+        balanceAfter: saved.account.cash,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
+async function rejectPendingTransfer(transferId, reason) {
+    const admin = await ensureAdminRegistry();
+    const transfer = findPendingTransferInAdmin(admin, transferId);
+    if (!transfer) {
+        throw new Error("Transfer request not found.");
+    }
+    if (transfer.status && transfer.status !== "pending") {
+        return {
+            ok: true,
+            alreadyResolved: true,
+            status: transfer.status,
+            email: transfer.userEmail,
+            emailSent: !!(transfer.approvedEmailSentAt || transfer.rejectedEmailSentAt)
+        };
+    }
+
+    const key = normalizeRegistryEmail(transfer.userEmail);
+    const rejectionReason = String(reason || "Rejected by admin").trim() || "Rejected by admin";
+
+    transfer.status = "rejected";
+    transfer.resolvedAt = new Date().toISOString();
+    transfer.rejectReason = rejectionReason;
+
+    let account = null;
+    try {
+        const accounts = await loadAllAccounts();
+        account = accounts[key] || null;
+    } catch (loadErr) {
+        console.error("[registry] rejectPendingTransfer account load failed:", loadErr.message || loadErr);
+    }
+
+    if (account) {
+        account = Object.assign({}, account);
+        account.transactions = Array.isArray(account.transactions) ? account.transactions : [];
+        account.transactions.unshift({
+            date: new Date().toLocaleString(),
+            description: "Transfer Rejected — " + transfer.destination,
+            amount: 0
+        });
+        if (Array.isArray(account.pendingTransfers)) {
+            account.pendingTransfers = account.pendingTransfers.filter(function(item) {
+                return String(item.id) !== String(transferId);
+            });
+        }
+        account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
+        account.notifications.unshift({
+            id: Date.now() + Math.random(),
+            message: "Withdrawal of $" + Number(transfer.amount).toFixed(2) + " was rejected" +
+                (rejectionReason ? ": " + rejectionReason : ""),
+            time: new Date().toISOString(),
+            read: false,
+            type: "withdrawal"
+        });
+        if (account.notifications.length > 30) {
+            account.notifications = account.notifications.slice(0, 30);
+        }
+
+        try {
+            const saved = await upsertAccount(key, account, {
+                eventType: "transfer-reject",
+                source: "rejectPendingTransfer"
+            });
+            account = saved.account;
+        } catch (saveErr) {
+            console.error("[registry] rejectPendingTransfer account save failed:", saveErr.message || saveErr);
+        }
+    }
+
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: transfer.resolvedAt,
+        userEmail: transfer.userEmail,
+        userName: transfer.userName || transfer.userEmail,
+        type: "withdrawal",
+        description: "Withdrawal rejected",
+        amount: 0
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    await saveAdminRegistry(admin);
+
+    const emailResult = await sendWithdrawalDeclinedEmailSafely(transfer, account, admin, rejectionReason);
+    if (emailResult.sent) {
+        transfer.rejectedEmailSentAt = new Date().toISOString();
+        await saveAdminRegistry(admin);
+    }
+
+    return {
+        ok: true,
+        email: key,
+        account: account,
+        amount: transfer.amount,
+        method: transfer.method,
+        reason: rejectionReason,
+        transferId: transfer.id,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
 module.exports = {
     normalizeRegistryEmail,
     isRegistryConfigured,
@@ -805,5 +1237,8 @@ module.exports = {
     saveAdminRegistry,
     appendPendingDeposit,
     approvePendingDeposit,
-    rejectPendingDeposit
+    rejectPendingDeposit,
+    appendPendingTransfer,
+    approvePendingTransfer,
+    rejectPendingTransfer
 };

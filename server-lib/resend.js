@@ -28,6 +28,17 @@ async function sendTransactionalEmail(options) {
         console.warn("[resend] deliverability:", warnings.join(" "));
     }
 
+    const category = (options.tags || []).find(function(tag) {
+        return tag && tag.name === "category";
+    });
+    const logMeta = {
+        to: options.to,
+        subject: options.subject,
+        category: category && category.value ? category.value : "transactional"
+    };
+
+    console.log("[resend] attempt", logMeta);
+
     const resend = getResendClient();
     const payload = {
         from: options.from || getFromAddress(),
@@ -43,8 +54,15 @@ async function sendTransactionalEmail(options) {
     const { data, error } = await resend.emails.send(payload);
 
     if (error) {
+        console.error("[resend] failed", Object.assign({}, logMeta, {
+            error: error.message || "Failed to send email via Resend."
+        }));
         throw new Error(error.message || "Failed to send email via Resend.");
     }
+
+    console.log("[resend] sent", Object.assign({}, logMeta, {
+        id: data && data.id ? data.id : null
+    }));
 
     return data;
 }

@@ -22,6 +22,14 @@ function formatPaymentType(type) {
     return type;
 }
 
+function adminNotify(message, type) {
+    if (typeof showAdminToast === "function") {
+        showAdminToast(message, type || "success");
+        return;
+    }
+    alert(message);
+}
+
 function isPositivePayment(type) {
     return type === "deposit" || type === "admin-credit";
 }
@@ -1372,19 +1380,47 @@ document.getElementById("pendingTransfersBody").addEventListener("click", functi
     const rejectBtn = e.target.closest(".admin-reject-btn");
 
     if (approveBtn && !approveBtn.classList.contains("admin-approve-deposit")) {
-        const result = approveTransfer(approveBtn.dataset.id);
-        if (!result.ok) { alert(result.error); return; }
-        alert("Transfer approved — user debited and confirmation email sent.");
-        renderDashboard();
+        const btn = approveBtn;
+        btn.disabled = true;
+        const approveHandler = typeof approveTransferAsync === "function"
+            ? approveTransferAsync(approveBtn.dataset.id)
+            : Promise.resolve(approveTransfer(approveBtn.dataset.id));
+
+        approveHandler.then(function(result) {
+            btn.disabled = false;
+            if (!result.ok) {
+                adminNotify(result.error, "info");
+                return;
+            }
+            adminNotify("Transfer approved.");
+            renderDashboard({ skipReconcile: true });
+        }).catch(function(err) {
+            btn.disabled = false;
+            adminNotify(err.message || "Could not approve transfer.", "info");
+        });
+        return;
     }
 
     if (rejectBtn && !rejectBtn.classList.contains("admin-reject-deposit")) {
         const reason = prompt("Rejection reason (optional):");
         if (reason === null) return;
-        const result = rejectTransfer(rejectBtn.dataset.id, reason.trim());
-        if (!result.ok) { alert(result.error); return; }
-        alert("Transfer rejected — user notified by email.");
-        renderDashboard();
+        const rejectHandler = typeof rejectTransferAsync === "function"
+            ? rejectTransferAsync(rejectBtn.dataset.id, reason.trim())
+            : Promise.resolve(rejectTransfer(rejectBtn.dataset.id, reason.trim()));
+
+        rejectBtn.disabled = true;
+        rejectHandler.then(function(result) {
+            rejectBtn.disabled = false;
+            if (!result.ok) {
+                adminNotify(result.error, "info");
+                return;
+            }
+            adminNotify("Transfer rejected.");
+            renderDashboard({ skipReconcile: true });
+        }).catch(function(err) {
+            rejectBtn.disabled = false;
+            adminNotify(err.message || "Could not reject transfer.", "info");
+        });
     }
 });
 
@@ -1402,17 +1438,14 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
         approveHandler.then(function(result) {
             btn.disabled = false;
             if (!result.ok) {
-                alert(result.error || "Could not approve deposit.");
+                adminNotify(result.error || "Could not approve deposit.", "info");
                 return;
             }
-            const emailNote = result.emailSent === false
-                ? "User account credited. Confirmation email could not be sent."
-                : "Deposit approved — user account credited and confirmation email sent.";
-            alert(emailNote);
+            adminNotify("Deposit approved — account credited.");
             renderDashboard({ skipReconcile: true });
         }).catch(function(err) {
             btn.disabled = false;
-            alert(err.message || "Could not approve deposit.");
+            adminNotify(err.message || "Could not approve deposit.", "info");
         });
         return;
     }
@@ -1428,17 +1461,14 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
         rejectHandler.then(function(result) {
             rejectBtn.disabled = false;
             if (!result.ok) {
-                alert(result.error || "Could not reject deposit.");
+                adminNotify(result.error || "Could not reject deposit.", "info");
                 return;
             }
-            const emailNote = result.emailSent === false
-                ? "Deposit rejected. Email notification could not be sent."
-                : "Deposit rejected — user notified by email.";
-            alert(emailNote);
+            adminNotify("Deposit rejected.");
             renderDashboard({ skipReconcile: true });
         }).catch(function(err) {
             rejectBtn.disabled = false;
-            alert(err.message || "Could not reject deposit.");
+            adminNotify(err.message || "Could not reject deposit.", "info");
         });
     }
 });
@@ -1513,6 +1543,9 @@ setInterval(function() {
             if (!result || !result.ok) return;
             if (typeof linkAccountPendingDepositsToAdmin === "function") {
                 linkAccountPendingDepositsToAdmin();
+            }
+            if (typeof linkAccountPendingTransfersToAdmin === "function") {
+                linkAccountPendingTransfersToAdmin();
             }
             renderPendingDepositsAdmin();
             renderPendingTransfersAdmin();

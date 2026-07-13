@@ -146,6 +146,8 @@ function buildTransactionalHeaders(recipientEmail, referenceId) {
         "X-Auto-Response-Suppress": "All",
         "X-Entity-Ref-ID": referenceId,
         "X-Priority": "3",
+        Precedence: "auto",
+        "Auto-Submitted": "auto-generated",
         "Message-ID": buildMessageId(recipientEmail)
     };
 
@@ -492,9 +494,13 @@ function buildTransactionalEmailContent(subject, textBody, recipientEmail, optio
         "<head>" +
         '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">' +
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+        '<meta name="color-scheme" content="light">' +
         "<title>" + safeSubject + "</title>" +
         "</head>" +
         '<body style="margin:0;padding:0;background-color:#f4f6f8;color:#1f2937;">' +
+        '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">' +
+        escapeHtml(headline) + " — " + BRAND_NAME +
+        "</div>" +
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f4f6f8;">' +
         "<tr><td align=\"center\" style=\"padding:32px 16px;\">" +
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;background-color:#ffffff;border:1px solid #e5e7eb;border-radius:8px;">' +

@@ -100,6 +100,29 @@ After 2–4 weeks of clean sending with aligned SPF/DKIM, tighten policy:
 - Physical address in footer
 - Support email and website in footer
 
+## Email triggers (transactional)
+
+| Event | Module | Categories |
+|-------|--------|------------|
+| Deposit submitted | `server-lib/deposit-emails.js` | `deposit-received` |
+| Deposit approved | `server-lib/deposit-emails.js` | `deposit-credited` |
+| Deposit rejected | `server-lib/deposit-emails.js` | `deposit-declined` |
+| Withdrawal submitted | `server-lib/withdrawal-emails.js` | `withdrawal-received` |
+| Withdrawal approved | `server-lib/withdrawal-emails.js` | `withdrawal-processed` |
+| Withdrawal rejected | `server-lib/withdrawal-emails.js` | `withdrawal-declined` |
+| Send Money (sent) | `server-lib/send-money-emails.js` | `send-money-sent` |
+| Send Money (received) | `server-lib/send-money-emails.js` | `send-money-received` |
+| Sign-in code | `server-lib/resend.js` | `email_verification` |
+
+Run tests:
+
+```bash
+npm run test:deposit-emails
+npm run test:withdrawal-emails
+npm run test:email-flow
+npm run test:email-flow -- you@example.com   # live send (requires RESEND_API_KEY)
+```
+
 ## Code architecture
 
 ```

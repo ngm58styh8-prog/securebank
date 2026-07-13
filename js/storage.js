@@ -100,8 +100,13 @@ function bootstrapAdminRegistry() {
         .then(function() {
             repairAccountsStorage();
             linkAccountPendingDepositsToAdmin();
+            linkAccountPendingTransfersToAdmin();
             syncAdminRegisteredUsers(getAdminData());
-            return { ok: true, pendingDeposits: getPendingDeposits().length };
+            return {
+                ok: true,
+                pendingDeposits: getPendingDeposits().length,
+                pendingTransfers: getPendingTransfers().length
+            };
         })
         .catch(function(err) {
             return { ok: false, error: String(err) };
@@ -498,7 +503,7 @@ function getTransactionEmailMeta(account, userEmail) {
     const profile = account.profile || {};
     return {
         siteName: ws.siteName || "GlobalVest",
-        supportEmail: ws.supportEmail || "support@globalvest.com",
+        supportEmail: ws.supportEmail || "support@globalvestbank.com",
         fullName: profile.fullName || userEmail
     };
 }
@@ -1550,6 +1555,7 @@ function refreshUnifiedRegistry(options) {
         ]);
     }).then(function() {
         linkAccountPendingDepositsToAdmin();
+        linkAccountPendingTransfersToAdmin();
         if (options.repairDeposits !== false) {
             return syncOrphanAccountDepositsToAdmin();
         }
@@ -1559,6 +1565,7 @@ function refreshUnifiedRegistry(options) {
         return {
             ok: true,
             pendingDeposits: getPendingDeposits().length,
+            pendingTransfers: getPendingTransfers().length,
             accountCount: Object.keys(getMergedAccountsRegistry()).length,
             repair: repairResult
         };
@@ -1643,6 +1650,7 @@ function pullAdminFromServer() {
             const admin = ensureAdminDataShape(migrateAdminBranding(payload.admin));
             mergeServerAdminLocally(admin);
             linkAccountPendingDepositsToAdmin();
+            linkAccountPendingTransfersToAdmin();
             syncAdminRegisteredUsers(getAdminData());
             return { ok: true, admin: admin };
         })
@@ -1887,6 +1895,143 @@ function rejectDepositOnServer(depositId, reason) {
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };
         });
+}
+
+function appendPendingTransferOnServer(transfer) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "append-transfer",
+            transfer: transfer
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not submit transfer to admin."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function approveTransferOnServer(transferId) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "approve-transfer",
+            transferId: transferId
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not approve transfer on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function rejectTransferOnServer(transferId, reason) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "reject-transfer",
+            transferId: transferId,
+            reason: reason || ""
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not reject transfer on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function applyPendingTransferToLocalRegistry(transfer, pendingTransfers) {
+    const admin = getAdminData();
+    if (!Array.isArray(admin.pendingTransfers)) admin.pendingTransfers = [];
+
+    const exists = admin.pendingTransfers.some(function(entry) {
+        return String(entry.id) === String(transfer.id);
+    });
+    if (!exists) {
+        admin.pendingTransfers.unshift(transfer);
+    } else if (Array.isArray(pendingTransfers)) {
+        admin.pendingTransfers = pendingTransfers.slice();
+    }
+    saveAdminData(admin, { skipServerSync: true });
+}
+
+function mergeServerTransferResolutionLocally(serverResult) {
+    if (!serverResult || !serverResult.email) return;
+
+    const key = normalizeEmail(serverResult.email);
+    if (serverResult.account) {
+        applyServerAccountLocally(key, serverResult.account);
+    }
+
+    if (serverResult.transferId) {
+        const admin = getAdminData();
+        if (Array.isArray(admin.pendingTransfers)) {
+            admin.pendingTransfers = admin.pendingTransfers.map(function(entry) {
+                if (String(entry.id) !== String(serverResult.transferId)) return entry;
+                return Object.assign({}, entry, {
+                    status: serverResult.reason ? "rejected" : "approved",
+                    resolvedAt: new Date().toLocaleString(),
+                    rejectReason: serverResult.reason || entry.rejectReason
+                });
+            });
+            saveAdminData(admin, { skipServerSync: true });
+        }
+        resolveTransferOnAccount(
+            key,
+            serverResult.transferId,
+            serverResult.reason
+                ? "Withdrawal of $" + Number(serverResult.amount || 0).toFixed(2) + " was rejected" +
+                    (serverResult.reason ? ": " + serverResult.reason : "")
+                : "Withdrawal of $" + Number(serverResult.amount || 0).toFixed(2) +
+                    " to your destination was approved",
+            { type: "withdrawal" }
+        );
+    }
 }
 
 function mergeServerDepositResolutionLocally(serverResult) {
@@ -2629,9 +2774,24 @@ function getUserPendingTransferTotal(userEmail) {
 }
 
 function getPendingTransfers() {
-    return (getAdminData().pendingTransfers || []).filter(function(t) {
-        return t.status === "pending";
-    });
+    const seen = {};
+    const merged = [];
+
+    function addTransfer(t) {
+        if (!t) return;
+        if (t.status && t.status !== "pending") return;
+
+        const idKey = t.id != null ? String(t.id) : "";
+        const fallbackKey = normalizeEmail(t.userEmail) + ":" + String(t.amount) + ":" + String(t.date || "");
+        const key = idKey || fallbackKey;
+        if (seen[key]) return;
+        seen[key] = true;
+        merged.push(t);
+    }
+
+    (getAdminData().pendingTransfers || []).forEach(addTransfer);
+    getPendingTransfersFromAccounts().forEach(addTransfer);
+    return merged;
 }
 
 function getUserPendingTransfers(userEmail) {
@@ -2705,10 +2865,64 @@ function submitTransferRequest(userEmail, amount, destination, method) {
         { type: "withdrawal" }
     );
 
-    sendWithdrawalSubmittedEmail(account, key, amount, dest, transfer.method);
     saveAccount(key, account);
     recordAdminUserEvent(key, "withdrawal", "Withdrawal request submitted — " + dest, -amount);
-    return { ok: true, transfer: transfer };
+    return { ok: true, transfer: transfer, account: account };
+}
+
+function submitTransferRequestAsync(userEmail, amount, destination, method) {
+    const result = submitTransferRequest(userEmail, amount, destination, method);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    const key = normalizeEmail(userEmail);
+
+    return syncAccountToServer(key, result.account || getAccount(key), "transfer-submit")
+        .then(function(syncResult) {
+            if (!syncResult || (!syncResult.ok && !syncResult.offline)) {
+                throw new Error((syncResult && syncResult.error) || "Could not save transfer to your account.");
+            }
+            if (syncResult.account) {
+                applyServerAccountLocally(key, syncResult.account);
+            }
+            return appendPendingTransferOnServer(result.transfer);
+        })
+        .then(function(serverResult) {
+            if (!serverResult || (!serverResult.ok && !serverResult.offline)) {
+                throw new Error((serverResult && serverResult.error) || "Could not send transfer to admin.");
+            }
+
+            if (serverResult.offline) {
+                return sendWithdrawalSubmittedEmail(
+                    getAccount(key),
+                    key,
+                    amount,
+                    destination,
+                    method
+                ).then(function(emailResult) {
+                    return {
+                        ok: true,
+                        transfer: result.transfer,
+                        emailSent: !!(emailResult && emailResult.ok)
+                    };
+                });
+            }
+
+            applyPendingTransferToLocalRegistry(serverResult.transfer, serverResult.pendingTransfers);
+            if (serverResult.account) {
+                applyServerAccountLocally(key, serverResult.account);
+            }
+
+            return {
+                ok: true,
+                transfer: result.transfer,
+                emailSent: serverResult.emailSent !== false
+            };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function resolveTransferOnAccount(userEmail, transferId, message, options) {
@@ -2804,6 +3018,94 @@ function rejectTransfer(transferId, reason) {
     );
 
     return { ok: true, emailQueued: true };
+}
+
+function approveTransferAsync(transferId) {
+    return approveTransferOnServer(transferId)
+        .then(function(serverResult) {
+            if (serverResult && serverResult.offline) {
+                return approveTransferOfflineAsync(transferId);
+            }
+            if (!serverResult || !serverResult.ok) {
+                return {
+                    ok: false,
+                    error: (serverResult && serverResult.error) || "Could not approve transfer."
+                };
+            }
+            mergeServerTransferResolutionLocally(serverResult);
+            return pullAdminFromServer().then(function() {
+                return {
+                    ok: true,
+                    emailSent: serverResult.emailSent !== false
+                };
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function approveTransferOfflineAsync(transferId) {
+    const result = approveTransfer(transferId);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    const admin = getAdminData();
+    return syncAdminToServer(admin)
+        .then(function(syncResult) {
+            if (syncResult && syncResult.ok === false && !syncResult.offline) {
+                throw new Error((syncResult && syncResult.error) || "Failed to save approval on server.");
+            }
+            return { ok: true, emailSent: !!result.emailQueued };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function rejectTransferAsync(transferId, reason) {
+    return rejectTransferOnServer(transferId, reason)
+        .then(function(serverResult) {
+            if (serverResult && serverResult.offline) {
+                return rejectTransferOfflineAsync(transferId, reason);
+            }
+            if (!serverResult || !serverResult.ok) {
+                return {
+                    ok: false,
+                    error: (serverResult && serverResult.error) || "Could not reject transfer."
+                };
+            }
+            mergeServerTransferResolutionLocally(serverResult);
+            return pullAdminFromServer().then(function() {
+                return {
+                    ok: true,
+                    emailSent: serverResult.emailSent !== false
+                };
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function rejectTransferOfflineAsync(transferId, reason) {
+    const result = rejectTransfer(transferId, reason);
+    if (!result.ok) {
+        return Promise.resolve(result);
+    }
+
+    const admin = getAdminData();
+    return syncAdminToServer(admin)
+        .then(function(syncResult) {
+            if (syncResult && syncResult.ok === false && !syncResult.offline) {
+                throw new Error((syncResult && syncResult.error) || "Failed to save rejection on server.");
+            }
+            return { ok: true, emailSent: !!result.emailQueued };
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
 }
 
 function getDepositMethods() {
@@ -3104,6 +3406,70 @@ function getPendingDepositsFromAccounts() {
     });
 
     return deposits;
+}
+
+function getPendingTransfersFromAccounts() {
+    const accounts = getMergedAccountsRegistry();
+    const transfers = [];
+
+    Object.keys(accounts).forEach(function(email) {
+        const key = normalizeEmail(email);
+        if (!key || isProtectedAdminAccount(key)) return;
+
+        const acct = accounts[key] || accounts[email];
+        if (!acct || !Array.isArray(acct.pendingTransfers)) return;
+
+        const userName = acct.profile ? acct.profile.fullName : key;
+        acct.pendingTransfers.forEach(function(t) {
+            if (!t) return;
+            if (t.status && t.status !== "pending") return;
+
+            transfers.push({
+                id: t.id,
+                userEmail: key,
+                userName: userName,
+                amount: t.amount,
+                destination: t.destination || "Bank Account",
+                method: t.method || "bank",
+                status: "pending",
+                requestedAt: t.requestedAt || null,
+                date: t.date || new Date().toLocaleString(),
+                source: "account"
+            });
+        });
+    });
+
+    return transfers;
+}
+
+function linkAccountPendingTransfersToAdmin() {
+    const admin = getAdminData();
+    if (!Array.isArray(admin.pendingTransfers)) admin.pendingTransfers = [];
+
+    const accountTransfers = getPendingTransfersFromAccounts();
+    let changed = false;
+
+    accountTransfers.forEach(function(t) {
+        const exists = admin.pendingTransfers.some(function(entry) {
+            return String(entry.id) === String(t.id) ||
+                (normalizeEmail(entry.userEmail) === t.userEmail &&
+                    Number(entry.amount) === Number(t.amount) &&
+                    (!entry.status || entry.status === "pending"));
+        });
+        if (!exists) {
+            admin.pendingTransfers.unshift(Object.assign({}, t));
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+        if (isAdminPanelPage()) {
+            saveAdminData(admin);
+        }
+    }
+
+    return admin;
 }
 
 function linkAccountPendingDepositsToAdmin() {

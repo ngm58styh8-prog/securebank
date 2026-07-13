@@ -473,7 +473,12 @@ async function executeInternalTransfer(payload) {
         senderAccount: savedSender.account || updatedSender,
         recipientAccount: updatedRecipient,
         emailSent: !!emailResult.sent,
-        emailError: emailResult.error || null
+        emailPartial: !!(emailResult.sender && emailResult.sender.sent) !== !!(emailResult.recipient && emailResult.recipient.sent),
+        emailError: emailResult.error || null,
+        emailDetails: {
+            sender: emailResult.sender || null,
+            recipient: emailResult.recipient || null
+        }
     };
 }
 
