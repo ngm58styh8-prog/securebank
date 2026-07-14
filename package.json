@@ -11,6 +11,7 @@
     "test:deposit-emails": "node scripts/test-deposit-email-workflow.js",
     "test:withdrawal-emails": "node scripts/test-withdrawal-email-workflow.js",
     "test:email-flow": "node scripts/test-transactional-email-flow.mjs",
+    "test:notifications": "node scripts/test-notifications.js",
     "test:deposit-balance": "node scripts/test-deposit-balance-sync.js",
     "check:registry": "node scripts/check-registry.js"
   },

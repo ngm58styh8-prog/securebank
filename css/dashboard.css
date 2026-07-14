@@ -192,6 +192,138 @@ header {
     margin-top: 4px;
 }
 
+.notif-mark-all {
+    background: none;
+    border: none;
+    color: var(--primary, #1F6BFF);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+.notif-mark-all:hover {
+    text-decoration: underline;
+}
+
+.notif-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.notif-empty {
+    padding: 16px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.notif-item-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.notif-type-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: rgba(31, 107, 255, 0.12);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+
+.notif-item-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-item-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.notif-item-message {
+    color: var(--muted);
+    line-height: 1.45;
+    margin-bottom: 4px;
+}
+
+.notif-item-amount {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.notif-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.notif-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.notif-status-pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #b45309;
+}
+
+.notif-status-completed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #047857;
+}
+
+.notif-status-failed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #b91c1c;
+}
+
+.notif-read-btn {
+    background: rgba(16, 185, 129, 0.12);
+    border: none;
+    color: #047857;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+}
+
+.notif-read-btn:hover {
+    background: rgba(16, 185, 129, 0.22);
+}
+
+.notif-badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    line-height: 1;
+}
+
+.notif-bell-wrap {
+    position: relative;
+}
+
+.notif-item.read {
+    opacity: 0.85;
+}
+
 .container {
     padding: 20px;
     padding-bottom: max(20px, env(safe-area-inset-bottom));

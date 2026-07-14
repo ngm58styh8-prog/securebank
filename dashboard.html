@@ -62,8 +62,11 @@
             🔔 <span id="notifCount" class="badge" style="display:none">0</span>
         </button>
         <div id="notifPanel" class="notif-panel hidden">
-            <div class="notif-header"><span>🔔 Notifications</span></div>
-            <div id="notifList"></div>
+            <div class="notif-header">
+                <span>🔔 Notifications</span>
+                <button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>
+            </div>
+            <div id="notifList" class="notif-list"></div>
         </div>
         <button type="button" class="gv-icon-btn icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
         <button type="button" class="gv-avatar-btn" id="profileBtn">
@@ -580,6 +583,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
+<script src="js/notifications.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/dashboard-premium.js"></script>
 <script src="js/luxury-ui.js"></script>

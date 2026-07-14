@@ -192,14 +192,24 @@ function ensureTransferArrays(account) {
     if (!Array.isArray(account.internalTransfers)) account.internalTransfers = [];
 }
 
-function pushNotification(account, message, type) {
+function pushNotification(account, message, options) {
+    if (typeof options === "string") {
+        options = { type: options };
+    }
+    options = options || {};
     account.notifications = Array.isArray(account.notifications) ? account.notifications : [];
     account.notifications.unshift({
         id: Date.now() + Math.random(),
         message: message,
+        title: options.title || null,
         time: new Date().toISOString(),
         read: false,
-        type: type || "transfer"
+        type: options.type || options.category || "transfer",
+        category: options.category || options.type || "transfer",
+        amount: options.amount != null ? Number(options.amount) : null,
+        currency: options.currency || (options.amount != null ? "USD" : null),
+        status: options.status || "completed",
+        reference: options.reference || null
     });
     if (account.notifications.length > 30) {
         account.notifications = account.notifications.slice(0, 30);
@@ -380,12 +390,26 @@ async function executeInternalTransfer(payload) {
     });
 
     pushNotification(updatedSender,
-        "Transfer sent: " + amountLabel + " to " + getDisplayName(recipient, recipientEmail) + " — Ref " + reference,
-        "transfer"
+        "Transfer sent to " + getDisplayName(recipient, recipientEmail) + " — Ref " + reference,
+        {
+            type: "transfer",
+            title: "Transfer sent",
+            amount: amount,
+            currency: currency,
+            status: "completed",
+            reference: reference
+        }
     );
     pushNotification(updatedRecipient,
-        "Funds received: " + amountLabel + " from " + getDisplayName(sender, senderEmail) + " — Ref " + reference,
-        "transfer"
+        "Funds received from " + getDisplayName(sender, senderEmail) + " — Ref " + reference,
+        {
+            type: "transfer",
+            title: "Funds received",
+            amount: amount,
+            currency: currency,
+            status: "completed",
+            reference: reference
+        }
     );
 
     updatedSender.sendMoneyHistory.unshift(Object.assign({}, transfer, { direction: "sent" }));

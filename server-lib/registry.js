@@ -671,9 +671,14 @@ async function approvePendingDeposit(depositId) {
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
         message: "Deposit of $" + depositAmount.toFixed(2) + " was approved and credited to your balance",
+        title: "Deposit credited",
         time: new Date().toISOString(),
         read: false,
-        type: "deposit"
+        type: "deposit",
+        category: "deposit",
+        amount: depositAmount,
+        currency: "USD",
+        status: "completed"
     });
     if (updatedAccount.notifications.length > 30) {
         updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
@@ -812,9 +817,14 @@ async function rejectPendingDeposit(depositId, reason) {
             id: Date.now() + Math.random(),
             message: "Deposit of $" + Number(deposit.amount).toFixed(2) + " was rejected" +
                 (rejectionReason ? ": " + rejectionReason : ""),
+            title: "Deposit declined",
             time: new Date().toISOString(),
             read: false,
-            type: "deposit"
+            type: "deposit",
+            category: "deposit",
+            amount: Number(deposit.amount),
+            currency: "USD",
+            status: "failed"
         });
         if (account.notifications.length > 30) {
             account.notifications = account.notifications.slice(0, 30);
@@ -934,9 +944,14 @@ async function mirrorPendingTransferOnUserAccount(transfer) {
         id: Date.now() + Math.random(),
         message: "Withdrawal request of $" + Number(transfer.amount).toFixed(2) +
             " to " + transfer.destination + " submitted — awaiting admin approval",
+        title: "Withdrawal submitted",
         time: new Date().toISOString(),
         read: false,
-        type: "withdrawal"
+        type: "withdrawal",
+        category: "withdrawal",
+        amount: Number(transfer.amount),
+        currency: "USD",
+        status: "pending"
     });
     if (updated.notifications.length > 30) {
         updated.notifications = updated.notifications.slice(0, 30);
@@ -1098,9 +1113,14 @@ async function approvePendingTransfer(transferId) {
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
         message: "Withdrawal of $" + transferAmount.toFixed(2) + " to " + transfer.destination + " was approved",
+        title: "Withdrawal processed",
         time: new Date().toISOString(),
         read: false,
-        type: "withdrawal"
+        type: "withdrawal",
+        category: "withdrawal",
+        amount: transferAmount,
+        currency: "USD",
+        status: "completed"
     });
     if (updatedAccount.notifications.length > 30) {
         updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
@@ -1227,9 +1247,14 @@ async function rejectPendingTransfer(transferId, reason) {
             id: Date.now() + Math.random(),
             message: "Withdrawal of $" + Number(transfer.amount).toFixed(2) + " was rejected" +
                 (rejectionReason ? ": " + rejectionReason : ""),
+            title: "Withdrawal declined",
             time: new Date().toISOString(),
             read: false,
-            type: "withdrawal"
+            type: "withdrawal",
+            category: "withdrawal",
+            amount: Number(transfer.amount),
+            currency: "USD",
+            status: "failed"
         });
         if (account.notifications.length > 30) {
             account.notifications = account.notifications.slice(0, 30);

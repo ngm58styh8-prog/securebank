@@ -131,14 +131,19 @@ function addNotification(message, options) {
             message: message,
             time: new Date().toISOString(),
             read: false,
-            type: options.type || null
+            type: options.type || null,
+            status: options.status || "completed",
+            amount: options.amount != null ? options.amount : null,
+            currency: options.currency || null
         });
         if (account.notifications.length > 30) {
             account.notifications = account.notifications.slice(0, 30);
         }
     }
     saveState();
-    renderNotifications();
+    if (typeof renderNotificationBell === "function") {
+        renderNotificationBell(account);
+    }
 }
 
 function formatTradeNotification(asset, type, qty, price) {
@@ -151,30 +156,21 @@ function formatTradeNotification(asset, type, qty, price) {
 }
 
 function renderNotifications() {
-    const list = document.getElementById("notifList");
-    const count = document.getElementById("notifCount");
-    ensureNotifications(account);
-    const unread = account.notifications.filter(function(n) { return !n.read; }).length;
-
-    count.textContent = unread;
-    count.style.display = unread > 0 ? "inline" : "none";
-
-    if (!list) return;
-
-    if (!account.notifications.length) {
-        list.innerHTML = '<div class="notif-item">No notifications yet.</div>';
-        return;
+    if (typeof renderNotificationBell === "function") {
+        renderNotificationBell(account);
     }
+}
 
-    list.innerHTML = account.notifications.map(function(n) {
-        return `<div class="notif-item ${n.read ? "" : "unread"}">
-            <span class="notif-check">✓</span> ${n.message}
-            <div class="notif-time">${new Date(n.time).toLocaleString()}</div>
-        </div>`;
-    }).join("");
+function refreshNotificationsFromStorage() {
+    syncAccountNotifications(username, account);
+    renderNotifications();
 }
 
 function markNotificationsRead() {
+    if (typeof markAllNotificationsReadForUser === "function") {
+        markAllNotificationsReadForUser(username);
+        return;
+    }
     account.notifications.forEach(function(n) { n.read = true; });
     saveState();
     renderNotifications();
@@ -326,11 +322,6 @@ function renderVerificationBanner() {
     const needsVerification = account.profile.verificationStatus !== "Verified" ||
         !account.profile.ssnLast4;
     banner.classList.toggle("hidden", !needsVerification);
-}
-
-function refreshNotificationsFromStorage() {
-    syncAccountNotifications(username, account);
-    renderNotifications();
 }
 
 function reloadAccountFromRegistry() {
@@ -874,14 +865,6 @@ function initUI() {
         }
     });
 
-    document.getElementById("notifBtn").addEventListener("click", function(e) {
-        e.stopPropagation();
-        const panel = document.getElementById("notifPanel");
-        const opening = panel.classList.contains("hidden");
-        toggleDropdown("notifPanel");
-        if (opening) markNotificationsRead();
-    });
-
     document.getElementById("profileBtn").addEventListener("click", function(e) {
         e.stopPropagation();
         toggleDropdown("profileMenu");
@@ -924,9 +907,6 @@ function initUI() {
     }
 
     document.addEventListener("click", function(e) {
-        if (!e.target.closest("#notifBtn") && !e.target.closest("#notifPanel")) {
-            document.getElementById("notifPanel").classList.add("hidden");
-        }
         if (!e.target.closest("#profileBtn") && !e.target.closest("#profileMenu")) {
             document.getElementById("profileMenu").classList.add("hidden");
         }
@@ -956,7 +936,9 @@ function initUI() {
     window.addEventListener("focus", refreshUserBalanceFromServer);
     setInterval(refreshUserBalanceFromServer, 12000);
 
-    setInterval(refreshNotificationsFromStorage, 3000);
+    if (typeof initNotificationBell === "function") {
+        initNotificationBell();
+    }
 }
 
 function bootstrapDashboard() {

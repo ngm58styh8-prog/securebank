@@ -209,6 +209,10 @@ function executeSend() {
             " to " + recipientName +
             ".\n\nReference: " + result.transfer.reference
         );
+
+        if (typeof refreshNotificationsForUser === "function") {
+            refreshNotificationsForUser(username);
+        }
     });
 }
 

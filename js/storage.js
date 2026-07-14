@@ -1097,17 +1097,98 @@ function pushAccountNotification(account, message, options) {
     if (!account || !message) return ensureNotifications(account);
     ensureNotifications(account);
     account.notifications.unshift({
-        id: Date.now() + Math.random(),
+        id: options.id || (Date.now() + Math.random()),
         message: message,
+        title: options.title || null,
         time: options.time || new Date().toISOString(),
         read: false,
-        type: options.type || null,
+        type: options.type || options.category || "general",
+        category: options.category || options.type || "general",
+        amount: options.amount != null && !isNaN(Number(options.amount)) ? Number(options.amount) : null,
+        currency: options.currency || (options.amount != null ? "USD" : null),
+        status: options.status || "completed",
+        reference: options.reference || null,
         fromAdmin: !!options.fromAdmin
     });
     if (account.notifications.length > 30) {
         account.notifications = account.notifications.slice(0, 30);
     }
     return account.notifications;
+}
+
+function getUnreadNotificationCount(email) {
+    const account = getRegistryAccount(email) || getAccount(email);
+    if (!account || !Array.isArray(account.notifications)) return 0;
+    return account.notifications.filter(function(n) { return !n.read; }).length;
+}
+
+function markNotificationRead(email, notificationId) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account || !Array.isArray(account.notifications)) {
+        return { ok: false, error: "Account not found." };
+    }
+
+    const target = account.notifications.find(function(n) {
+        return String(n.id) === String(notificationId);
+    });
+    if (!target) {
+        return { ok: false, error: "Notification not found." };
+    }
+    if (target.read) {
+        return { ok: true, account: account, changed: false };
+    }
+
+    target.read = true;
+    saveAccount(key, account, { eventType: "login" });
+    return { ok: true, account: account, changed: true };
+}
+
+function markAllNotificationsRead(email) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account || !Array.isArray(account.notifications)) {
+        return { ok: false, error: "Account not found." };
+    }
+
+    let changed = false;
+    account.notifications.forEach(function(n) {
+        if (!n.read) {
+            n.read = true;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        saveAccount(key, account, { eventType: "login" });
+    }
+    return { ok: true, account: account, changed: changed };
+}
+
+function buildTransactionNotification(options) {
+    options = options || {};
+    const type = options.type || "general";
+    const amount = options.amount != null ? Number(options.amount) : null;
+    const currency = options.currency || "USD";
+    const status = options.status || "completed";
+    const title = options.title || (
+        type === "deposit" ? "Deposit" :
+        type === "withdrawal" ? "Withdrawal" :
+        type === "transfer" ? "Transfer" :
+        "Notification"
+    );
+
+    return {
+        title: title,
+        message: options.message || "",
+        type: type,
+        category: type,
+        amount: amount,
+        currency: currency,
+        status: status,
+        reference: options.reference || null,
+        time: options.time || new Date().toISOString()
+    };
 }
 
 function syncAccountNotifications(email, account) {
@@ -2103,7 +2184,13 @@ function mergeServerTransferResolutionLocally(serverResult) {
                     (serverResult.reason ? ": " + serverResult.reason : "")
                 : "Withdrawal of $" + Number(serverResult.amount || 0).toFixed(2) +
                     " to your destination was approved",
-            { type: "withdrawal" }
+            {
+                type: "withdrawal",
+                title: serverResult.reason ? "Withdrawal declined" : "Withdrawal processed",
+                amount: serverResult.amount,
+                currency: "USD",
+                status: serverResult.reason ? "failed" : "completed"
+            }
         );
     }
 }
@@ -2136,10 +2223,12 @@ function mergeServerDepositResolutionLocally(serverResult) {
                 ? "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) + " was rejected" +
                     (serverResult.reason ? ": " + serverResult.reason : "")
                 : "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) +
-                    " was approved and credited — check your email for confirmation",
+                    " was approved and credited to your balance",
             {
                 account: serverResult.account || getRegistryAccount(key),
-                skipServerSync: true
+                skipServerSync: true,
+                amount: serverResult.amount,
+                status: serverResult.reason ? "failed" : "completed"
             }
         );
     }
@@ -2936,7 +3025,13 @@ function submitTransferRequest(userEmail, amount, destination, method) {
     });
     pushAccountNotification(account,
         "Withdrawal request of $" + amount.toFixed(2) + " to " + dest + " submitted — awaiting admin approval",
-        { type: "withdrawal" }
+        {
+            type: "withdrawal",
+            title: "Withdrawal submitted",
+            amount: amount,
+            currency: "USD",
+            status: "pending"
+        }
     );
 
     saveAccount(key, account);
@@ -3010,7 +3105,13 @@ function resolveTransferOnAccount(userEmail, transferId, message, options) {
         });
     }
 
-    pushAccountNotification(account, message, { type: options.type || "transfer" });
+    pushAccountNotification(account, message, {
+        type: options.type || "transfer",
+        title: options.title || (options.type === "withdrawal" ? "Withdrawal update" : "Transfer update"),
+        amount: options.amount != null ? options.amount : null,
+        currency: options.currency || "USD",
+        status: options.status || "completed"
+    });
 
     saveAccount(userEmail, account);
 }
@@ -3051,7 +3152,13 @@ function approveTransfer(transferId) {
         transfer.userEmail,
         transferId,
         "Withdrawal of $" + transfer.amount.toFixed(2) + " to " + transfer.destination + " was approved",
-        { type: "withdrawal" }
+        {
+            type: "withdrawal",
+            title: "Withdrawal processed",
+            amount: transfer.amount,
+            currency: "USD",
+            status: "completed"
+        }
     );
 
     return { ok: true, emailQueued: true };
@@ -3088,7 +3195,13 @@ function rejectTransfer(transferId, reason) {
         transferId,
         "Withdrawal of $" + transfer.amount.toFixed(2) + " was rejected" +
             (reason ? ": " + reason : ""),
-        { type: "withdrawal" }
+        {
+            type: "withdrawal",
+            title: "Withdrawal declined",
+            amount: transfer.amount,
+            currency: "USD",
+            status: "failed"
+        }
     );
 
     return { ok: true, emailQueued: true };
@@ -3688,7 +3801,13 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
     pushAccountNotification(account, method === "crypto"
         ? "Deposit of $" + amount.toFixed(2) + " submitted — send BTC to " + payTo + ". Awaiting admin approval."
         : "Deposit of $" + amount.toFixed(2) + " submitted — awaiting admin approval before funds are credited.",
-        { type: "deposit" }
+        {
+            type: "deposit",
+            title: "Deposit submitted",
+            amount: amount,
+            currency: "USD",
+            status: "pending"
+        }
     );
 
     saveAccount(key, account, { skipServerSync: true });
@@ -3768,7 +3887,14 @@ function resolveDepositOnAccount(userEmail, depositId, message, options) {
         });
     }
 
-    pushAccountNotification(account, message, { type: "deposit" });
+    pushAccountNotification(account, message, {
+        type: "deposit",
+        title: options.title ||
+            (options.status === "failed" ? "Deposit declined" : "Deposit credited"),
+        amount: options.amount != null ? options.amount : null,
+        currency: options.currency || "USD",
+        status: options.status || "completed"
+    });
 
     saveAccount(userEmail, account, { skipServerSync: options.skipServerSync === true });
     return account;
@@ -3807,7 +3933,13 @@ function approveDeposit(depositId) {
         key,
         depositId,
         "Deposit of $" + deposit.amount.toFixed(2) + " was approved and credited to your balance",
-        { account: account, skipServerSync: true }
+        {
+            account: account,
+            skipServerSync: true,
+            amount: deposit.amount,
+            currency: "USD",
+            status: "completed"
+        }
     );
 
     saveAdminData(admin);
@@ -4226,12 +4358,26 @@ function executeSendMoneyOffline(payload) {
     });
 
     pushAccountNotification(sender,
-        "Transfer sent: " + amount + " " + currency + " to " + lookup.recipient.fullName + " — Ref " + reference,
-        { type: "transfer" }
+        "Transfer sent to " + lookup.recipient.fullName + " — Ref " + reference,
+        {
+            type: "transfer",
+            title: "Transfer sent",
+            amount: amount,
+            currency: currency,
+            status: "completed",
+            reference: reference
+        }
     );
     pushAccountNotification(recipient,
-        "Funds received: " + amount + " " + currency + " from " + (sender.profile ? sender.profile.fullName : senderEmail) + " — Ref " + reference,
-        { type: "transfer" }
+        "Funds received from " + (sender.profile ? sender.profile.fullName : senderEmail) + " — Ref " + reference,
+        {
+            type: "transfer",
+            title: "Funds received",
+            amount: amount,
+            currency: currency,
+            status: "completed",
+            reference: reference
+        }
     );
 
     sender.sendMoneyHistory.unshift(Object.assign({}, transfer, { direction: "sent" }));
