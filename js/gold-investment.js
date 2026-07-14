@@ -58,7 +58,8 @@
             }
             var diff = new Date(nextCreditAt).getTime() - Date.now();
             if (diff <= 0) {
-                el.textContent = "Crediting soon…";
+                el.textContent = "Crediting…";
+                refreshPage();
                 return;
             }
             var h = Math.floor(diff / 3600000);
@@ -299,5 +300,5 @@
     initEnrollForm();
     initUI();
     refreshPage();
-    setInterval(refreshPage, 60000);
+    setInterval(refreshPage, 10000);
 })();

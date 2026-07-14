@@ -3,6 +3,7 @@
 
     var countdownTimer = null;
     var lastCreditShown = "";
+    var creditPollTimer = null;
 
     function formatUsd(amount) {
         var n = Number(amount);
@@ -60,7 +61,8 @@
             }
             var diff = new Date(nextCreditAt).getTime() - Date.now();
             if (diff <= 0) {
-                el.textContent = "Crediting soon…";
+                el.textContent = "Crediting…";
+                refreshGoldStatus();
                 return;
             }
             var h = Math.floor(diff / 3600000);
@@ -118,7 +120,8 @@
         renderGoldCard(result.goldInvestment || getGi(), result.plan);
 
         if (result.credited && result.creditAmount) {
-            var key = (result.goldInvestment && result.goldInvestment.lastCreditDate) || "today";
+            var key = (result.goldInvestment && result.goldInvestment.lastCreditAt) ||
+                (result.goldInvestment && result.goldInvestment.lastCreditDate) || "today";
             if (lastCreditShown !== key) {
                 lastCreditShown = key;
                 showCreditToast(result.creditAmount);
@@ -136,7 +139,8 @@
         var gi = getGi();
         renderGoldCard(gi, null);
         refreshGoldStatus();
-        setInterval(refreshGoldStatus, 60000);
+        if (creditPollTimer) clearInterval(creditPollTimer);
+        creditPollTimer = setInterval(refreshGoldStatus, 10000);
     };
 
     document.addEventListener("DOMContentLoaded", function() {

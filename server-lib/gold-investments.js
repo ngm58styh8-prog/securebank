@@ -9,14 +9,14 @@ const { getSupabaseServiceRoleClient } = require("./supabase");
 
 const GOLD_PAYOUTS_TABLE = "gold_payouts";
 const DEFAULT_DAILY_RETURN = 1500;
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_CREDIT_INTERVAL = 3 * 60 * 1000;
 
 function todayUtcDateString() {
     return new Date().toISOString().slice(0, 10);
 }
 
-function generateReference(email, planId, dateStr) {
-    const stamp = dateStr.replace(/-/g, "");
+function generateReference(email, planId, creditTime) {
+    const stamp = new Date(creditTime).toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
     const hash = Buffer.from(email + planId + stamp).toString("hex").slice(0, 8);
     return "GV-GOLD-" + stamp + "-" + hash.toUpperCase();
 }
@@ -78,6 +78,13 @@ async function ensureAdminGoldPlans(admin) {
     if (!admin.goldPlans.length) {
         admin.goldPlans.push(createDefaultGoldPlan());
         await saveAdminRegistry(admin);
+    } else {
+        admin.goldPlans = admin.goldPlans.map(function(plan) {
+            if (String(plan.id) === "gold-plan-default") {
+                return Object.assign({}, plan, { dailyReturn: DEFAULT_DAILY_RETURN });
+            }
+            return plan;
+        });
     }
     return admin;
 }
@@ -145,7 +152,7 @@ async function appendGoldHistory(account, entry) {
 
 function computeNextCreditAt(fromDate) {
     const base = fromDate ? new Date(fromDate) : new Date();
-    return new Date(base.getTime() + MS_PER_DAY).toISOString();
+    return new Date(base.getTime() + MS_CREDIT_INTERVAL).toISOString();
 }
 
 async function processDailyCreditForUser(email, options) {
@@ -166,21 +173,17 @@ async function processDailyCreditForUser(email, options) {
         return { ok: true, credited: false, skipped: true, reason: "No active gold investment." };
     }
 
+    if (gi.nextCreditAt && !options.force) {
+        const remaining = new Date(gi.nextCreditAt).getTime() - Date.now();
+        if (remaining > MS_CREDIT_INTERVAL * 2) {
+            gi.nextCreditAt = new Date().toISOString();
+        }
+    }
+
     const admin = await ensureAdminGoldPlans(await loadAdminRegistry());
     const plan = findGoldPlan(admin, gi.planId);
     if (!plan || plan.enabled === false || plan.paused === true) {
         return { ok: true, credited: false, skipped: true, reason: "Plan inactive or paused." };
-    }
-
-    const today = todayUtcDateString();
-    if (gi.lastCreditDate === today && !options.force) {
-        return {
-            ok: true,
-            credited: false,
-            duplicate: true,
-            todayReturn: gi.todayReturn || plan.dailyReturn,
-            nextCreditAt: gi.nextCreditAt
-        };
     }
 
     if (gi.nextCreditAt && new Date(gi.nextCreditAt).getTime() > Date.now() && !options.force) {
@@ -193,12 +196,14 @@ async function processDailyCreditForUser(email, options) {
         };
     }
 
-    const dailyAmount = Number(plan.dailyReturn);
-    if (!dailyAmount || dailyAmount <= 0 || isNaN(dailyAmount)) {
+    const dailyAmount = Number(plan.dailyReturn) || DEFAULT_DAILY_RETURN;
+    if (dailyAmount <= 0 || isNaN(dailyAmount)) {
         return { ok: false, error: "Invalid daily return on plan." };
     }
 
-    const reference = generateReference(key, gi.planId, today);
+    const creditTime = new Date();
+    const today = todayUtcDateString();
+    const reference = generateReference(key, gi.planId, creditTime);
     const payoutId = generateId("gpay");
 
     const updated = Object.assign({}, account);
@@ -208,7 +213,8 @@ async function processDailyCreditForUser(email, options) {
     ugi.totalEarned = Number(ugi.totalEarned || 0) + dailyAmount;
     ugi.todayReturn = dailyAmount;
     ugi.lastCreditDate = today;
-    ugi.nextCreditAt = computeNextCreditAt(new Date());
+    ugi.lastCreditAt = creditTime.toISOString();
+    ugi.nextCreditAt = computeNextCreditAt(creditTime);
     ugi.dailyReturn = dailyAmount;
 
     updated.cash = Number(updated.cash || 0) + dailyAmount;
@@ -337,11 +343,12 @@ async function enrollInGoldPlan(email, planId, amount) {
         investedAmount: amount,
         balance: amount,
         totalEarned: 0,
-        dailyReturn: Number(plan.dailyReturn),
+        dailyReturn: Number(plan.dailyReturn) || DEFAULT_DAILY_RETURN,
         todayReturn: 0,
         startDate: now,
-        nextCreditAt: computeNextCreditAt(now),
+        nextCreditAt: now,
         lastCreditDate: null,
+        lastCreditAt: null,
         status: "active",
         history: []
     };
@@ -588,6 +595,7 @@ async function searchGoldInvestors(query) {
 
 module.exports = {
     DEFAULT_DAILY_RETURN,
+    MS_CREDIT_INTERVAL,
     createEmptyGoldInvestment,
     ensureGoldInvestmentShape,
     ensureAdminGoldPlans,
