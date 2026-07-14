@@ -1202,6 +1202,23 @@ function mergeAccountRecords(serverAcct, localAcct) {
     else if (serverAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = serverAcct.withdrawalsFrozen;
     merged.withdrawalsFrozenReason = localAcct.withdrawalsFrozenReason || serverAcct.withdrawalsFrozenReason || "";
     merged.withdrawalsFrozenAt = localAcct.withdrawalsFrozenAt || serverAcct.withdrawalsFrozenAt || null;
+
+    const serverPending = Array.isArray(serverAcct.pendingDeposits) ? serverAcct.pendingDeposits : [];
+    const localPending = Array.isArray(localAcct.pendingDeposits) ? localAcct.pendingDeposits : [];
+    if (serverIsNewer || serverPending.length <= localPending.length) {
+        merged.pendingDeposits = serverPending.slice();
+    } else {
+        merged.pendingDeposits = localPending.slice();
+    }
+
+    const serverTransfers = Array.isArray(serverAcct.pendingTransfers) ? serverAcct.pendingTransfers : [];
+    const localTransfers = Array.isArray(localAcct.pendingTransfers) ? localAcct.pendingTransfers : [];
+    if (serverIsNewer || serverTransfers.length <= localTransfers.length) {
+        merged.pendingTransfers = serverTransfers.slice();
+    } else {
+        merged.pendingTransfers = localTransfers.slice();
+    }
+
     return merged;
 }
 
@@ -1513,10 +1530,63 @@ function applyPendingDepositToLocalRegistry(deposit, pendingDeposits) {
     return admin;
 }
 
+function shouldSkipOrphanDepositSync(dep, admin) {
+    const key = normalizeEmail(dep.userEmail);
+    const amount = Number(dep.amount);
+
+    return (admin.pendingDeposits || []).some(function(entry) {
+        if (!entry) return false;
+        const sameUser = normalizeEmail(entry.userEmail) === key;
+        const sameAmount = Number(entry.amount) === amount;
+        if (!sameUser || !sameAmount) return false;
+        if (String(entry.id) === String(dep.id)) return true;
+        if (entry.status === "approved" || entry.status === "rejected") return true;
+        if (entry.submittedEmailSentAt) return true;
+        return false;
+    });
+}
+
+function purgeStaleAccountPendingDeposits() {
+    const admin = getAdminData();
+    const accounts = getAllAccounts();
+    let changed = false;
+
+    Object.keys(accounts).forEach(function(email) {
+        const key = normalizeEmail(email);
+        const account = accounts[key] || accounts[email];
+        if (!account || !Array.isArray(account.pendingDeposits) || !account.pendingDeposits.length) return;
+
+        const filtered = account.pendingDeposits.filter(function(dep) {
+            if (!dep) return false;
+            if (dep.status && dep.status !== "pending") return false;
+            return !shouldSkipOrphanDepositSync({
+                id: dep.id,
+                userEmail: key,
+                amount: dep.amount
+            }, admin);
+        });
+
+        if (filtered.length !== account.pendingDeposits.length) {
+            account.pendingDeposits = filtered;
+            accounts[key] = account;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+        notifyAccountsChanged();
+    }
+
+    return changed;
+}
+
 function syncOrphanAccountDepositsToAdmin() {
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: true, synced: 0, offline: true });
     }
+
+    purgeStaleAccountPendingDeposits();
 
     const admin = getAdminData();
     const adminIds = {};
@@ -1527,7 +1597,8 @@ function syncOrphanAccountDepositsToAdmin() {
     });
 
     const orphans = getPendingDepositsFromAccounts().filter(function(dep) {
-        return dep && dep.id != null && !adminIds[String(dep.id)];
+        if (!dep || dep.id == null || adminIds[String(dep.id)]) return false;
+        return !shouldSkipOrphanDepositSync(dep, admin);
     });
 
     if (!orphans.length) {
@@ -1535,7 +1606,7 @@ function syncOrphanAccountDepositsToAdmin() {
     }
 
     return Promise.all(orphans.map(function(dep) {
-        return appendPendingDepositOnServer(dep);
+        return appendPendingDepositOnServer(dep, { skipEmail: true });
     })).then(function() {
         return pullAdminFromServer();
     }).then(function() {
@@ -1556,6 +1627,7 @@ function refreshUnifiedRegistry(options) {
     }).then(function() {
         linkAccountPendingDepositsToAdmin();
         linkAccountPendingTransfersToAdmin();
+        purgeStaleAccountPendingDeposits();
         if (options.repairDeposits !== false) {
             return syncOrphanAccountDepositsToAdmin();
         }
@@ -1809,7 +1881,8 @@ function saveAdminData(data, options) {
     }
 }
 
-function appendPendingDepositOnServer(deposit) {
+function appendPendingDepositOnServer(deposit, options) {
+    options = options || {};
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: false, offline: true });
     }
@@ -1819,7 +1892,8 @@ function appendPendingDepositOnServer(deposit) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             action: "append-deposit",
-            deposit: deposit
+            deposit: deposit,
+            skipEmail: !!options.skipEmail
         })
     })
         .then(function(response) {
@@ -3481,10 +3555,12 @@ function linkAccountPendingDepositsToAdmin() {
 
     accountDeposits.forEach(function(dep) {
         const exists = admin.pendingDeposits.some(function(entry) {
-            return String(entry.id) === String(dep.id) ||
-                (normalizeEmail(entry.userEmail) === dep.userEmail &&
-                    Number(entry.amount) === Number(dep.amount) &&
-                    (!entry.status || entry.status === "pending"));
+            if (String(entry.id) === String(dep.id)) return true;
+            if (normalizeEmail(entry.userEmail) === dep.userEmail &&
+                Number(entry.amount) === Number(dep.amount)) {
+                return true;
+            }
+            return false;
         });
         if (!exists) {
             admin.pendingDeposits.unshift(Object.assign({}, dep));

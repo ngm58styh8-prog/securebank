@@ -129,13 +129,30 @@ async function testFailureDoesNotThrow() {
     }
 }
 
+async function testNonPendingSkipped() {
+    const approvedDeposit = Object.assign({}, sampleDeposit, {
+        status: "approved",
+        submittedEmailSentAt: "2026-07-08T03:00:00.000Z"
+    });
+
+    const result = await depositEmails.sendDepositReceivedEmailSafely(
+        approvedDeposit,
+        sampleAccount,
+        sampleAdmin
+    );
+
+    assert.strictEqual(result.sent, false, "approved deposit should not send received email");
+    assert.strictEqual(result.skipped, true, "approved deposit skipped");
+}
+
 async function run() {
     testReceivedContent();
     testCreditedContent();
     testDeclinedContent();
     await testDuplicateSkipped();
+    await testNonPendingSkipped();
     await testFailureDoesNotThrow();
-    console.log("deposit email workflow tests: 5 passed");
+    console.log("deposit email workflow tests: 6 passed");
 }
 
 run().catch(function(err) {

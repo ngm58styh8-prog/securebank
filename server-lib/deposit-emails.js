@@ -218,6 +218,16 @@ async function sendDepositEmail(type, deposit, account, admin, buildContent, sen
 }
 
 async function sendDepositReceivedEmailSafely(deposit, account, admin) {
+    if (deposit && deposit.status && deposit.status !== "pending") {
+        console.log(LOG_PREFIX, "skipped-non-pending", {
+            type: "received",
+            to: deposit.userEmail,
+            depositId: deposit.id,
+            status: deposit.status
+        });
+        return { sent: false, skipped: true, duplicate: true };
+    }
+
     return sendDepositEmail(
         "received",
         deposit,

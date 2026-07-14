@@ -35,7 +35,9 @@ module.exports = async function handler(req, res) {
         if (req.method === "POST") {
             const body = req.body || {};
             if (body.action === "append-deposit" && body.deposit) {
-                const result = await appendPendingDeposit(body.deposit);
+                const result = await appendPendingDeposit(body.deposit, {
+                    skipEmail: !!body.skipEmail
+                });
                 res.status(200).json({
                     ok: true,
                     deposit: result.deposit,
