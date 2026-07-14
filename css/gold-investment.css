@@ -1,0 +1,315 @@
+/* Gold Investment — premium card + dashboard integration */
+
+.gv-gold-card {
+    position: relative;
+    margin-bottom: 1.25rem;
+    padding: 1.35rem 1.5rem;
+    border-radius: 20px;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, rgba(7, 11, 24, 0.85) 45%, rgba(109, 93, 246, 0.08) 100%),
+        rgba(12, 18, 36, 0.72);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 215, 100, 0.12);
+    overflow: hidden;
+}
+
+.gv-gold-card::before {
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 200, 80, 0.18) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.gv-gold-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.gv-gold-card-title {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: linear-gradient(90deg, #f5d77a, #d4af37, #f0c75e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.gv-gold-card-link {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(212, 175, 55, 0.9);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.gv-gold-card-link:hover {
+    color: #f5d77a;
+}
+
+.gv-gold-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.gv-gold-metric-label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.35rem;
+}
+
+.gv-gold-metric-value {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.gv-gold-metric-value.gv-gold-highlight {
+    color: #f5d77a;
+}
+
+.gv-gold-metric-value.gv-gold-profit {
+    color: #4ade80;
+}
+
+.gv-gold-metric-value.gv-gold-plan {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.88);
+}
+
+.gv-gold-countdown {
+    font-family: "Manrope", "Inter", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: #f5d77a;
+    letter-spacing: 0.04em;
+}
+
+.gv-gold-toast {
+    position: fixed;
+    top: 88px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-12px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.85rem 1.25rem;
+    border-radius: 14px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(12, 18, 36, 0.95));
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    color: #f8fafc;
+    font-weight: 600;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.gv-gold-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+.gv-gold-toast-icon {
+    font-size: 1.2rem;
+    animation: gvGoldPulse 1.2s ease infinite;
+}
+
+@keyframes gvGoldPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.85; }
+}
+
+.gv-gold-card.gv-credit-flash {
+    animation: gvGoldCreditFlash 1.4s ease;
+}
+
+@keyframes gvGoldCreditFlash {
+    0% { box-shadow: 0 0 0 rgba(245, 215, 122, 0); }
+    30% { box-shadow: 0 0 28px rgba(245, 215, 122, 0.45); }
+    100% { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35); }
+}
+
+/* Gold Investment page */
+.gold-page .gold-hero {
+    margin-bottom: 1.5rem;
+    padding: 1.75rem;
+    border-radius: 20px;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.14) 0%, rgba(7, 11, 24, 0.9) 50%),
+        rgba(12, 18, 36, 0.75);
+}
+
+.gold-page .gold-hero h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.5rem;
+    background: linear-gradient(90deg, #f5d77a, #d4af37);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.gold-page .gold-hero p {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.9rem;
+}
+
+.gold-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.gold-stat-card {
+    padding: 1.1rem 1.25rem;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(12, 18, 36, 0.65);
+}
+
+.gold-stat-card .label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.4rem;
+}
+
+.gold-stat-card .value {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.gold-stat-card .value.gold-accent {
+    color: #f5d77a;
+}
+
+.gold-chart-card {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border-radius: 16px;
+    min-height: 260px;
+}
+
+.gold-chart-card canvas {
+    max-height: 220px;
+}
+
+.gold-enroll-card {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border-radius: 16px;
+    border: 1px dashed rgba(212, 175, 55, 0.3);
+}
+
+.gold-enroll-card h3 {
+    margin: 0 0 0.75rem;
+    color: #f5d77a;
+}
+
+.gold-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.gold-history-table th,
+.gold-history-table td {
+    padding: 0.65rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gold-history-table th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.gold-status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+}
+
+@media (max-width: 768px) {
+    .gv-gold-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .gv-gold-metrics {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Admin gold section */
+.admin-gold-plans-grid {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-gold-plan-card {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    background: rgba(12, 18, 36, 0.5);
+}
+
+.admin-gold-plan-card h4 {
+    margin: 0 0 0.5rem;
+    color: #f5d77a;
+}
+
+.admin-gold-plan-meta {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.65);
+    margin-bottom: 0.75rem;
+}
+
+.admin-gold-plan-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.admin-gold-plan-actions button {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.65rem;
+}

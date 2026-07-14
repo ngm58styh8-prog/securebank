@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/admin-premium.css">
 <link rel="stylesheet" href="css/luxury.css">
 <link rel="stylesheet" href="css/admin-luxury.css">
+<link rel="stylesheet" href="css/gold-investment.css">
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
@@ -154,6 +155,10 @@
     <button type="button" class="admin-quick-card" data-section="section-send-money">
         <div class="admin-quick-icon">⇄</div>
         <span>Send Money</span>
+    </button>
+    <button type="button" class="admin-quick-card" data-section="section-gold">
+        <div class="admin-quick-icon">🟨</div>
+        <span>Gold Investment</span>
     </button>
     <button type="button" class="admin-quick-card" data-section="section-support">
         <div class="admin-quick-icon">💬</div>
@@ -352,6 +357,81 @@
 </tr>
 </thead>
 <tbody id="sendMoneyAuditBody"></tbody>
+</table>
+</div>
+</section>
+
+<section id="section-gold" class="admin-panel-section">
+<h2 class="section-title">🟨 Gold Investment Management</h2>
+<p class="section-desc">Create and manage gold plans, search investors, and review payout history. Daily returns are server-calculated.</p>
+
+<div class="card admin-adjust-card">
+    <h3 class="section-heading">Gold Plans</h3>
+    <div id="adminGoldPlansList" class="admin-gold-plans-grid"></div>
+    <button type="button" class="deposit-btn" id="adminGoldNewPlanBtn">+ Create Gold Plan</button>
+    <button type="button" class="withdraw-btn" id="adminGoldProcessCreditsBtn">Run Daily Credits</button>
+</div>
+
+<div class="card admin-adjust-card" id="adminGoldPlanFormCard" style="display:none;">
+    <h3 class="section-heading" id="adminGoldPlanFormTitle">Create Gold Plan</h3>
+    <form id="adminGoldPlanForm">
+        <input type="hidden" id="adminGoldPlanId">
+        <label class="form-label" for="adminGoldPlanName">Plan Name</label>
+        <input id="adminGoldPlanName" type="text" required>
+        <label class="form-label" for="adminGoldDailyReturn">Daily Return (USD)</label>
+        <input id="adminGoldDailyReturn" type="number" min="0" step="0.01" value="1500" required>
+        <label class="form-label" for="adminGoldMinInvest">Minimum Investment</label>
+        <input id="adminGoldMinInvest" type="number" min="0" step="0.01" value="1000" required>
+        <label class="form-label" for="adminGoldMaxInvest">Maximum Investment</label>
+        <input id="adminGoldMaxInvest" type="number" min="0" step="0.01" value="1000000" required>
+        <label class="form-label" for="adminGoldDuration">Duration (days)</label>
+        <input id="adminGoldDuration" type="number" min="1" step="1" value="365" required>
+        <label class="radio-option"><input type="checkbox" id="adminGoldEnabled" checked> Plan enabled</label>
+        <div class="modal-actions">
+            <button type="button" class="modal-cancel" id="adminGoldPlanCancelBtn">Cancel</button>
+            <button type="submit" class="modal-confirm">Save Plan</button>
+        </div>
+    </form>
+</div>
+
+<div class="card admin-adjust-card">
+    <h3 class="section-heading">Search Gold Investors</h3>
+    <div class="toolbar-row">
+        <input type="search" id="adminGoldInvestorSearch" class="wallet-search" placeholder="Search by email or name…" style="flex:1;">
+        <button type="button" class="deposit-btn" id="adminGoldSearchBtn">Search</button>
+    </div>
+    <div class="table-scroll">
+        <table id="adminGoldInvestorsTable">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Plan</th>
+                    <th>Invested</th>
+                    <th>Total Earned</th>
+                    <th>Daily Return</th>
+                    <th>Status</th>
+                    <th>Start Date</th>
+                </tr>
+            </thead>
+            <tbody id="adminGoldInvestorsBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2 class="section-title">📜 Gold Payout History</h2>
+<div class="table-scroll">
+<table id="adminGoldPayoutTable">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>Reference</th>
+    <th>User</th>
+    <th>Plan</th>
+    <th>Amount</th>
+    <th>Status</th>
+</tr>
+</thead>
+<tbody id="adminGoldPayoutBody"></tbody>
 </table>
 </div>
 </section>
@@ -612,6 +692,7 @@
 })();
 </script>
 <script src="js/admin-dashboard.js"></script>
+<script src="js/admin-gold.js"></script>
 <script src="js/admin-premium.js"></script>
 </body>
 </html>

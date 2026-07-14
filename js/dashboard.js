@@ -5,6 +5,7 @@ const account = getAccount(username);
 ensureProfile(username, account);
 ensureSettings(username, account);
 ensureHoldings(account);
+ensureGoldInvestment(account);
 syncAccountNotifications(username, account);
 const settings = getSettings(account);
 let prices = {};
@@ -105,7 +106,16 @@ function portfolioValue() {
     ALL_ASSETS.forEach(function(a) {
         total += assetValue(a.key);
     });
+    if (typeof getGoldInvestmentBalance === "function") {
+        total += getGoldInvestmentBalance(account);
+    }
     return total;
+}
+
+function cryptoPortfolioValue() {
+    return COINS.reduce(function(sum, a) {
+        return sum + assetValue(a.key);
+    }, 0);
 }
 
 function categoryValue(category) {
@@ -334,10 +344,12 @@ function reloadAccountFromRegistry() {
     account.transactions = fresh.transactions || account.transactions;
     account.notifications = fresh.notifications || account.notifications;
     account.holdings = fresh.holdings || account.holdings;
+    account.goldInvestment = fresh.goldInvestment || account.goldInvestment;
     account.pendingDeposits = fresh.pendingDeposits || account.pendingDeposits;
     ensureProfile(username, account);
     ensureSettings(username, account);
     ensureHoldings(account);
+    ensureGoldInvestment(account);
     syncAccountNotifications(username, account);
     updateUI();
 }

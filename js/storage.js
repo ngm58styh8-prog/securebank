@@ -981,6 +981,50 @@ function ensureHoldings(account) {
     return changed;
 }
 
+function ensureGoldInvestment(account) {
+    if (!account.goldInvestment || typeof account.goldInvestment !== "object") {
+        account.goldInvestment = {
+            active: false,
+            planId: null,
+            planName: null,
+            investmentId: null,
+            investedAmount: 0,
+            balance: 0,
+            totalEarned: 0,
+            dailyReturn: 0,
+            todayReturn: 0,
+            startDate: null,
+            nextCreditAt: null,
+            lastCreditDate: null,
+            status: "inactive",
+            history: []
+        };
+        return true;
+    }
+    if (!Array.isArray(account.goldInvestment.history)) {
+        account.goldInvestment.history = [];
+        return true;
+    }
+    return false;
+}
+
+function getGoldInvestmentBalance(account) {
+    if (!account) return 0;
+    ensureGoldInvestment(account);
+    if (!account.goldInvestment.active) return 0;
+    return Number(account.goldInvestment.balance || account.goldInvestment.investedAmount || 0);
+}
+
+function getCryptoBalanceUSD(account, priceMap) {
+    if (!account || !account.holdings) return 0;
+    const keys = ["btc", "eth", "sol", "xrp"];
+    return keys.reduce(function(sum, key) {
+        const qty = Number(account.holdings[key] || 0);
+        const price = priceMap && priceMap[key] ? Number(priceMap[key]) : 0;
+        return sum + qty * price;
+    }, 0);
+}
+
 function getAccount(email) {
     const key = findAccountKey(email) || normalizeEmail(email);
     const accounts = getAllAccounts();
@@ -1000,6 +1044,10 @@ function getAccount(email) {
     if (!account) return null;
     ensureNotifications(account);
     if (ensureHoldings(account)) {
+        accounts[key] = account;
+        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+    }
+    if (ensureGoldInvestment(account)) {
         accounts[key] = account;
         localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     }
@@ -4531,4 +4579,195 @@ function reverseSendMoneyTransfer(transferId, reason) {
     saveAdminData(admin);
 
     return Promise.resolve({ ok: true, transfer: transfer, offline: true });
+}
+
+function fetchGoldPlans() {
+    if (!isServerSyncAvailable()) {
+        const admin = getAdminData();
+        if (!Array.isArray(admin.goldPlans) || !admin.goldPlans.length) {
+            admin.goldPlans = [{
+                id: "gold-plan-default",
+                name: "GlobalVest Gold Elite",
+                minInvestment: 1000,
+                maxInvestment: 1000000,
+                dailyReturn: 1500,
+                durationDays: 365,
+                enabled: true,
+                paused: false
+            }];
+            saveAdminData(admin);
+        }
+        return Promise.resolve({ ok: true, plans: admin.goldPlans, offline: true });
+    }
+    return registryFetch("/api/gold-investments?action=plans", { cache: "no-store" })
+        .then(function(response) { return response.json(); });
+}
+
+function fetchGoldStatus(email) {
+    const key = normalizeEmail(email);
+    if (!isServerSyncAvailable()) {
+        const account = getAccount(key);
+        if (!account) return Promise.resolve({ ok: false, error: "Account not found." });
+        ensureGoldInvestment(account);
+        return Promise.resolve({
+            ok: true,
+            goldInvestment: account.goldInvestment,
+            cash: Number(account.cash || 0),
+            credited: false,
+            offline: true
+        });
+    }
+    return registryFetch("/api/gold-investments?action=status&email=" + encodeURIComponent(key), {
+        cache: "no-store"
+    }).then(function(response) {
+        return response.json();
+    }).then(function(result) {
+        if (result && result.ok && result.account) {
+            saveAccount(key, result.account, { skipServerSync: true });
+        } else if (result && result.ok) {
+            const account = getAccount(key);
+            if (account) {
+                if (result.goldInvestment) account.goldInvestment = result.goldInvestment;
+                if (result.cash != null) account.cash = result.cash;
+                saveAccount(key, account, { skipServerSync: true });
+            }
+        }
+        return result;
+    });
+}
+
+function fetchGoldHistory(email) {
+    const key = normalizeEmail(email);
+    if (!isServerSyncAvailable()) {
+        const account = getAccount(key);
+        if (!account) return Promise.resolve({ ok: false, error: "Account not found." });
+        ensureGoldInvestment(account);
+        return Promise.resolve({
+            ok: true,
+            history: account.goldInvestment.history || [],
+            goldInvestment: account.goldInvestment,
+            offline: true
+        });
+    }
+    return registryFetch("/api/gold-investments?action=history&email=" + encodeURIComponent(key), {
+        cache: "no-store"
+    }).then(function(response) { return response.json(); });
+}
+
+function enrollGoldInvestment(email, planId, amount) {
+    const key = normalizeEmail(email);
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, error: "Gold enrollment requires server connection." });
+    }
+    return registryFetch("/api/gold-investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "enroll",
+            email: key,
+            planId: planId,
+            amount: amount
+        })
+    }).then(function(response) { return response.json(); }).then(function(result) {
+        if (result && result.ok && result.account) {
+            saveAccount(key, result.account, { skipServerSync: true });
+        }
+        return result;
+    });
+}
+
+function adminUpsertGoldPlan(plan, options) {
+    options = options || {};
+    if (!isServerSyncAvailable()) {
+        const admin = getAdminData();
+        if (!Array.isArray(admin.goldPlans)) admin.goldPlans = [];
+        if (options.delete) {
+            admin.goldPlans = admin.goldPlans.filter(function(p) {
+                return String(p.id) !== String(plan.id);
+            });
+        } else {
+            const idx = admin.goldPlans.findIndex(function(p) {
+                return String(p.id) === String(plan.id);
+            });
+            if (idx >= 0) admin.goldPlans[idx] = Object.assign({}, admin.goldPlans[idx], plan);
+            else admin.goldPlans.unshift(plan);
+        }
+        saveAdminData(admin);
+        return Promise.resolve({ ok: true, plans: admin.goldPlans, offline: true });
+    }
+    return registryFetch("/api/gold-investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "upsert-plan",
+            plan: plan,
+            delete: !!options.delete
+        })
+    }).then(function(response) { return response.json(); });
+}
+
+function adminGoldPlanAction(action, planId) {
+    if (!isServerSyncAvailable()) {
+        const admin = getAdminData();
+        const plan = (admin.goldPlans || []).find(function(p) {
+            return String(p.id) === String(planId);
+        });
+        if (!plan) return Promise.resolve({ ok: false, error: "Plan not found." });
+        if (action === "pause-plan") plan.paused = true;
+        if (action === "resume-plan") plan.paused = false;
+        saveAdminData(admin);
+        return Promise.resolve({ ok: true, plan: plan, offline: true });
+    }
+    return registryFetch("/api/gold-investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: action, planId: planId })
+    }).then(function(response) { return response.json(); });
+}
+
+function adminSearchGoldInvestors(query) {
+    if (!isServerSyncAvailable()) {
+        const accounts = getAllAccounts();
+        const q = String(query || "").trim().toLowerCase();
+        const investors = [];
+        Object.keys(accounts).forEach(function(email) {
+            const acct = accounts[email];
+            if (!acct || !acct.goldInvestment || !acct.goldInvestment.active) return;
+            const gi = acct.goldInvestment;
+            const name = acct.profile ? acct.profile.fullName : email;
+            if (q && email.toLowerCase().indexOf(q) === -1 && name.toLowerCase().indexOf(q) === -1) return;
+            investors.push({
+                userEmail: email,
+                userName: name,
+                planName: gi.planName,
+                investedAmount: gi.investedAmount,
+                totalEarned: gi.totalEarned,
+                dailyReturn: gi.dailyReturn,
+                startDate: gi.startDate,
+                status: gi.status
+            });
+        });
+        const admin = getAdminData();
+        return Promise.resolve({
+            ok: true,
+            investors: investors,
+            payoutLog: (admin.goldPayoutLog || []).slice(0, 200),
+            offline: true
+        });
+    }
+    const qs = query ? "&q=" + encodeURIComponent(query) : "";
+    return registryFetch("/api/gold-investments?action=admin-investors" + qs, {
+        cache: "no-store"
+    }).then(function(response) { return response.json(); });
+}
+
+function adminProcessAllGoldCredits() {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, error: "Requires server connection." });
+    }
+    return registryFetch("/api/gold-investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "process-all-credits" })
+    }).then(function(response) { return response.json(); });
 }

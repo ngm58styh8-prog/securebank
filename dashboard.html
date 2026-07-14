@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="css/dashboard.css">
 <link rel="stylesheet" href="css/dashboard-premium.css">
 <link rel="stylesheet" href="css/luxury.css">
+<link rel="stylesheet" href="css/gold-investment.css">
 </head>
 <body class="dashboard-premium luxury-app" data-theme="dark">
 
@@ -31,6 +32,7 @@
     <a href="exchange.html" class="gv-nav-link">₿ Crypto</a>
     <a href="exchange.html" class="gv-nav-link">💼 ETFs</a>
     <a href="exchange.html" class="gv-nav-link">💱 Forex</a>
+    <a href="gold-investment.html" class="gv-nav-link">🟨 Gold Investment</a>
     <div class="gv-nav-section">Banking</div>
     <a href="wallet.html" class="gv-nav-link">💳 Cards</a>
     <a href="wallet.html" class="gv-nav-link">📋 Transactions</a>
@@ -123,6 +125,44 @@
         <canvas id="heroSparkChart"></canvas>
     </div>
 </section>
+
+<section id="goldInvestmentCard" class="gv-gold-card gv-glass gv-animate-in" aria-labelledby="goldInvestmentTitle">
+    <div class="gv-gold-card-header">
+        <h2 id="goldInvestmentTitle" class="gv-gold-card-title"><span aria-hidden="true">🟨</span> Gold Investment</h2>
+        <a href="gold-investment.html" class="gv-gold-card-link">View Portfolio →</a>
+    </div>
+    <div class="gv-gold-metrics">
+        <div class="gv-gold-metric">
+            <span class="gv-gold-metric-label">Gold Investment Balance</span>
+            <span class="gv-gold-metric-value" id="goldBalanceValue">$0.00</span>
+        </div>
+        <div class="gv-gold-metric">
+            <span class="gv-gold-metric-label">Today's Gold Return</span>
+            <span class="gv-gold-metric-value gv-gold-highlight" id="goldTodayReturn">$0.00</span>
+        </div>
+        <div class="gv-gold-metric">
+            <span class="gv-gold-metric-label">Daily Return</span>
+            <span class="gv-gold-metric-value" id="goldDailyReturn">$0.00</span>
+        </div>
+        <div class="gv-gold-metric">
+            <span class="gv-gold-metric-label">Active Gold Plan</span>
+            <span class="gv-gold-metric-value gv-gold-plan" id="goldActivePlan">—</span>
+        </div>
+        <div class="gv-gold-metric">
+            <span class="gv-gold-metric-label">Total Gold Profit</span>
+            <span class="gv-gold-metric-value gv-gold-profit" id="goldTotalProfit">$0.00</span>
+        </div>
+        <div class="gv-gold-metric gv-gold-countdown-wrap">
+            <span class="gv-gold-metric-label">Next Daily Credit</span>
+            <span class="gv-gold-countdown" id="goldCountdown">—</span>
+        </div>
+    </div>
+</section>
+
+<div id="goldCreditToast" class="gv-gold-toast hidden" role="status" aria-live="polite">
+    <span class="gv-gold-toast-icon">✨</span>
+    <span id="goldCreditToastText">Your Gold Investment generated today's return.</span>
+</div>
 
 <div class="gv-quick-actions">
     <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="depositBtn">
@@ -586,6 +626,7 @@
 <script src="js/notifications.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/dashboard-premium.js"></script>
+<script src="js/dashboard-gold.js"></script>
 <script src="js/luxury-ui.js"></script>
 
 </body>

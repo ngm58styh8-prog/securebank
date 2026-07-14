@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#070B18">
+<title>GlobalVest — Gold Investment</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/dashboard-premium.css">
+<link rel="stylesheet" href="css/luxury.css">
+<link rel="stylesheet" href="css/gold-investment.css">
+</head>
+<body class="dashboard-premium luxury-app gold-page" data-theme="dark">
+
+<div class="gv-shell">
+
+<aside class="gv-sidebar" id="gvSidebar">
+    <div class="gv-sidebar-logo">
+        <img src="assets/globalvest-logo-light.svg" alt="GlobalVest">
+    </div>
+    <div class="gv-nav-section">Overview</div>
+    <a href="dashboard.html" class="gv-nav-link">📊 Dashboard</a>
+    <a href="wallet.html" class="gv-nav-link">💼 Portfolio</a>
+    <a href="exchange.html" class="gv-nav-link">📈 Markets</a>
+    <div class="gv-nav-section">Invest</div>
+    <a href="gold-investment.html" class="gv-nav-link active">🟨 Gold Investment</a>
+    <a href="exchange.html" class="gv-nav-link">₿ Crypto</a>
+    <div class="gv-nav-section">Account</div>
+    <a href="support.html" class="gv-nav-link">🛟 Support</a>
+    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+</aside>
+
+<div class="gv-app">
+
+<header class="gv-header">
+    <div class="gv-header-left">
+        <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Menu">☰</button>
+        <div class="gv-welcome">
+            <h1>🟨 Gold Investment</h1>
+            <p>Premium gold returns — separate from crypto</p>
+        </div>
+    </div>
+    <div class="gv-header-actions profile-wrap">
+        <button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications">
+            🔔 <span id="notifCount" class="badge" style="display:none">0</span>
+        </button>
+        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle" title="Toggle dark mode">🌙</button>
+        <a href="dashboard.html" class="gv-nav-link mobile-back">← Dashboard</a>
+        <button type="button" class="gv-icon-btn icon-btn" id="logoutBtn" title="Log out">🚪</button>
+    </div>
+</header>
+
+<main class="gv-main container gold-page">
+
+<div id="siteAnnouncement" class="site-announcement hidden"></div>
+
+<section class="gold-hero gv-glass gv-animate-in">
+    <h1>Gold Investment Portfolio</h1>
+    <p>Daily returns credited to your Available Balance. Crypto holdings remain separate.</p>
+</section>
+
+<div class="gold-stats-grid gv-animate-in">
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Gold Balance</div>
+        <div class="value gold-accent" id="giGoldBalance">$0.00</div>
+    </div>
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Current Investment</div>
+        <div class="value" id="giCurrentInvestment">$0.00</div>
+    </div>
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Daily Return</div>
+        <div class="value gold-accent" id="giDailyReturn">$0.00</div>
+    </div>
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Total Earned</div>
+        <div class="value" id="giTotalEarned">$0.00</div>
+    </div>
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Investment Start Date</div>
+        <div class="value" id="giStartDate">—</div>
+    </div>
+    <div class="gold-stat-card gv-glass">
+        <div class="label">Next Credit Time</div>
+        <div class="value gold-accent" id="giNextCredit">—</div>
+    </div>
+</div>
+
+<div id="goldEnrollSection" class="gold-enroll-card card gv-glass gv-animate-in hidden">
+    <h3>Start Gold Investment</h3>
+    <p class="section-desc">Select a plan and invest from your Available Balance.</p>
+    <form id="goldEnrollForm">
+        <label class="form-label" for="goldPlanSelect">Gold Plan</label>
+        <select id="goldPlanSelect" class="wallet-filter" required></select>
+        <label class="form-label" for="goldInvestAmount">Investment Amount (USD)</label>
+        <input id="goldInvestAmount" type="number" min="1" step="0.01" placeholder="0.00" required>
+        <p class="form-hint" id="goldPlanHint"></p>
+        <button type="submit" class="deposit-btn" id="goldEnrollBtn">Activate Gold Plan</button>
+    </form>
+    <p id="goldEnrollError" class="form-error hidden"></p>
+</div>
+
+<div class="card gv-glass gold-chart-card gv-animate-in">
+    <h3 class="section-heading">Investment Performance</h3>
+    <canvas id="goldPerformanceChart" height="220"></canvas>
+</div>
+
+<div class="card gv-glass gv-animate-in">
+    <h3 class="section-heading">Transaction History</h3>
+    <div class="table-scroll">
+        <table class="gold-history-table" id="goldTxTable">
+            <thead>
+                <tr>
+                    <th>Investment ID</th>
+                    <th>Daily Return</th>
+                    <th>Amount Credited</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody id="goldTxBody">
+                <tr><td colspan="6">No gold transactions yet.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card gv-glass gv-animate-in">
+    <h3 class="section-heading">Profit History</h3>
+    <div class="table-scroll">
+        <table class="gold-history-table" id="goldProfitTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Daily Return</th>
+                    <th>Cumulative Profit</th>
+                    <th>Reference</th>
+                </tr>
+            </thead>
+            <tbody id="goldProfitBody">
+                <tr><td colspan="4">No profit history yet.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</main>
+</div>
+</div>
+
+<div id="goldCreditToast" class="gv-gold-toast hidden" role="status">
+    <span class="gv-gold-toast-icon">✨</span>
+    <span id="goldCreditToastText">Your Gold Investment generated today's return.</span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/common.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/gold-investment.js"></script>
+<script src="js/luxury-ui.js"></script>
+
+</body>
+</html>
