@@ -211,18 +211,15 @@
     </div>
 
     <div id="depositConfirmSection" class="deposit-confirm-section hidden">
-        <div class="admin-approval-notice">
-            Deposits are not credited instantly. An admin must verify your payment and approve the transaction.
-        </div>
         <div id="depositPageBtcPreview" class="deposit-btc-preview">
             <span class="form-label">Send approximately</span>
             <div id="depositPageBtcAmount" class="deposit-btc-preview-amount">—</div>
             <p class="deposit-hint">Based on current <span id="depositPageCryptoName">BTC</span> price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
         </div>
-        <p class="deposit-hint">Send the amount above to the deposit address, then submit for admin approval.</p>
+        <p id="depositConfirmInstruction" class="deposit-hint">Send the BTC amount above to the deposit address to complete your deposit. Once you've sent the transaction, click Submit Deposit.</p>
         <div class="deposit-panel-actions">
             <button type="button" class="modal-cancel" id="depositBackBtn">Change Amount</button>
-            <button type="button" class="modal-confirm" id="depositSubmitBtn">Submit for Admin Approval</button>
+            <button type="button" class="modal-confirm" id="depositSubmitBtn">Submit Deposit</button>
         </div>
     </div>
 </section>

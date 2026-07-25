@@ -593,6 +593,7 @@ function updateDepositCryptoDisplay() {
         cryptoNameEl.textContent = wallet.symbol;
     }
 
+    updateDepositConfirmInstruction();
     updateDepositQrCode(wallet && wallet.address ? wallet.address : "");
     return wallet && wallet.address ? wallet.address : "";
 }
@@ -644,6 +645,18 @@ function formatDepositCryptoAmount(amount, symbol) {
     return amount.toFixed(6) + " " + sym;
 }
 
+function getDepositConfirmInstruction(symbol) {
+    const sym = String(symbol || "BTC").toUpperCase();
+    return "Send the " + sym + " amount above to the deposit address to complete your deposit. " +
+        "Once you've sent the transaction, click Submit Deposit.";
+}
+
+function updateDepositConfirmInstruction() {
+    const el = document.getElementById("depositConfirmInstruction");
+    if (!el) return;
+    el.textContent = getDepositConfirmInstruction(getSelectedDepositCurrency());
+}
+
 function getDepositAmountValue() {
     const input = document.getElementById("depositAmountInput");
     if (!input) return null;
@@ -683,6 +696,7 @@ function hideDepositConfirmSection() {
 function showDepositConfirmSection() {
     const section = document.getElementById("depositConfirmSection");
     if (section) section.classList.remove("hidden");
+    updateDepositConfirmInstruction();
     updateDepositPagePreview();
 }
 
