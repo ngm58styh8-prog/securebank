@@ -4,14 +4,26 @@ const {
     getSupportEmail,
     BRAND_NAME
 } = require("./email-deliverability");
+const {
+    formatDepositCurrencyLabel,
+    normalizeDepositCurrencyFields
+} = require("./crypto-deposit-config");
 
 const LOG_PREFIX = "[deposit-email]";
 
-function formatDepositMethod(method) {
+function formatDepositMethod(method, deposit) {
+    if (method === "crypto" && deposit) {
+        const fields = normalizeDepositCurrencyFields(deposit);
+        return formatDepositCurrencyLabel(fields.currency);
+    }
     if (method === "crypto") return "Cryptocurrency";
     if (method === "bank") return "Bank Transfer";
     if (method === "card") return "Card";
     return method || "Deposit";
+}
+
+function getDepositCurrencyFields(deposit) {
+    return normalizeDepositCurrencyFields(deposit || {});
 }
 
 function formatDateTime(value) {
@@ -87,23 +99,24 @@ function buildDepositReceivedContent(deposit, account, admin) {
     const siteName = getSiteName(admin);
     const fullName = getUserDisplayName(account, userEmail);
     const supportEmail = getSupportEmail();
-    const methodLabel = formatDepositMethod(deposit.method);
+    const fields = getDepositCurrencyFields(deposit);
+    const currencyLabel = formatDepositCurrencyLabel(fields.currency);
     const amount = Number(deposit.amount);
+    const walletAddress = fields.walletAddress || deposit.payTo || "";
     const submittedAt = formatDateTime(deposit.requestedAt || deposit.date);
 
-    const subject = siteName + " — Deposit Request Received ($" + amount.toFixed(2) + ")";
-    let body = "Hi " + fullName + ",\n\n" +
-        "We received your deposit request for $" + amount.toFixed(2) + " via " + methodLabel + ".\n\n" +
-        "Status: Pending admin approval\n" +
-        "Submitted: " + submittedAt + "\n\n";
-
-    if (deposit.method === "crypto" && deposit.payTo) {
-        body += "Send your payment to this address:\n" + deposit.payTo + "\n\n";
-    }
-
-    body += "You will receive another email once your deposit is approved and credited.\n\n" +
-        "Questions? Contact " + supportEmail + ".\n\n" +
-        "Thank you,\n" + siteName;
+    const subject = "Deposit Request Received";
+    const body = "Hello " + fullName + ",\n\n" +
+        "We have successfully received your cryptocurrency deposit request.\n\n" +
+        "Deposit Details\n\n" +
+        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Cryptocurrency:\n" + currencyLabel + "\n\n" +
+        "Wallet Address:\n" + walletAddress + "\n\n" +
+        "Status:\nPending Confirmation\n\n" +
+        "Our team will verify your blockchain transaction and your account balance will be credited after sufficient confirmations.\n\n" +
+        "Thank you for banking with us.\n\n" +
+        "Regards,\n\n" +
+        siteName + " Support";
 
     return {
         subject: subject,
@@ -112,12 +125,39 @@ function buildDepositReceivedContent(deposit, account, admin) {
     };
 }
 
+function buildDepositAdminNotificationContent(deposit, account, admin) {
+    const siteName = getSiteName(admin);
+    const fullName = getUserDisplayName(account, deposit.userEmail);
+    const fields = getDepositCurrencyFields(deposit);
+    const currencyLabel = formatDepositCurrencyLabel(fields.currency);
+    const amount = Number(deposit.amount);
+    const walletAddress = fields.walletAddress || deposit.payTo || "";
+    const submittedAt = formatDateTime(deposit.requestedAt || deposit.date);
+
+    const subject = "New Cryptocurrency Deposit Request";
+    const body = "A new cryptocurrency deposit request has been submitted.\n\n" +
+        "Customer:\n" + fullName + "\n\n" +
+        "Email:\n" + deposit.userEmail + "\n\n" +
+        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Currency:\n" + currencyLabel + "\n\n" +
+        "Wallet Address:\n" + walletAddress + "\n\n" +
+        "Time Submitted:\n" + submittedAt + "\n\n" +
+        "Status:\nPending\n\n" +
+        siteName + " Admin";
+
+    return {
+        subject: subject,
+        body: body,
+        headline: "New Deposit Request"
+    };
+}
+
 function buildDepositCreditedContent(deposit, account, admin) {
     const userEmail = deposit.userEmail;
     const siteName = getSiteName(admin);
     const fullName = getUserDisplayName(account, userEmail);
     const supportEmail = getSupportEmail();
-    const methodLabel = formatDepositMethod(deposit.method);
+    const methodLabel = formatDepositMethod(deposit.method, deposit);
     const amount = Number(deposit.amount);
     const balance = Number(account && account.cash != null ? account.cash : 0);
     const creditedAt = formatDateTime(deposit.resolvedAt || new Date().toISOString());
@@ -145,7 +185,7 @@ function buildDepositDeclinedContent(deposit, account, admin, reason) {
     const siteName = getSiteName(admin);
     const fullName = getUserDisplayName(account, userEmail);
     const supportEmail = getSupportEmail();
-    const methodLabel = formatDepositMethod(deposit.method);
+    const methodLabel = formatDepositMethod(deposit.method, deposit);
     const amount = Number(deposit.amount);
     const declinedAt = formatDateTime(deposit.resolvedAt || new Date().toISOString());
     const rejectionReason = String(reason || deposit.rejectReason || "Rejected by admin").trim();
@@ -217,6 +257,56 @@ async function sendDepositEmail(type, deposit, account, admin, buildContent, sen
     }
 }
 
+async function sendDepositAdminNotificationSafely(deposit, account, admin) {
+    const adminTo = String(admin && admin.email || "").trim().toLowerCase();
+    const context = { depositId: deposit && deposit.id ? deposit.id : null };
+
+    if (!adminTo || adminTo.indexOf("@") === -1) {
+        logEmailFailure("admin-notify", adminTo || "(missing)", new Error("Missing admin email."), context);
+        return { sent: false, skipped: true, error: "Missing admin email." };
+    }
+
+    if (deposit && deposit.adminSubmittedEmailSentAt) {
+        console.log(LOG_PREFIX, "skipped-duplicate", {
+            type: "admin-notify",
+            to: adminTo,
+            depositId: context.depositId,
+            sentAt: deposit.adminSubmittedEmailSentAt
+        });
+        return { sent: false, skipped: true, duplicate: true };
+    }
+
+    const content = buildDepositAdminNotificationContent(deposit, account, admin);
+    logEmailAttempt("admin-notify", adminTo, context);
+
+    try {
+        const emailContent = buildTransactionalEmailContent(
+            content.subject,
+            content.body,
+            adminTo,
+            {
+                category: "deposit-admin",
+                headline: content.headline
+            }
+        );
+
+        const data = await sendTransactionalEmail({
+            to: adminTo,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html,
+            headers: emailContent.headers,
+            tags: emailContent.tags
+        });
+
+        logEmailSuccess("admin-notify", adminTo, data, context);
+        return { sent: true, id: data && data.id ? data.id : null };
+    } catch (err) {
+        logEmailFailure("admin-notify", adminTo, err, context);
+        return { sent: false, error: err && err.message ? err.message : String(err) };
+    }
+}
+
 async function sendDepositReceivedEmailSafely(deposit, account, admin) {
     if (deposit && deposit.status && deposit.status !== "pending") {
         console.log(LOG_PREFIX, "skipped-non-pending", {
@@ -280,9 +370,11 @@ module.exports = {
     formatDepositMethod,
     formatDateTime,
     buildDepositReceivedContent,
+    buildDepositAdminNotificationContent,
     buildDepositCreditedContent,
     buildDepositDeclinedContent,
     sendDepositReceivedEmailSafely,
+    sendDepositAdminNotificationSafely,
     sendDepositCreditedEmailSafely,
     sendDepositDeclinedEmailSafely
 };

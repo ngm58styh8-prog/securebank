@@ -188,7 +188,7 @@
         <h3 id="depositPanelTitle">💰 Deposit Funds</h3>
         <button type="button" class="deposit-panel-close" id="depositPanelCloseBtn" aria-label="Close deposit">✕</button>
     </div>
-    <p class="deposit-panel-desc">Bitcoin (BTC) only — bank and card deposits are unavailable.</p>
+    <p class="deposit-panel-desc">Cryptocurrency deposits — select Bitcoin (BTC) or Ethereum (ETH).</p>
 
     <div class="deposit-amount-step">
         <label class="form-label" for="depositAmountInput">Deposit Amount (USD)</label>
@@ -198,22 +198,28 @@
     </div>
 
     <div id="depositAddressBox" class="admin-payto-box deposit-btc-banner">
+        <label class="form-label" for="depositCryptoSelect">Cryptocurrency</label>
+        <select id="depositCryptoSelect" class="deposit-crypto-select wallet-filter" aria-label="Select cryptocurrency"></select>
+
         <span class="form-label">Deposit Address</span>
-        <p class="crypto-pay-label">Send Bitcoin to:</p>
+        <p id="depositCryptoPayLabel" class="crypto-pay-label">Send Bitcoin (BTC) to:</p>
         <div id="depositPageAddress" class="admin-payto-text admin-crypto-address">Loading deposit address…</div>
+        <div class="deposit-qr-wrap">
+            <img id="depositQrImage" class="deposit-qr-image hidden" alt="Deposit address QR code" width="168" height="168">
+        </div>
         <button type="button" class="copy-btn" id="copyDepositPageBtn">Copy Deposit Address</button>
     </div>
 
     <div id="depositConfirmSection" class="deposit-confirm-section hidden">
         <div class="admin-approval-notice">
-            Deposits are not credited instantly. An admin must verify your BTC payment and approve the transaction.
+            Deposits are not credited instantly. An admin must verify your payment and approve the transaction.
         </div>
         <div id="depositPageBtcPreview" class="deposit-btc-preview">
             <span class="form-label">Send approximately</span>
             <div id="depositPageBtcAmount" class="deposit-btc-preview-amount">—</div>
-            <p class="deposit-hint">Based on current BTC price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
+            <p class="deposit-hint">Based on current <span id="depositPageCryptoName">BTC</span> price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
         </div>
-        <p class="deposit-hint">Send the BTC amount above to the deposit address, then submit for admin approval.</p>
+        <p class="deposit-hint">Send the amount above to the deposit address, then submit for admin approval.</p>
         <div class="deposit-panel-actions">
             <button type="button" class="modal-cancel" id="depositBackBtn">Change Amount</button>
             <button type="button" class="modal-confirm" id="depositSubmitBtn">Submit for Admin Approval</button>
@@ -621,6 +627,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="js/crypto-deposit-config.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js"></script>

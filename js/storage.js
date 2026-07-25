@@ -222,7 +222,7 @@ const DEFAULT_ADMIN = {
 };
 
 const DEPOSIT_METHODS = {
-    crypto: { enabled: true, label: "Bitcoin (BTC)" },
+    crypto: { enabled: true, label: "Cryptocurrency (BTC / ETH)" },
     bank: { enabled: false, label: "Bank Transfer", unavailable: "Bank transfers are unavailable at the moment." },
     card: { enabled: false, label: "Visa / Card", unavailable: "Visa and card payments are unavailable at the moment." }
 };
@@ -521,21 +521,49 @@ function dispatchAccountEmail(account, userEmail, subject, body, type) {
     return sendRealEmail(userEmail, subject, body, { category: type || "general" });
 }
 
-function sendDepositSubmittedEmail(account, userEmail, amount, method, payTo) {
+function sendDepositSubmittedEmail(account, userEmail, amount, method, payTo, depositMeta) {
+    depositMeta = depositMeta || {};
     const meta = getTransactionEmailMeta(account, userEmail);
-    const methodLabel = formatDepositMethod(method);
-    const subject = meta.siteName + " — Deposit request received ($" + amount.toFixed(2) + ")";
-    let body = "Hi " + meta.fullName + ",\n\n" +
-        "We received your deposit request for $" + amount.toFixed(2) + " via " + methodLabel + ".\n\n" +
-        "Status: Pending admin approval\n" +
-        "Submitted: " + new Date().toLocaleString() + "\n\n";
-    if (method === "crypto" && payTo) {
-        body += "Send your payment to this address:\n" + payTo + "\n\n";
-    }
-    body += "You will receive another email once your deposit is approved and credited.\n\n" +
-        "Questions? Contact " + meta.supportEmail + ".\n\n" +
-        "Thank you,\n" + meta.siteName;
+    const currency = String(depositMeta.currency || "BTC").toUpperCase();
+    const currencyLabel = typeof CryptoDepositConfig !== "undefined"
+        ? CryptoDepositConfig.formatDepositCurrencyLabel(currency)
+        : currency;
+    const walletAddress = depositMeta.walletAddress || payTo || "";
+    const subject = "Deposit Request Received";
+    const body = "Hello " + meta.fullName + ",\n\n" +
+        "We have successfully received your cryptocurrency deposit request.\n\n" +
+        "Deposit Details\n\n" +
+        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Cryptocurrency:\n" + currencyLabel + "\n\n" +
+        "Wallet Address:\n" + walletAddress + "\n\n" +
+        "Status:\nPending Confirmation\n\n" +
+        "Our team will verify your blockchain transaction and your account balance will be credited after sufficient confirmations.\n\n" +
+        "Thank you for banking with us.\n\n" +
+        "Regards,\n\n" +
+        meta.siteName + " Support";
     return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
+}
+
+function sendDepositAdminSubmittedEmail(account, userEmail, amount, depositMeta) {
+    depositMeta = depositMeta || {};
+    const admin = getAdminData();
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const currency = String(depositMeta.currency || "BTC").toUpperCase();
+    const currencyLabel = typeof CryptoDepositConfig !== "undefined"
+        ? CryptoDepositConfig.formatDepositCurrencyLabel(currency)
+        : currency;
+    const walletAddress = depositMeta.walletAddress || depositMeta.payTo || "";
+    const adminTo = normalizeEmail(admin.email);
+    const subject = "New Cryptocurrency Deposit Request";
+    const body = "A new cryptocurrency deposit request has been submitted.\n\n" +
+        "Customer:\n" + meta.fullName + "\n\n" +
+        "Email:\n" + userEmail + "\n\n" +
+        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Currency:\n" + currencyLabel + "\n\n" +
+        "Wallet Address:\n" + walletAddress + "\n\n" +
+        "Time Submitted:\n" + new Date().toLocaleString() + "\n\n" +
+        "Status:\nPending";
+    return sendRealEmail(adminTo, subject, body, { category: "deposit-admin" });
 }
 
 function sendDepositApprovedEmail(account, userEmail, amount, method) {
@@ -1977,6 +2005,12 @@ function ensureAdminDataShape(data) {
     if (!data.internalTransfers) data.internalTransfers = [];
     if (!data.sendMoneyAuditLog) data.sendMoneyAuditLog = [];
     if (!data.processedSendMoneyKeys) data.processedSendMoneyKeys = {};
+    if (typeof CryptoDepositConfig !== "undefined") {
+        data.cryptoDepositWallets = CryptoDepositConfig.normalizeCryptoDepositWallets(data);
+        if (data.cryptoDepositWallets[0] && data.cryptoDepositWallets[0].address) {
+            data.walletAddress = data.cryptoDepositWallets[0].address;
+        }
+    }
     return data;
 }
 
@@ -3500,18 +3534,53 @@ function recordExchange(userEmail, entry) {
     return { ok: true };
 }
 
+function getAdminCryptoDepositWallets() {
+    const admin = getAdminData();
+    if (typeof CryptoDepositConfig !== "undefined") {
+        return CryptoDepositConfig.normalizeCryptoDepositWallets(admin);
+    }
+    return [
+        { symbol: "BTC", name: "Bitcoin", address: admin.walletAddress || DEFAULT_ADMIN.walletAddress },
+        { symbol: "ETH", name: "Ethereum", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    ];
+}
+
+function getAdminWalletAddressForCurrency(currency) {
+    const symbol = String(currency || "BTC").trim().toUpperCase();
+    const wallets = getAdminCryptoDepositWallets();
+    for (let i = 0; i < wallets.length; i++) {
+        if (wallets[i].symbol === symbol) return wallets[i].address;
+    }
+    return getAdminWalletAddress();
+}
+
 function getAdminWalletAddress() {
-    return getAdminData().walletAddress || DEFAULT_ADMIN.walletAddress;
+    return getAdminWalletAddressForCurrency("BTC");
 }
 
 function getAdminBankDetails() {
     return getAdminData().bankDetails || DEFAULT_ADMIN.bankDetails;
 }
 
-function updateAdminPaymentSettings(walletAddress, bankDetails) {
+function updateAdminPaymentSettings(walletAddress, bankDetails, cryptoWallets) {
     const admin = getAdminData();
-    admin.walletAddress = (walletAddress || "").trim() || DEFAULT_ADMIN.walletAddress;
     admin.bankDetails = (bankDetails || "").trim() || DEFAULT_ADMIN.bankDetails;
+
+    if (Array.isArray(cryptoWallets) && cryptoWallets.length) {
+        admin.cryptoDepositWallets = cryptoWallets;
+        const btcWallet = cryptoWallets.find(function(entry) {
+            return entry.symbol === "BTC";
+        });
+        admin.walletAddress = (btcWallet && btcWallet.address) ||
+            (walletAddress || "").trim() ||
+            DEFAULT_ADMIN.walletAddress;
+    } else {
+        admin.walletAddress = (walletAddress || "").trim() || DEFAULT_ADMIN.walletAddress;
+        if (typeof CryptoDepositConfig !== "undefined") {
+            admin.cryptoDepositWallets = CryptoDepositConfig.normalizeCryptoDepositWallets(admin);
+        }
+    }
+
     saveAdminData(admin);
     return { ok: true };
 }
@@ -3630,8 +3699,12 @@ function getPendingDepositsFromAccounts() {
                 userName: userName,
                 amount: d.amount,
                 btcAmount: d.btcAmount,
+                ethAmount: d.ethAmount,
+                cryptoAmount: d.cryptoAmount,
+                currency: d.currency || (d.btcAmount != null ? "BTC" : "BTC"),
+                walletAddress: d.walletAddress || d.payTo,
                 method: d.method || "crypto",
-                payTo: d.payTo || getAdminWalletAddress(),
+                payTo: d.payTo || getAdminWalletAddressForCurrency(d.currency || "BTC"),
                 status: "pending",
                 requestedAt: d.requestedAt || null,
                 date: d.date || new Date().toLocaleString(),
@@ -3789,7 +3862,7 @@ function getUserPendingDeposits(userEmail) {
     });
 }
 
-function submitDepositRequest(userEmail, amount, method, btcAmount) {
+function submitDepositRequest(userEmail, amount, method, depositMeta) {
     const key = normalizeEmail(userEmail);
     const account = getRegistryAccount(key) || getAccount(key);
     if (!account) {
@@ -3804,67 +3877,98 @@ function submitDepositRequest(userEmail, amount, method, btcAmount) {
     method = "crypto";
     if (!isDepositMethodEnabled(method)) {
         const info = DEPOSIT_METHODS[method];
-        return { ok: false, error: info ? info.unavailable : "Bitcoin deposits are unavailable." };
+        return { ok: false, error: info ? info.unavailable : "Cryptocurrency deposits are unavailable." };
     }
 
-    const payTo = getAdminWalletAddress();
+    let currency = "BTC";
+    let cryptoAmount = null;
+    if (typeof depositMeta === "number") {
+        cryptoAmount = depositMeta;
+    } else if (depositMeta && typeof depositMeta === "object") {
+        currency = String(depositMeta.currency || "BTC").trim().toUpperCase();
+        cryptoAmount = depositMeta.cryptoAmount != null ? Number(depositMeta.cryptoAmount) : null;
+    }
+
+    const payTo = getAdminWalletAddressForCurrency(currency);
     if (!payTo) {
         return { ok: false, error: "Deposit address is not configured. Please contact support." };
     }
 
-    if (btcAmount != null && btcAmount !== "") {
-        btcAmount = parseFloat(btcAmount);
-        if (!btcAmount || btcAmount <= 0) btcAmount = null;
+    if (typeof CryptoDepositConfig !== "undefined" &&
+        !CryptoDepositConfig.validateWalletAddress(currency, payTo)) {
+        return { ok: false, error: "Configured " + currency + " deposit address is invalid." };
+    }
+
+    if (cryptoAmount != null && cryptoAmount !== "") {
+        cryptoAmount = parseFloat(cryptoAmount);
+        if (!cryptoAmount || cryptoAmount <= 0) cryptoAmount = null;
     } else {
-        btcAmount = null;
+        cryptoAmount = null;
     }
 
     const userName = account.profile ? account.profile.fullName : key;
+    const nowIso = new Date().toISOString();
 
     const deposit = {
         id: "dep-" + Date.now() + Math.random().toString(36).slice(2, 7),
         userEmail: key,
         userName: userName,
         amount: amount,
-        btcAmount: btcAmount,
+        currency: currency,
+        cryptoAsset: currency,
+        cryptoAmount: cryptoAmount,
+        btcAmount: currency === "BTC" ? cryptoAmount : null,
+        ethAmount: currency === "ETH" ? cryptoAmount : null,
         method: method,
+        walletAddress: payTo,
         payTo: payTo,
         status: "pending",
-        requestedAt: new Date().toISOString(),
+        requestedAt: nowIso,
+        createdAt: nowIso,
+        updatedAt: nowIso,
         date: new Date().toLocaleString()
     };
 
     if (!account.pendingDeposits) account.pendingDeposits = [];
     account.pendingDeposits.push({
-        id: deposit.id, amount: amount, btcAmount: btcAmount, method: method, payTo: payTo, status: "pending", date: deposit.date
+        id: deposit.id,
+        amount: amount,
+        currency: currency,
+        cryptoAmount: cryptoAmount,
+        btcAmount: deposit.btcAmount,
+        ethAmount: deposit.ethAmount,
+        method: method,
+        walletAddress: payTo,
+        payTo: payTo,
+        status: "pending",
+        date: deposit.date
     });
+
+    const currencyLabel = typeof CryptoDepositConfig !== "undefined"
+        ? CryptoDepositConfig.formatDepositCurrencyLabel(currency)
+        : currency;
 
     account.transactions.unshift({
         date: deposit.date,
-        description: method === "crypto"
-            ? "Deposit Request (Pending) — crypto → " + payTo
-            : "Deposit Request (Pending) — " + method + " → Admin",
+        description: "Deposit Request (Pending) — " + currencyLabel + " → " + payTo,
         amount: 0
     });
-    pushAccountNotification(account, method === "crypto"
-        ? "Deposit of $" + amount.toFixed(2) + " submitted — send BTC to " + payTo + ". Awaiting admin approval."
-        : "Deposit of $" + amount.toFixed(2) + " submitted — awaiting admin approval before funds are credited.",
-        {
-            type: "deposit",
-            title: "Deposit submitted",
-            amount: amount,
-            currency: "USD",
-            status: "pending"
-        }
-    );
+    pushAccountNotification(account, "Deposit of $" + amount.toFixed(2) + " submitted — send " +
+        currency + " to " + payTo + ". Awaiting admin approval.", {
+        type: "deposit",
+        title: "Deposit submitted",
+        amount: amount,
+        currency: "USD",
+        status: "pending"
+    });
 
     saveAccount(key, account, { skipServerSync: true });
 
-    return { ok: true, deposit: deposit, payTo: payTo, account: account };
+    return { ok: true, deposit: deposit, payTo: payTo, account: account, currency: currency };
 }
 
-function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
-    const result = submitDepositRequest(userEmail, amount, method, btcAmount);
+function submitDepositRequestAsync(userEmail, amount, method, depositMeta) {
+    const result = submitDepositRequest(userEmail, amount, method, depositMeta);
     if (!result.ok) {
         return Promise.resolve(result);
     }
@@ -3896,14 +4000,24 @@ function submitDepositRequestAsync(userEmail, amount, method, btcAmount) {
                     key,
                     amount,
                     method,
-                    result.payTo
+                    result.payTo,
+                    result.deposit
                 ).then(function(emailResult) {
-                    return {
-                        ok: true,
-                        deposit: result.deposit,
-                        payTo: result.payTo,
-                        emailSent: !!(emailResult && emailResult.ok)
-                    };
+                    return sendDepositAdminSubmittedEmail(
+                        result.account,
+                        key,
+                        amount,
+                        result.deposit
+                    ).then(function(adminEmailResult) {
+                        return {
+                            ok: true,
+                            deposit: result.deposit,
+                            payTo: result.payTo,
+                            currency: result.currency,
+                            emailSent: !!(emailResult && emailResult.ok),
+                            adminEmailSent: !!(adminEmailResult && adminEmailResult.ok)
+                        };
+                    });
                 });
             }
 

@@ -470,9 +470,14 @@
 <div class="card admin-adjust-card">
     <form id="walletSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">
-            <label class="form-label" for="adminWalletInput">Deposit Address</label>
+            <label class="form-label" for="adminWalletInput">Bitcoin (BTC) Deposit Address</label>
             <input id="adminWalletInput" type="text" placeholder="1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" required>
-            <p class="admin-sub">Shown to users when they deposit — all deposits go to this address.</p>
+            <p class="admin-sub">Shown when users deposit Bitcoin — Legacy, SegWit, and Bech32 supported.</p>
+        </div>
+        <div class="admin-form-row">
+            <label class="form-label" for="adminEthWalletInput">Ethereum (ETH) Deposit Address</label>
+            <input id="adminEthWalletInput" type="text" placeholder="0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" required>
+            <p class="admin-sub">Shown when users deposit Ethereum — must start with 0x followed by 40 hex characters.</p>
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="adminBankInput">Bank Account Details</label>
@@ -492,7 +497,7 @@
 <tr>
     <th>Date</th>
     <th>User</th>
-    <th>Method</th>
+    <th>Currency</th>
     <th>Pay To (Admin)</th>
     <th>Amount</th>
     <th>Actions</th>
@@ -663,6 +668,7 @@
     </div>
 </div>
 
+<script src="js/crypto-deposit-config.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/common.js"></script>
 <script>

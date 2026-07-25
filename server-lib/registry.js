@@ -17,8 +17,14 @@ function useLocalRegistry() {
 const {
     sendDepositReceivedEmailSafely,
     sendDepositCreditedEmailSafely,
-    sendDepositDeclinedEmailSafely
+    sendDepositDeclinedEmailSafely,
+    sendDepositAdminNotificationSafely
 } = require("./deposit-emails");
+const {
+    normalizeDepositCurrencyFields,
+    validateWalletAddress,
+    normalizeCryptoDepositWallets
+} = require("./crypto-deposit-config");
 const {
     sendWithdrawalReceivedEmailSafely,
     sendWithdrawalProcessedEmailSafely,
@@ -322,6 +328,10 @@ function ensureAdminRegistryShape(admin) {
     if (!Array.isArray(admin.goldPlans)) admin.goldPlans = [];
     if (!Array.isArray(admin.goldPayoutLog)) admin.goldPayoutLog = [];
     if (!Array.isArray(admin.goldInvestors)) admin.goldInvestors = [];
+    admin.cryptoDepositWallets = normalizeCryptoDepositWallets(admin);
+    if (admin.cryptoDepositWallets[0] && admin.cryptoDepositWallets[0].address) {
+        admin.walletAddress = admin.cryptoDepositWallets[0].address;
+    }
     return admin;
 }
 
@@ -525,13 +535,36 @@ function normalizePendingDeposit(deposit) {
         userEmail: key,
         userName: String(deposit.userName || key),
         amount: amount,
-        btcAmount: deposit.btcAmount != null ? Number(deposit.btcAmount) : null,
         method: deposit.method || "crypto",
-        payTo: String(deposit.payTo || ""),
         status: deposit.status || "pending",
         requestedAt: deposit.requestedAt || new Date().toISOString(),
-        date: deposit.date || new Date().toLocaleString()
+        date: deposit.date || new Date().toLocaleString(),
+        ...normalizeDepositCurrencyFields(deposit)
     };
+}
+
+async function logCryptoDepositRecord(deposit) {
+    if (useLocalRegistry()) return;
+    try {
+        const { getSupabaseServiceRoleClient } = require("./supabase");
+        const supabase = getSupabaseServiceRoleClient();
+        const fields = normalizeDepositCurrencyFields(deposit);
+        const now = new Date().toISOString();
+        await supabase.from("crypto_deposits").upsert({
+            id: String(deposit.id),
+            user_email: deposit.userEmail,
+            currency: fields.currency,
+            wallet_address: fields.walletAddress,
+            amount: Number(deposit.amount),
+            crypto_amount: fields.cryptoAmount,
+            status: deposit.status || "pending",
+            tx_hash: deposit.txHash || deposit.tx_hash || null,
+            created_at: deposit.requestedAt || now,
+            updated_at: now
+        }, { onConflict: "id" });
+    } catch (err) {
+        console.warn("[registry] crypto_deposits log skipped:", err.message || err);
+    }
 }
 
 async function mirrorPendingDepositOnUserAccount(deposit) {
@@ -556,6 +589,10 @@ async function mirrorPendingDepositOnUserAccount(deposit) {
             id: deposit.id,
             amount: deposit.amount,
             btcAmount: deposit.btcAmount,
+            ethAmount: deposit.ethAmount,
+            cryptoAmount: deposit.cryptoAmount,
+            currency: deposit.currency,
+            walletAddress: deposit.walletAddress,
             method: deposit.method,
             payTo: deposit.payTo,
             status: deposit.status || "pending",
@@ -582,12 +619,14 @@ function findMatchingAdminDeposit(admin, normalized) {
     if (!admin || !Array.isArray(admin.pendingDeposits)) return null;
     const key = normalizeRegistryEmail(normalized.userEmail);
     const amount = Number(normalized.amount);
+    const currency = normalizeDepositCurrencyFields(normalized).currency;
 
     return admin.pendingDeposits.find(function(entry) {
         if (!entry) return false;
         if (String(entry.id) === String(normalized.id)) return true;
         if (normalizeRegistryEmail(entry.userEmail) !== key) return false;
         if (Number(entry.amount) !== amount) return false;
+        if (normalizeDepositCurrencyFields(entry).currency !== currency) return false;
         return true;
     }) || null;
 }
@@ -663,7 +702,7 @@ async function appendPendingDeposit(deposit, options) {
         userEmail: normalized.userEmail,
         userName: normalized.userName,
         type: "deposit",
-        description: "Deposit request submitted — " + normalized.method,
+        description: "Deposit request submitted — " + (normalized.currency || "crypto"),
         amount: normalized.amount
     });
     if (admin.userActivityLog.length > 500) {
@@ -699,6 +738,26 @@ async function appendPendingDeposit(deposit, options) {
         }
     }
 
+    const adminEmailResult = options.skipEmail
+        ? { sent: false, skipped: true }
+        : await sendDepositAdminNotificationSafely(normalized, account, admin);
+    if (adminEmailResult.sent) {
+        normalized.adminSubmittedEmailSentAt = new Date().toISOString();
+        const entry = admin.pendingDeposits.find(function(item) {
+            return String(item.id) === String(normalized.id);
+        });
+        if (entry) {
+            entry.adminSubmittedEmailSentAt = normalized.adminSubmittedEmailSentAt;
+            await saveAdminRegistry(admin);
+        }
+    }
+
+    try {
+        await logCryptoDepositRecord(normalized);
+    } catch (logErr) {
+        console.warn("[registry] crypto deposit audit log failed:", logErr.message || logErr);
+    }
+
     return {
         ok: true,
         deposit: normalized,
@@ -708,7 +767,9 @@ async function appendPendingDeposit(deposit, options) {
         duplicate: false,
         emailSent: !!emailResult.sent,
         emailSkipped: !!emailResult.skipped,
-        emailError: emailResult.error || null
+        emailError: emailResult.error || null,
+        adminEmailSent: !!adminEmailResult.sent,
+        adminEmailError: adminEmailResult.error || null
     };
 }
 

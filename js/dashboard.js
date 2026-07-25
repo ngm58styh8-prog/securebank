@@ -508,6 +508,95 @@ function getAdminBtcAddress() {
     return getAdminWalletAddress();
 }
 
+function getDepositCryptoConfig() {
+    return typeof CryptoDepositConfig !== "undefined" ? CryptoDepositConfig : null;
+}
+
+function getSelectedDepositCurrency() {
+    const select = document.getElementById("depositCryptoSelect");
+    const sym = select && select.value ? select.value : "BTC";
+    return sym.trim().toUpperCase();
+}
+
+function getSelectedDepositWallet() {
+    const cfg = getDepositCryptoConfig();
+    const symbol = getSelectedDepositCurrency();
+    if (cfg && typeof getAdminCryptoDepositWallets === "function") {
+        const wallets = getAdminCryptoDepositWallets();
+        return cfg.getWalletBySymbol(wallets, symbol);
+    }
+    if (symbol === "ETH") {
+        return {
+            symbol: "ETH",
+            name: "Ethereum",
+            address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F"
+        };
+    }
+    return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
+}
+
+function populateDepositCryptoSelect() {
+    const select = document.getElementById("depositCryptoSelect");
+    if (!select) return;
+
+    const cfg = getDepositCryptoConfig();
+    const wallets = typeof getAdminCryptoDepositWallets === "function"
+        ? getAdminCryptoDepositWallets()
+        : (cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : []);
+    const current = getSelectedDepositCurrency();
+
+    select.innerHTML = wallets.map(function(w) {
+        const sym = w.symbol;
+        const label = cfg
+            ? cfg.formatDepositCurrencyLabel(sym, w.name)
+            : w.name + " (" + sym + ")";
+        const selected = sym === current ? " selected" : "";
+        return "<option value=\"" + sym + "\"" + selected + ">" + label + "</option>";
+    }).join("");
+}
+
+function updateDepositQrCode(address) {
+    const qr = document.getElementById("depositQrImage");
+    if (!qr) return;
+
+    if (!address) {
+        qr.classList.add("hidden");
+        qr.removeAttribute("src");
+        return;
+    }
+
+    qr.src = "https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=" +
+        encodeURIComponent(address);
+    qr.classList.remove("hidden");
+}
+
+function updateDepositCryptoDisplay() {
+    const wallet = getSelectedDepositWallet();
+    const cfg = getDepositCryptoConfig();
+    const labelEl = document.getElementById("depositCryptoPayLabel");
+    const addressEl = document.getElementById("depositPageAddress");
+    const cryptoNameEl = document.getElementById("depositPageCryptoName");
+
+    if (labelEl && wallet) {
+        labelEl.textContent = cfg
+            ? cfg.getDepositSendLabel(wallet.symbol, wallet.name)
+            : "Send " + wallet.name + " (" + wallet.symbol + ") to:";
+    }
+
+    if (addressEl) {
+        addressEl.textContent = wallet && wallet.address
+            ? wallet.address
+            : "Deposit address not configured — contact support.";
+    }
+
+    if (cryptoNameEl && wallet) {
+        cryptoNameEl.textContent = wallet.symbol;
+    }
+
+    updateDepositQrCode(wallet && wallet.address ? wallet.address : "");
+    return wallet && wallet.address ? wallet.address : "";
+}
+
 function copyText(text, successMessage) {
     if (!text) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -520,13 +609,39 @@ function copyText(text, successMessage) {
 }
 
 function getDepositBtcAmount(usdAmount) {
-    if (!usdAmount || usdAmount <= 0 || !prices.btc) return null;
-    return usdAmount / prices.btc;
+    return getDepositCryptoAmount(usdAmount, "BTC");
+}
+
+function getDepositCryptoAmount(usdAmount, symbol) {
+    const cfg = getDepositCryptoConfig();
+    if (cfg) {
+        return cfg.getCryptoAmountForUsd(usdAmount, symbol, prices);
+    }
+    if (!usdAmount || usdAmount <= 0) return null;
+    const sym = String(symbol || "BTC").toUpperCase();
+    if (sym === "BTC") {
+        if (!prices.btc) return null;
+        return usdAmount / prices.btc;
+    }
+    if (sym === "ETH") {
+        if (!prices.eth) return null;
+        return usdAmount / prices.eth;
+    }
+    return null;
 }
 
 function formatBtcAmount(btc) {
-    if (!btc || btc <= 0) return "—";
-    return btc.toFixed(8) + " BTC";
+    return formatDepositCryptoAmount(btc, "BTC");
+}
+
+function formatDepositCryptoAmount(amount, symbol) {
+    const cfg = getDepositCryptoConfig();
+    if (cfg) return cfg.formatCryptoAmount(amount, symbol);
+    if (!amount || amount <= 0) return "—";
+    const sym = String(symbol || "BTC").toUpperCase();
+    if (sym === "BTC") return amount.toFixed(8) + " BTC";
+    if (sym === "ETH") return amount.toFixed(6) + " ETH";
+    return amount.toFixed(6) + " " + sym;
 }
 
 function getDepositAmountValue() {
@@ -548,17 +663,14 @@ function updateDepositPagePreview() {
     }
 
     if (usdEl) usdEl.textContent = amount.toFixed(2);
-    const btc = getDepositBtcAmount(amount);
-    btcEl.textContent = btc ? "≈ " + formatBtcAmount(btc) : "—";
+    const symbol = getSelectedDepositCurrency();
+    const cryptoAmt = getDepositCryptoAmount(amount, symbol);
+    btcEl.textContent = cryptoAmt ? "≈ " + formatDepositCryptoAmount(cryptoAmt, symbol) : "—";
 }
 
 function populateDepositPageAddress() {
-    const address = getAdminBtcAddress();
-    const el = document.getElementById("depositPageAddress");
-    if (el) {
-        el.textContent = address || "Deposit address not configured — contact support.";
-    }
-    return address;
+    populateDepositCryptoSelect();
+    return updateDepositCryptoDisplay();
 }
 
 function hideDepositConfirmSection() {
@@ -621,6 +733,13 @@ function continueDepositFlow() {
         return;
     }
 
+    const wallet = getSelectedDepositWallet();
+    const cfg = getDepositCryptoConfig();
+    if (wallet && cfg && !cfg.validateWalletAddress(wallet.symbol, wallet.address)) {
+        alert("Configured " + wallet.symbol + " deposit address is invalid. Please contact support.");
+        return;
+    }
+
     showDepositConfirmSection();
     loadMarketPrices().then(updateDepositPagePreview).catch(updateDepositPagePreview);
     document.getElementById("depositConfirmSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -634,16 +753,24 @@ function submitDepositFromPanel() {
         return;
     }
 
-    const wallet = getAdminWalletAddress();
-    if (!wallet) {
+    const wallet = getSelectedDepositWallet();
+    if (!wallet || !wallet.address) {
         alert("Deposit address is not configured. Please contact support.");
         return;
     }
 
-    const btcAmount = getDepositBtcAmount(amount);
+    const cfg = getDepositCryptoConfig();
+    if (cfg && !cfg.validateWalletAddress(wallet.symbol, wallet.address)) {
+        alert("Configured " + wallet.symbol + " deposit address is invalid. Please contact support.");
+        return;
+    }
+
+    const symbol = wallet.symbol;
+    const cryptoAmount = getDepositCryptoAmount(amount, symbol);
+    const depositMeta = { currency: symbol, cryptoAmount: cryptoAmount };
     const submitHandler = typeof submitDepositRequestAsync === "function"
-        ? submitDepositRequestAsync(username, amount, "crypto", btcAmount)
-        : Promise.resolve(submitDepositRequest(username, amount, "crypto", btcAmount));
+        ? submitDepositRequestAsync(username, amount, "crypto", depositMeta)
+        : Promise.resolve(submitDepositRequest(username, amount, "crypto", depositMeta));
 
     const submitBtn = document.getElementById("depositSubmitBtn");
     if (submitBtn) submitBtn.disabled = true;
@@ -658,15 +785,18 @@ function submitDepositFromPanel() {
         reloadAccountFromRegistry();
         closeDepositPanel();
 
-        const btcLine = btcAmount ? formatBtcAmount(btcAmount) : "the matching BTC amount";
+        const cryptoLine = cryptoAmount
+            ? formatDepositCryptoAmount(cryptoAmount, symbol)
+            : "the matching " + symbol + " amount";
         const emailNote = result.emailSent === false
             ? "We could not send a confirmation email right now — check in-app notifications or contact support."
             : "A confirmation email was sent to your inbox.";
         alert("Deposit submitted for admin approval.\n\n" +
             "USD amount: $" + amount.toFixed(2) + "\n" +
-            "Send " + btcLine + " to:\n\n" +
+            "Send " + cryptoLine + " to:\n\n" +
             result.payTo + "\n\n" +
-            "Your balance will NOT update until an admin verifies your BTC payment and approves this deposit.\n\n" +
+            "Your balance will NOT update until an admin verifies your " + symbol +
+            " payment and approves this deposit.\n\n" +
             emailNote);
     }).catch(function(err) {
         if (submitBtn) submitBtn.disabled = false;
@@ -687,13 +817,22 @@ function renderPendingTransfers() {
             <span class="pending-badge">Awaiting approval</span>
         </li>`;
     }).concat(deposits.map(function(d) {
-        const btcLine = d.btcAmount ? " · ≈ " + d.btcAmount.toFixed(8) + " BTC" : "";
+        const currency = (d.currency || "BTC").toUpperCase();
+        let cryptoLine = "";
+        if (d.cryptoAmount) {
+            cryptoLine = " · ≈ " + formatDepositCryptoAmount(d.cryptoAmount, currency);
+        } else if (d.btcAmount) {
+            cryptoLine = " · ≈ " + d.btcAmount.toFixed(8) + " BTC";
+        } else if (d.ethAmount) {
+            cryptoLine = " · ≈ " + d.ethAmount.toFixed(6) + " ETH";
+        }
         const dest = d.payTo
-            ? `<br><span class="admin-email">${d.payTo}</span>` : "";
-        return `<li class="pending-item">
-            <span>Deposit ${formatPrice(d.amount)} via BTC${btcLine}${dest}<br><em>Awaiting admin approval — not credited yet</em></span>
-            <span class="pending-badge">Pending</span>
-        </li>`;
+            ? "<br><span class=\"admin-email\">" + d.payTo + "</span>" : "";
+        return "<li class=\"pending-item\">" +
+            "<span>Deposit " + formatPrice(d.amount) + " via " + currency + cryptoLine + dest +
+            "<br><em>Awaiting admin approval — not credited yet</em></span>" +
+            "<span class=\"pending-badge\">Pending</span>" +
+            "</li>";
     }));
 
     if (!items.length) {
@@ -847,8 +986,19 @@ function initUI() {
     document.getElementById("depositBackBtn").addEventListener("click", hideDepositConfirmSection);
     document.getElementById("depositPanelCloseBtn").addEventListener("click", closeDepositPanel);
     document.getElementById("copyDepositPageBtn").addEventListener("click", function() {
-        copyText(getAdminBtcAddress(), "Deposit address copied to clipboard.");
+        const wallet = getSelectedDepositWallet();
+        copyText(wallet && wallet.address ? wallet.address : "", "Deposit address copied to clipboard.");
     });
+    const depositCryptoSelect = document.getElementById("depositCryptoSelect");
+    if (depositCryptoSelect) {
+        depositCryptoSelect.addEventListener("change", function() {
+            updateDepositCryptoDisplay();
+            const section = document.getElementById("depositConfirmSection");
+            if (section && !section.classList.contains("hidden")) {
+                updateDepositPagePreview();
+            }
+        });
+    }
     document.getElementById("depositAmountInput").addEventListener("input", function() {
         const section = document.getElementById("depositConfirmSection");
         if (section && !section.classList.contains("hidden")) {

@@ -687,27 +687,58 @@ function renderPendingDepositsAdmin() {
     }
 
     tbody.innerHTML = pending.map(function(d) {
-        const payToShort = d.payTo.length > 40 ? d.payTo.slice(0, 40) + "…" : d.payTo;
-        const btcCol = d.btcAmount ? d.btcAmount.toFixed(8) + " BTC" : "—";
-        return `<tr>
-            <td>${d.date}</td>
-            <td>${d.userName}<br><span class="admin-email">${d.userEmail}</span></td>
-            <td>BTC</td>
-            <td class="admin-payto-cell" title="${d.payTo}">${payToShort}</td>
-            <td class="pl-positive">${formatMoney(d.amount)}<br><span class="admin-email">${btcCol}</span></td>
-            <td class="admin-row-actions">
-                <button type="button" class="admin-approve-btn admin-approve-deposit" data-id="${d.id}">Approve</button>
-                <button type="button" class="admin-reject-btn admin-reject-deposit" data-id="${d.id}">Reject</button>
-            </td>
-        </tr>`;
+        const payTo = d.payTo || d.walletAddress || "";
+        const payToShort = payTo.length > 40 ? payTo.slice(0, 40) + "…" : payTo;
+        const currency = (d.currency || "BTC").toUpperCase();
+        let cryptoCol = "—";
+        if (d.cryptoAmount) {
+            cryptoCol = formatDepositCryptoAdminAmount(d.cryptoAmount, currency);
+        } else if (d.btcAmount) {
+            cryptoCol = d.btcAmount.toFixed(8) + " BTC";
+        } else if (d.ethAmount) {
+            cryptoCol = d.ethAmount.toFixed(6) + " ETH";
+        }
+        return "<tr>" +
+            "<td>" + d.date + "</td>" +
+            "<td>" + d.userName + "<br><span class=\"admin-email\">" + d.userEmail + "</span></td>" +
+            "<td>" + currency + "</td>" +
+            "<td class=\"admin-payto-cell\" title=\"" + payTo + "\">" + payToShort + "</td>" +
+            "<td class=\"pl-positive\">" + formatMoney(d.amount) + "<br><span class=\"admin-email\">" + cryptoCol + "</span></td>" +
+            "<td class=\"admin-row-actions\">" +
+            "<button type=\"button\" class=\"admin-approve-btn admin-approve-deposit\" data-id=\"" + d.id + "\">Approve</button>" +
+            "<button type=\"button\" class=\"admin-reject-btn admin-reject-deposit\" data-id=\"" + d.id + "\">Reject</button>" +
+            "</td>" +
+            "</tr>";
     }).join("");
+}
+
+function formatDepositCryptoAdminAmount(amount, symbol) {
+    if (typeof CryptoDepositConfig !== "undefined") {
+        return CryptoDepositConfig.formatCryptoAmount(amount, symbol);
+    }
+    const sym = String(symbol || "BTC").toUpperCase();
+    if (sym === "BTC") return amount.toFixed(8) + " BTC";
+    if (sym === "ETH") return amount.toFixed(6) + " ETH";
+    return amount.toFixed(6) + " " + sym;
 }
 
 function loadWalletSettings() {
     const admin = getAdminData();
     const walletInput = document.getElementById("adminWalletInput");
+    const ethWalletInput = document.getElementById("adminEthWalletInput");
     const bankInput = document.getElementById("adminBankInput");
-    if (walletInput) walletInput.value = admin.walletAddress || "";
+    const wallets = typeof getAdminCryptoDepositWallets === "function"
+        ? getAdminCryptoDepositWallets()
+        : [];
+    const btcWallet = wallets.find(function(entry) { return entry.symbol === "BTC"; });
+    const ethWallet = wallets.find(function(entry) { return entry.symbol === "ETH"; });
+
+    if (walletInput) {
+        walletInput.value = (btcWallet && btcWallet.address) || admin.walletAddress || "";
+    }
+    if (ethWalletInput) {
+        ethWalletInput.value = (ethWallet && ethWallet.address) || "";
+    }
     if (bankInput) bankInput.value = admin.bankDetails || "";
 }
 
@@ -1475,10 +1506,25 @@ document.getElementById("pendingDepositsBody").addEventListener("click", functio
 
 document.getElementById("walletSettingsForm").addEventListener("submit", function(e) {
     e.preventDefault();
-    updateAdminPaymentSettings(
-        document.getElementById("adminWalletInput").value,
-        document.getElementById("adminBankInput").value
-    );
+    const btcAddress = document.getElementById("adminWalletInput").value.trim();
+    const ethAddress = document.getElementById("adminEthWalletInput").value.trim();
+    const cfg = typeof CryptoDepositConfig !== "undefined" ? CryptoDepositConfig : null;
+
+    if (cfg && !cfg.validateWalletAddress("BTC", btcAddress)) {
+        alert("Enter a valid Bitcoin deposit address.");
+        return;
+    }
+    if (cfg && ethAddress && !cfg.validateWalletAddress("ETH", ethAddress)) {
+        alert("Enter a valid Ethereum deposit address (0x + 40 hex characters).");
+        return;
+    }
+
+    const cryptoWallets = [
+        { symbol: "BTC", name: "Bitcoin", address: btcAddress },
+        { symbol: "ETH", name: "Ethereum", address: ethAddress || "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    ];
+
+    updateAdminPaymentSettings(btcAddress, document.getElementById("adminBankInput").value, cryptoWallets);
     alert("Admin wallet and bank settings saved.");
     renderDashboard();
 });

@@ -1317,6 +1317,29 @@ body[data-theme="dark"] .pending-badge {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.deposit-crypto-select {
+    width: 100%;
+    margin-bottom: 1rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(8, 12, 28, 0.85);
+    color: #f8fafc;
+}
+
+.deposit-qr-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.85rem 0 0.5rem;
+}
+
+.deposit-qr-image {
+    border-radius: 12px;
+    background: #fff;
+    padding: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
 .deposit-crypto-only {
     margin-bottom: 12px;
 }
