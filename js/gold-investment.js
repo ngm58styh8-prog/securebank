@@ -2,7 +2,7 @@
     "use strict";
 
     var username = requireAuth();
-    if (!username) throw new Error("Not authenticated");
+    if (!username) return;
 
     var account = getAccount(username);
     ensureProfile(username, account);
@@ -11,6 +11,8 @@
 
     var perfChart = null;
     var countdownTimer = null;
+    var pageRefreshInFlight = false;
+    var lastOverdueRefreshAt = 0;
 
     function formatUsd(amount) {
         var n = Number(amount);
@@ -59,7 +61,11 @@
             var diff = new Date(nextCreditAt).getTime() - Date.now();
             if (diff <= 0) {
                 el.textContent = "Crediting…";
-                refreshPage();
+                var now = Date.now();
+                if (!pageRefreshInFlight && now - lastOverdueRefreshAt > 8000) {
+                    lastOverdueRefreshAt = now;
+                    refreshPage();
+                }
                 return;
             }
             var h = Math.floor(diff / 3600000);
@@ -242,6 +248,8 @@
     }
 
     function refreshPage() {
+        if (pageRefreshInFlight) return;
+        pageRefreshInFlight = true;
         fetchGoldStatus(username).then(function(statusResult) {
             applyStatus(statusResult);
             return fetchGoldHistory(username);
@@ -249,7 +257,9 @@
             if (historyResult && historyResult.ok) {
                 renderHistory(historyResult.history || []);
             }
-        }).catch(function() {});
+        }).catch(function() {}).then(function() {
+            pageRefreshInFlight = false;
+        });
     }
 
     function initEnrollForm() {

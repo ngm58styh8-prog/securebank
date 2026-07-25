@@ -672,6 +672,7 @@
     function revealDashboard() {
         document.body.classList.add("admin-auth-ready");
         try {
+            document.body.dispatchEvent(new CustomEvent("admin-auth-ready"));
             window.dispatchEvent(new CustomEvent("globalvest-admin-registry-ready"));
         } catch (e) { /* ignore */ }
     }

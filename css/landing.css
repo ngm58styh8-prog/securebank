@@ -118,17 +118,23 @@
     justify-content: center;
     text-align: center;
     padding: 120px 5vw 80px;
-    max-width: 900px;
+    max-width: min(900px, 100%);
+    width: 100%;
     margin: 0 auto;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 
 .landing-hero-copy {
     animation: landingFadeUp 0.9s ease both;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 4px;
 }
 
 .landing-hero-copy h1 {
-    font-size: clamp(2.4rem, 5vw, 3.8rem);
+    font-size: clamp(1.85rem, 6vw, 3.8rem);
     line-height: 1.08;
     font-weight: 800;
     letter-spacing: -0.03em;
@@ -136,7 +142,10 @@
     background: linear-gradient(135deg, #fff 30%, #8ec5ff 100%);
     -webkit-background-clip: text;
     background-clip: text;
-    color: transparent;
+    -webkit-text-fill-color: transparent;
+    color: #fff; /* fallback if clip unsupported */
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .landing-hero-sub {
@@ -164,9 +173,10 @@
 .landing-illustration {
     position: relative;
     width: 100%;
-    max-width: 520px;
+    max-width: min(520px, 100%);
     margin-top: 48px;
     animation: landingFadeUp 1s ease 0.15s both;
+    overflow: hidden;
 }
 
 .landing-scene {
@@ -422,10 +432,13 @@
 @media (max-width: 960px) {
     .landing-hero {
         padding-top: 100px;
+        padding-left: 4vw;
+        padding-right: 4vw;
     }
 
     .landing-illustration {
         min-height: 280px;
+        max-width: 100%;
     }
 
     .landing-feature-cards,
@@ -439,5 +452,25 @@
 
     .landing-nav-links {
         display: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .landing-hero-copy h1 {
+        font-size: clamp(1.6rem, 8vw, 2.2rem);
+    }
+
+    .landing-hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .landing-hero-actions .landing-btn {
+        width: 100%;
+    }
+
+    .landing-illustration {
+        min-height: 220px;
+        margin-top: 28px;
     }
 }

@@ -12,6 +12,18 @@ echo "  Admin portal: http://localhost:$PORT/admin.html (direct URL — not link
 echo "               admin@globalvest.com / admin123"
 echo ""
 
+if [ ! -f .env.local ]; then
+  if [ -f .env.example ]; then
+    cp .env.example .env.local
+    echo "  Env: created .env.local — add Supabase keys (npm run setup:env for steps)."
+    echo ""
+  fi
+elif grep -q "your-project.supabase.co" .env.local 2>/dev/null; then
+  echo "  Env: .env.local still has placeholder Supabase values."
+  echo "        Run npm run setup:env and edit with real keys from Supabase → Settings → API."
+  echo ""
+fi
+
 if [ ! -f email.config.json ]; then
   cp email.config.example.json email.config.json
   echo "  Email: created email.config.json — edit it with your SMTP credentials."

@@ -93,7 +93,9 @@ Or connect the GitHub repo to Vercel for automatic deploys.
 ### 4. Local API testing
 
 ```bash
-cp .env.example .env.local   # fill in Supabase + Resend values
+npm run setup:env              # creates .env.local from .env.example
+# Edit .env.local with Supabase + Resend values, or:
+# npx vercel env pull .env.local
 npm install
 ./start.sh                   # Ruby server now includes /api/send-verification routes
 # OR
@@ -103,6 +105,8 @@ npx vercel dev
 Check configuration:
 
 ```bash
+npm run error-check
+npm run check:registry
 curl http://localhost:8765/api/verification-health
 curl https://your-app.vercel.app/api/registry-health
 npm run verify:check

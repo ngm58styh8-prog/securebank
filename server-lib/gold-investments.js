@@ -74,17 +74,25 @@ async function ensureAdminGoldPlans(admin) {
     if (!admin) admin = await loadAdminRegistry();
     if (!Array.isArray(admin.goldPlans)) admin.goldPlans = [];
     if (!Array.isArray(admin.goldPayoutLog)) admin.goldPayoutLog = [];
+    if (!Array.isArray(admin.goldInvestors)) admin.goldInvestors = [];
+
+    let changed = false;
 
     if (!admin.goldPlans.length) {
         admin.goldPlans.push(createDefaultGoldPlan());
-        await saveAdminRegistry(admin);
+        changed = true;
     } else {
         admin.goldPlans = admin.goldPlans.map(function(plan) {
-            if (String(plan.id) === "gold-plan-default") {
-                return Object.assign({}, plan, { dailyReturn: DEFAULT_DAILY_RETURN });
+            if (String(plan.id) === "gold-plan-default" && Number(plan.dailyReturn) !== DEFAULT_DAILY_RETURN) {
+                changed = true;
+                return Object.assign({}, plan, { dailyReturn: DEFAULT_DAILY_RETURN, updatedAt: new Date().toISOString() });
             }
             return plan;
         });
+    }
+
+    if (changed) {
+        await saveAdminRegistry(admin);
     }
     return admin;
 }
@@ -173,10 +181,13 @@ async function processDailyCreditForUser(email, options) {
         return { ok: true, credited: false, skipped: true, reason: "No active gold investment." };
     }
 
-    if (gi.nextCreditAt && !options.force) {
-        const remaining = new Date(gi.nextCreditAt).getTime() - Date.now();
+    // Use a local nextCreditAt so legacy 24h countdowns can be corrected without
+    // mutating the shared account object loaded from the registry.
+    let effectiveNextCreditAt = gi.nextCreditAt;
+    if (effectiveNextCreditAt && !options.force) {
+        const remaining = new Date(effectiveNextCreditAt).getTime() - Date.now();
         if (remaining > MS_CREDIT_INTERVAL * 2) {
-            gi.nextCreditAt = new Date().toISOString();
+            effectiveNextCreditAt = new Date().toISOString();
         }
     }
 
@@ -186,13 +197,13 @@ async function processDailyCreditForUser(email, options) {
         return { ok: true, credited: false, skipped: true, reason: "Plan inactive or paused." };
     }
 
-    if (gi.nextCreditAt && new Date(gi.nextCreditAt).getTime() > Date.now() && !options.force) {
+    if (effectiveNextCreditAt && new Date(effectiveNextCreditAt).getTime() > Date.now() && !options.force) {
         return {
             ok: true,
             credited: false,
             skipped: true,
             reason: "Next credit not due yet.",
-            nextCreditAt: gi.nextCreditAt
+            nextCreditAt: effectiveNextCreditAt
         };
     }
 
@@ -206,8 +217,11 @@ async function processDailyCreditForUser(email, options) {
     const reference = generateReference(key, gi.planId, creditTime);
     const payoutId = generateId("gpay");
 
+    // Deep-copy goldInvestment so we never mutate the shared loaded account object.
     const updated = Object.assign({}, account);
-    ensureGoldInvestmentShape(updated);
+    updated.goldInvestment = Object.assign({}, gi, {
+        history: Array.isArray(gi.history) ? gi.history.slice() : []
+    });
     const ugi = updated.goldInvestment;
 
     ugi.totalEarned = Number(ugi.totalEarned || 0) + dailyAmount;
@@ -260,6 +274,7 @@ async function processDailyCreditForUser(email, options) {
 
     const saved = await upsertAccount(key, updated, {
         cashAuthoritative: true,
+        goldAuthoritative: true,
         eventType: "gold-credit",
         source: "processDailyCreditForUser"
     });
@@ -334,7 +349,6 @@ async function enrollInGoldPlan(email, planId, amount) {
 
     const updated = Object.assign({}, account);
     updated.cash = Number(account.cash || 0) - amount;
-    ensureGoldInvestmentShape(updated);
     updated.goldInvestment = {
         active: true,
         planId: plan.id,
@@ -377,6 +391,7 @@ async function enrollInGoldPlan(email, planId, amount) {
 
     const saved = await upsertAccount(key, updated, {
         cashAuthoritative: true,
+        goldAuthoritative: true,
         eventType: "gold-enroll",
         source: "enrollInGoldPlan"
     });
@@ -522,6 +537,7 @@ async function upsertGoldPlan(plan, options) {
     if (idx >= 0) {
         admin.goldPlans[idx] = Object.assign({}, admin.goldPlans[idx], normalized);
     } else {
+        // Creating a plan: admin UI always supplies an id; allowCreate covers id-less creates.
         if (!plan.id && !options.allowCreate) {
             throw new Error("Plan not found.");
         }

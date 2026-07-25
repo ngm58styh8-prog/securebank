@@ -1,4 +1,19 @@
 const { getSupabaseServiceRoleClient, normalizeSupabaseErrorMessage } = require("./supabase");
+const localRegistry = require("./local-registry");
+const { loadProjectEnv } = require("./load-env");
+
+loadProjectEnv();
+
+function useLocalRegistry() {
+    const flag = String(process.env.USE_LOCAL_REGISTRY || "").trim().toLowerCase();
+    if (flag === "1" || flag === "true" || flag === "yes") return true;
+    try {
+        getSupabaseServiceRoleClient();
+        return false;
+    } catch (e) {
+        return localRegistry.isLocalRegistryReady();
+    }
+}
 const {
     sendDepositReceivedEmailSafely,
     sendDepositCreditedEmailSafely,
@@ -25,6 +40,55 @@ function mergeNotificationLists(primary, secondary) {
     return Array.from(map.values())
         .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
         .slice(0, 30);
+}
+
+function goldCreditTimestamp(gi) {
+    if (!gi || typeof gi !== "object") return 0;
+    if (gi.lastCreditAt) {
+        const t = new Date(gi.lastCreditAt).getTime();
+        return isNaN(t) ? 0 : t;
+    }
+    if (gi.lastCreditDate) {
+        const t = new Date(gi.lastCreditDate).getTime();
+        return isNaN(t) ? 0 : t;
+    }
+    return 0;
+}
+
+/**
+ * Prevent stale client syncs from wiping server-side gold credits / enrollments.
+ * Prefer newer lastCreditAt, else higher totalEarned, else active enrollment.
+ */
+function mergeGoldInvestmentState(existingGi, incomingGi, options) {
+    options = options || {};
+    if (options.goldAuthoritative && incomingGi && typeof incomingGi === "object") {
+        return incomingGi;
+    }
+    if (!incomingGi || typeof incomingGi !== "object") {
+        return existingGi && typeof existingGi === "object" ? existingGi : incomingGi;
+    }
+    if (!existingGi || typeof existingGi !== "object") {
+        return incomingGi;
+    }
+
+    const existingTs = goldCreditTimestamp(existingGi);
+    const incomingTs = goldCreditTimestamp(incomingGi);
+    if (existingTs > incomingTs) return existingGi;
+    if (incomingTs > existingTs) return incomingGi;
+
+    const existingEarned = Number(existingGi.totalEarned || 0);
+    const incomingEarned = Number(incomingGi.totalEarned || 0);
+    if (existingEarned > incomingEarned) return existingGi;
+    if (incomingEarned > existingEarned) return incomingGi;
+
+    if (existingGi.active && !incomingGi.active) return existingGi;
+    if (incomingGi.active && !existingGi.active) return incomingGi;
+
+    const existingHist = Array.isArray(existingGi.history) ? existingGi.history.length : 0;
+    const incomingHist = Array.isArray(incomingGi.history) ? incomingGi.history.length : 0;
+    if (existingHist > incomingHist) return existingGi;
+
+    return incomingGi;
 }
 
 const DEFAULT_ADMIN_REGISTRY = {
@@ -58,6 +122,7 @@ function isProtectedAdminRegistryEmail(email) {
 }
 
 function isRegistryConfigured() {
+    if (useLocalRegistry()) return true;
     try {
         getSupabaseServiceRoleClient();
         return true;
@@ -67,6 +132,13 @@ function isRegistryConfigured() {
 }
 
 function registryConfigError() {
+    if (useLocalRegistry()) {
+        return {
+            ok: true,
+            mode: "local",
+            message: "Using local file registry (data/accounts.json)."
+        };
+    }
     return {
         ok: false,
         error: "Account registry is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY on Vercel, then run supabase/migrations/002_app_registry.sql."
@@ -74,6 +146,10 @@ function registryConfigError() {
 }
 
 async function loadAllAccounts() {
+    if (useLocalRegistry()) {
+        return localRegistry.loadAllAccounts();
+    }
+
     const supabase = getSupabaseServiceRoleClient();
     const { data, error } = await supabase
         .from(ACCOUNTS_TABLE)
@@ -104,15 +180,21 @@ async function upsertAccount(email, account, options) {
         throw new Error("Missing or invalid account payload.");
     }
 
-    const supabase = getSupabaseServiceRoleClient();
-    const { data: existing, error: readError } = await supabase
-        .from(ACCOUNTS_TABLE)
-        .select("account")
-        .eq("email", key)
-        .maybeSingle();
+    let existing = null;
+    if (useLocalRegistry()) {
+        existing = localRegistry.readExistingAccount(key);
+    } else {
+        const supabase = getSupabaseServiceRoleClient();
+        const { data, error: readError } = await supabase
+            .from(ACCOUNTS_TABLE)
+            .select("account")
+            .eq("email", key)
+            .maybeSingle();
 
-    if (readError) {
-        throw new Error(normalizeSupabaseErrorMessage(readError.message || "Failed to read account."));
+        if (readError) {
+            throw new Error(normalizeSupabaseErrorMessage(readError.message || "Failed to read account."));
+        }
+        existing = data;
     }
 
     const balanceBefore = existing && existing.account && typeof existing.account.cash === "number"
@@ -140,6 +222,12 @@ async function upsertAccount(email, account, options) {
                 existing.account.notifications || []
             );
         }
+
+        merged.goldInvestment = mergeGoldInvestmentState(
+            existing.account.goldInvestment,
+            account.goldInvestment,
+            { goldAuthoritative: !!options.goldAuthoritative }
+        );
 
         const incomingCash = typeof account.cash === "number" && !isNaN(account.cash) ? account.cash : null;
         const existingCash = typeof existing.account.cash === "number" && !isNaN(existing.account.cash)
@@ -171,6 +259,22 @@ async function upsertAccount(email, account, options) {
     merged.serverSyncedAt = new Date().toISOString();
     const now = new Date().toISOString();
 
+    if (useLocalRegistry()) {
+        const saved = localRegistry.writeAccount(key, merged);
+        if (typeof merged.cash === "number" && balanceBefore !== null && merged.cash !== balanceBefore) {
+            console.log("[registry] balance updated (local)", {
+                userEmail: key,
+                balanceBefore: balanceBefore,
+                balanceAfter: merged.cash,
+                delta: merged.cash - balanceBefore,
+                eventType: options.eventType || "sync",
+                source: options.source || "upsertAccount"
+            });
+        }
+        return saved;
+    }
+
+    const supabase = getSupabaseServiceRoleClient();
     const { error } = await supabase
         .from(ACCOUNTS_TABLE)
         .upsert({
@@ -215,6 +319,9 @@ function ensureAdminRegistryShape(admin) {
     if (!Array.isArray(admin.internalTransfers)) admin.internalTransfers = [];
     if (!Array.isArray(admin.sendMoneyAuditLog)) admin.sendMoneyAuditLog = [];
     if (!admin.processedSendMoneyKeys) admin.processedSendMoneyKeys = {};
+    if (!Array.isArray(admin.goldPlans)) admin.goldPlans = [];
+    if (!Array.isArray(admin.goldPayoutLog)) admin.goldPayoutLog = [];
+    if (!Array.isArray(admin.goldInvestors)) admin.goldInvestors = [];
     return admin;
 }
 
@@ -348,6 +455,10 @@ async function deleteAccount(email) {
 }
 
 async function loadAdminRegistry() {
+    if (useLocalRegistry()) {
+        return localRegistry.loadAdminRegistry();
+    }
+
     const supabase = getSupabaseServiceRoleClient();
     const { data, error } = await supabase
         .from(ADMIN_TABLE)
@@ -372,6 +483,10 @@ async function saveAdminRegistry(admin) {
 
     admin.serverSyncedAt = new Date().toISOString();
     const now = new Date().toISOString();
+
+    if (useLocalRegistry()) {
+        return localRegistry.saveAdminRegistry(admin);
+    }
 
     const supabase = getSupabaseServiceRoleClient();
     const { error } = await supabase
@@ -1317,6 +1432,7 @@ module.exports = {
     deleteAccount,
     loadAdminRegistry,
     saveAdminRegistry,
+    useLocalRegistry,
     appendPendingDeposit,
     approvePendingDeposit,
     rejectPendingDeposit,

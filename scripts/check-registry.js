@@ -5,26 +5,10 @@
  */
 const fs = require("fs");
 const path = require("path");
-
-function loadDotenv(filePath) {
-    if (!fs.existsSync(filePath)) return;
-    fs.readFileSync(filePath, "utf8").split("\n").forEach(function(line) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith("#")) return;
-        const idx = trimmed.indexOf("=");
-        if (idx === -1) return;
-        const key = trimmed.slice(0, idx).trim();
-        let val = trimmed.slice(idx + 1).trim();
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-            val = val.slice(1, -1);
-        }
-        if (!process.env[key]) process.env[key] = val;
-    });
-}
+const { loadProjectEnv, getEnvSetupStatus } = require(path.join(__dirname, "..", "server-lib", "load-env.js"));
 
 const root = path.join(__dirname, "..");
-loadDotenv(path.join(root, ".env.local"));
-loadDotenv(path.join(root, ".env"));
+loadProjectEnv(root);
 
 const {
     getSupabaseEnvChecks,
@@ -34,7 +18,8 @@ const {
 const {
     isRegistryConfigured,
     loadAllAccounts,
-    loadAdminRegistry
+    loadAdminRegistry,
+    useLocalRegistry
 } = require(path.join(root, "server-lib", "registry"));
 
 function printSection(title) {
@@ -64,9 +49,17 @@ async function main() {
     const missing = getMissingSupabaseEnv().filter(function(item) {
         return item.indexOf("RESEND_") === -1;
     });
-    if (missing.length) {
+    if (missing.length && !useLocalRegistry()) {
         console.log("\nMissing registry config:");
         missing.forEach(function(item) { console.log("  - " + item); });
+        const status = getEnvSetupStatus(root);
+        console.log("\nFix:");
+        if (!status.envLocalExists) {
+            console.log("  npm run setup:env");
+        } else {
+            console.log("  Edit .env.local with Supabase → Settings → API values");
+            console.log("  Or run: npx vercel env pull .env.local");
+        }
         console.log("\nFix: Vercel → Project → Settings → Environment Variables");
         process.exit(1);
     }
@@ -74,6 +67,10 @@ async function main() {
     if (!isRegistryConfigured()) {
         console.log("\nRegistry is not configured.");
         process.exit(1);
+    }
+
+    if (useLocalRegistry()) {
+        console.log("Mode: local file registry (data/accounts.json, data/admin.json)");
     }
 
     printSection("Supabase tables");
@@ -86,7 +83,9 @@ async function main() {
         console.log("\nFix:");
         console.log("  1. Open Supabase Dashboard → SQL Editor");
         console.log("  2. Run supabase/migrations/002_app_registry.sql");
-        console.log("  3. Confirm project is not Paused (Dashboard home)");
+        console.log("  3. Run supabase/migrations/004_gold_investments.sql");
+        console.log("  4. Run supabase/migrations/005_gold_credit_interval.sql");
+        console.log("  5. Confirm project is not Paused (Dashboard home)");
         process.exit(1);
     }
 
@@ -97,6 +96,25 @@ async function main() {
         console.log("admin_registry: FAILED");
         console.log("  " + (err.message || err));
         process.exit(1);
+    }
+
+    try {
+        const { getSupabaseServiceRoleClient } = require(path.join(root, "server-lib", "supabase"));
+        if (useLocalRegistry()) {
+            console.log("gold_payouts: skipped (local registry mode)");
+        } else {
+            const supabase = getSupabaseServiceRoleClient();
+            const { error } = await supabase.from("gold_payouts").select("id").limit(1);
+            if (error) {
+                console.log("gold_payouts: MISSING");
+                console.log("  " + (error.message || error));
+                console.log("  Run supabase/migrations/004_gold_investments.sql and 005_gold_credit_interval.sql");
+            } else {
+                console.log("gold_payouts: OK");
+            }
+        }
+    } catch (err) {
+        console.log("gold_payouts: check skipped (" + (err.message || err) + ")");
     }
 
     printSection("Result");

@@ -4,6 +4,8 @@
     var countdownTimer = null;
     var lastCreditShown = "";
     var creditPollTimer = null;
+    var creditRefreshInFlight = false;
+    var lastOverdueRefreshAt = 0;
 
     function formatUsd(amount) {
         var n = Number(amount);
@@ -62,7 +64,12 @@
             var diff = new Date(nextCreditAt).getTime() - Date.now();
             if (diff <= 0) {
                 el.textContent = "Crediting…";
-                refreshGoldStatus();
+                var now = Date.now();
+                // Avoid hammering the API every second while waiting for the credit.
+                if (!creditRefreshInFlight && now - lastOverdueRefreshAt > 8000) {
+                    lastOverdueRefreshAt = now;
+                    refreshGoldStatus();
+                }
                 return;
             }
             var h = Math.floor(diff / 3600000);
@@ -132,7 +139,14 @@
 
     function refreshGoldStatus() {
         if (typeof fetchGoldStatus !== "function" || typeof username === "undefined") return;
-        fetchGoldStatus(username).then(applyGoldStatusResult).catch(function() {});
+        if (creditRefreshInFlight) return;
+        creditRefreshInFlight = true;
+        fetchGoldStatus(username)
+            .then(applyGoldStatusResult)
+            .catch(function() {})
+            .then(function() {
+                creditRefreshInFlight = false;
+            });
     }
 
     window.initGoldDashboard = function() {

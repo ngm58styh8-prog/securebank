@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vercel dev",
     "build": "echo \"Static site — no build step\"",
+    "setup:env": "node scripts/setup-env.mjs",
+    "error-check": "node scripts/error-check.mjs",
     "verify:check": "node scripts/verify-email-setup.mjs",
     "verify:send": "node scripts/verify-email-setup.mjs",
     "email:report": "node scripts/email-deliverability-report.mjs",
@@ -12,7 +14,9 @@
     "test:withdrawal-emails": "node scripts/test-withdrawal-email-workflow.js",
     "test:email-flow": "node scripts/test-transactional-email-flow.mjs",
     "test:notifications": "node scripts/test-notifications.js",
+    "test:gold": "node scripts/test-gold-investments.js",
     "test:deposit-balance": "node scripts/test-deposit-balance-sync.js",
+    "test:gold": "node scripts/test-gold-investments.js",
     "check:registry": "node scripts/check-registry.js"
   },
   "dependencies": {

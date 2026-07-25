@@ -5,6 +5,7 @@ require "json"
 require "webrick"
 require "net/smtp"
 require "fileutils"
+require "open3"
 
 require_relative "lib/email_verification"
 
@@ -346,6 +347,69 @@ server.mount_proc "/api/verification-health" do |req, res|
   handle_verification_api(req, res, "health")
 end
 
+def invoke_node_api(handler_rel, req, res)
+  query = {}
+  if req.query
+    req.query.each do |key, value|
+      query[key] = value.is_a?(Array) ? value.first : value
+    end
+  end
+
+  bridge = File.join(ROOT, "scripts", "node-api-bridge.js")
+  handler = File.join(ROOT, handler_rel)
+  cmd = ["node", bridge, handler, req.request_method, JSON.generate(query)]
+
+  stdout = ""
+  stderr = ""
+  status = nil
+
+  Open3.popen3(*cmd) do |stdin, out, err, wait_thr|
+    body = req.body.to_s
+    stdin.write(body) unless body.empty?
+    stdin.close
+    stdout = out.read
+    stderr = err.read
+    status = wait_thr.value
+  end
+
+  if !status.success? && stdout.strip.empty?
+    send_api_json(res, 500, { "ok" => false, "error" => (stderr.strip.empty? ? "Node API failed" : stderr.strip) })
+    return
+  end
+
+  begin
+    payload = JSON.parse(stdout)
+    code = payload["ok"] == false ? 400 : 200
+    send_api_json(res, code, payload)
+  rescue JSON::ParserError
+    send_api_json(res, 500, { "ok" => false, "error" => "Invalid API response", "raw" => stdout })
+  end
+end
+
+server.mount_proc "/api/registry-health" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/registry-health.js", req, res)
+end
+
+server.mount_proc "/api/gold-investments" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/gold-investments.js", req, res)
+end
+
 trap("INT") { server.shutdown }
 
 puts ""
@@ -361,6 +425,9 @@ if EmailVerification.configured?
   puts "  Verification: Resend + Supabase configured (.env.local or ENV)."
 elsif !EmailVerification.missing_env.empty?
   puts "  Verification: copy .env.example → .env.local for signup email codes."
+end
+if File.exist?(File.join(ROOT, ".env.local")) && File.read(File.join(ROOT, ".env.local")).include?("USE_LOCAL_REGISTRY=1")
+  puts "  Registry: local file mode (data/accounts.json) — Gold Investment API enabled."
 end
 puts ""
 puts "Press Ctrl+C to stop."
