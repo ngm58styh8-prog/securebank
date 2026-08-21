@@ -56,7 +56,7 @@ function markNotificationRead(account, notificationId) {
 
 const account = { notifications: [] };
 
-pushAccountNotification(account, "Deposit submitted — awaiting admin approval", {
+pushAccountNotification(account, "Deposit submitted — status pending", {
     type: "deposit",
     title: "Deposit submitted",
     amount: 250,

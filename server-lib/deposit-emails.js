@@ -107,15 +107,13 @@ function buildDepositReceivedContent(deposit, account, admin) {
 
     const subject = "Deposit Request Received";
     const body = "Hello " + fullName + ",\n\n" +
-        "We have successfully received your cryptocurrency deposit request.\n\n" +
-        "Deposit Details\n\n" +
-        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
-        "Cryptocurrency:\n" + currencyLabel + "\n\n" +
+        "We've received your cryptocurrency deposit request.\n\n" +
+        "Deposit Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Currency:\n" + currencyLabel + "\n\n" +
         "Wallet Address:\n" + walletAddress + "\n\n" +
-        "Status:\nPending Confirmation\n\n" +
-        "Our team will verify your blockchain transaction and your account balance will be credited after sufficient confirmations.\n\n" +
+        "Status:\nPending\n\n" +
+        "Please send the exact amount shown to the wallet address above. Your account will be credited after the blockchain transaction is received and confirmed.\n\n" +
         "Thank you for banking with us.\n\n" +
-        "Regards,\n\n" +
         siteName + " Support";
 
     return {
@@ -143,7 +141,7 @@ function buildDepositAdminNotificationContent(deposit, account, admin) {
         "Wallet Address:\n" + walletAddress + "\n\n" +
         "Time Submitted:\n" + submittedAt + "\n\n" +
         "Status:\nPending\n\n" +
-        siteName + " Admin";
+        siteName;
 
     return {
         subject: subject,
@@ -165,7 +163,7 @@ function buildDepositCreditedContent(deposit, account, admin) {
     const subject = siteName + " — Deposit Credited ($" + amount.toFixed(2) + ")";
     const body = "Hi " + fullName + ",\n\n" +
         "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
-        " has been approved and credited to your account.\n\n" +
+        " has been credited to your account.\n\n" +
         "Amount credited: $" + amount.toFixed(2) + "\n" +
         "Updated cash balance: $" + balance.toFixed(2) + "\n" +
         "Date: " + creditedAt + "\n\n" +
@@ -188,12 +186,12 @@ function buildDepositDeclinedContent(deposit, account, admin, reason) {
     const methodLabel = formatDepositMethod(deposit.method, deposit);
     const amount = Number(deposit.amount);
     const declinedAt = formatDateTime(deposit.resolvedAt || new Date().toISOString());
-    const rejectionReason = String(reason || deposit.rejectReason || "Rejected by admin").trim();
+    const rejectionReason = String(reason || deposit.rejectReason || "Payment could not be confirmed").trim();
 
     const subject = siteName + " — Deposit Declined ($" + amount.toFixed(2) + ")";
     const body = "Hi " + fullName + ",\n\n" +
         "Your deposit request for $" + amount.toFixed(2) + " via " + methodLabel +
-        " was not approved.\n\n" +
+        " was declined.\n\n" +
         "Reason: " + rejectionReason + "\n" +
         "Date: " + declinedAt + "\n\n" +
         "No funds were added to your account. If you believe this was a mistake, contact " +

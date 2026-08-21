@@ -38,10 +38,10 @@ function testReceivedContent() {
 
     assert.strictEqual(
         content.subject,
-        "GlobalVest — Deposit Request Received ($250.50)",
+        "Deposit Request Received",
         "received subject"
     );
-    assert.ok(content.body.indexOf("Pending admin approval") !== -1, "received status");
+    assert.ok(content.body.indexOf("Status:\nPending") !== -1, "received status");
     assert.ok(content.body.indexOf(sampleDeposit.payTo) !== -1, "received payTo");
     assert.ok(content.body.indexOf("Test Customer") !== -1, "received greeting");
 }

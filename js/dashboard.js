@@ -647,8 +647,29 @@ function formatDepositCryptoAmount(amount, symbol) {
 
 function getDepositConfirmInstruction(symbol) {
     const sym = String(symbol || "BTC").toUpperCase();
-    return "Send the " + sym + " amount above to the deposit address to complete your deposit. " +
-        "Once you've sent the transaction, click Submit Deposit.";
+    return "Send the exact " + sym + " amount above to the deposit address. " +
+        "Once you've completed the transfer, click 'Submit Deposit' to notify us of your payment.";
+}
+
+function buildDepositSuccessAlert(amount, symbol, cryptoAmount, walletAddress, emailSent) {
+    const cryptoDisplay = cryptoAmount
+        ? formatDepositCryptoAmount(cryptoAmount, symbol)
+        : "—";
+    const emailLine = emailSent === false
+        ? "We could not send a confirmation email right now — check in-app notifications or contact support."
+        : "A confirmation email has been sent to your registered email address.";
+
+    return "Deposit Request Received\n\n" +
+        "Your deposit request has been received successfully.\n\n" +
+        "Deposit Details\n\n" +
+        "• USD Amount: $" + amount.toFixed(2) + "\n" +
+        "• Cryptocurrency: " + symbol + "\n" +
+        "• Amount to Send: " + cryptoDisplay + "\n" +
+        "• Deposit Address:\n" + walletAddress + "\n\n" +
+        "Please send the exact " + symbol + " amount shown above to the wallet address provided.\n\n" +
+        "Your deposit will be credited to your account after the transaction has been received and confirmed on the blockchain.\n\n" +
+        emailLine + "\n\n" +
+        "Thank you for banking with us.";
 }
 
 function updateDepositConfirmInstruction() {
@@ -799,19 +820,13 @@ function submitDepositFromPanel() {
         reloadAccountFromRegistry();
         closeDepositPanel();
 
-        const cryptoLine = cryptoAmount
-            ? formatDepositCryptoAmount(cryptoAmount, symbol)
-            : "the matching " + symbol + " amount";
-        const emailNote = result.emailSent === false
-            ? "We could not send a confirmation email right now — check in-app notifications or contact support."
-            : "A confirmation email was sent to your inbox.";
-        alert("Deposit submitted for admin approval.\n\n" +
-            "USD amount: $" + amount.toFixed(2) + "\n" +
-            "Send " + cryptoLine + " to:\n\n" +
-            result.payTo + "\n\n" +
-            "Your balance will NOT update until an admin verifies your " + symbol +
-            " payment and approves this deposit.\n\n" +
-            emailNote);
+        alert(buildDepositSuccessAlert(
+            amount,
+            symbol,
+            cryptoAmount,
+            result.payTo,
+            result.emailSent !== false
+        ));
     }).catch(function(err) {
         if (submitBtn) submitBtn.disabled = false;
         alert(err.message || "Could not submit deposit.");
@@ -844,7 +859,7 @@ function renderPendingTransfers() {
             ? "<br><span class=\"admin-email\">" + d.payTo + "</span>" : "";
         return "<li class=\"pending-item\">" +
             "<span>Deposit " + formatPrice(d.amount) + " via " + currency + cryptoLine + dest +
-            "<br><em>Awaiting admin approval — not credited yet</em></span>" +
+            "<br><em>Pending — awaiting blockchain confirmation</em></span>" +
             "<span class=\"pending-badge\">Pending</span>" +
             "</li>";
     }));

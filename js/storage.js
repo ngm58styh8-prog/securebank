@@ -531,15 +531,13 @@ function sendDepositSubmittedEmail(account, userEmail, amount, method, payTo, de
     const walletAddress = depositMeta.walletAddress || payTo || "";
     const subject = "Deposit Request Received";
     const body = "Hello " + meta.fullName + ",\n\n" +
-        "We have successfully received your cryptocurrency deposit request.\n\n" +
-        "Deposit Details\n\n" +
-        "Amount:\n$" + amount.toFixed(2) + "\n\n" +
-        "Cryptocurrency:\n" + currencyLabel + "\n\n" +
+        "We've received your cryptocurrency deposit request.\n\n" +
+        "Deposit Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Currency:\n" + currencyLabel + "\n\n" +
         "Wallet Address:\n" + walletAddress + "\n\n" +
-        "Status:\nPending Confirmation\n\n" +
-        "Our team will verify your blockchain transaction and your account balance will be credited after sufficient confirmations.\n\n" +
+        "Status:\nPending\n\n" +
+        "Please send the exact amount shown to the wallet address above. Your account will be credited after the blockchain transaction is received and confirmed.\n\n" +
         "Thank you for banking with us.\n\n" +
-        "Regards,\n\n" +
         meta.siteName + " Support";
     return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
 }
@@ -572,7 +570,7 @@ function sendDepositApprovedEmail(account, userEmail, amount, method) {
     const subject = meta.siteName + " — Deposit of $" + amount.toFixed(2) + " credited";
     const body = "Hi " + meta.fullName + ",\n\n" +
         "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
-        " has been approved and credited to your account.\n\n" +
+        " has been credited to your account.\n\n" +
         "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
         "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
@@ -587,7 +585,7 @@ function sendDepositRejectedEmail(account, userEmail, amount, method, reason) {
     const subject = meta.siteName + " — Deposit request declined ($" + amount.toFixed(2) + ")";
     const body = "Hi " + meta.fullName + ",\n\n" +
         "Your deposit request for $" + amount.toFixed(2) + " via " + methodLabel +
-        " was not approved.\n\n" +
+        " was declined.\n\n" +
         (reason ? "Reason: " + reason + "\n\n" : "") +
         "No funds were added to your account. If you believe this was a mistake, contact " +
         meta.supportEmail + ".\n\n" +
@@ -2064,7 +2062,7 @@ function appendPendingDepositOnServer(deposit, options) {
                 if (!response.ok || !data.ok) {
                     return {
                         ok: false,
-                        error: (data && data.error) || "Could not submit deposit to admin."
+                        error: (data && data.error) || "Could not submit deposit request."
                     };
                 }
                 return data;
@@ -2305,7 +2303,7 @@ function mergeServerDepositResolutionLocally(serverResult) {
                 ? "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) + " was rejected" +
                     (serverResult.reason ? ": " + serverResult.reason : "")
                 : "Your deposit of $" + Number(serverResult.amount || 0).toFixed(2) +
-                    " was approved and credited to your balance",
+                    " was credited to your balance",
             {
                 account: serverResult.account || getRegistryAccount(key),
                 skipServerSync: true,
@@ -3954,9 +3952,9 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         amount: 0
     });
     pushAccountNotification(account, "Deposit of $" + amount.toFixed(2) + " submitted — send " +
-        currency + " to " + payTo + ". Awaiting admin approval.", {
+        currency + " to " + payTo + ". Status: Pending.", {
         type: "deposit",
-        title: "Deposit submitted",
+        title: "Deposit request received",
         amount: amount,
         currency: "USD",
         status: "pending"
@@ -3987,7 +3985,7 @@ function submitDepositRequestAsync(userEmail, amount, method, depositMeta) {
         })
         .then(function(serverResult) {
             if (!serverResult || (!serverResult.ok && !serverResult.offline)) {
-                throw new Error((serverResult && serverResult.error) || "Could not send deposit to admin.");
+                throw new Error((serverResult && serverResult.error) || "Could not submit deposit request.");
             }
 
             if (serverResult.offline) {
@@ -4081,7 +4079,7 @@ function approveDeposit(depositId) {
     account.cash = (account.cash || 0) + deposit.amount;
     account.transactions.unshift({
         date: new Date().toLocaleString(),
-        description: "Deposit Approved (" + deposit.method + ") — paid to admin",
+        description: "Deposit Credited (" + deposit.method + ")",
         amount: deposit.amount
     });
     account.serverSyncedAt = new Date().toISOString();
@@ -4094,7 +4092,7 @@ function approveDeposit(depositId) {
     resolveDepositOnAccount(
         key,
         depositId,
-        "Deposit of $" + deposit.amount.toFixed(2) + " was approved and credited to your balance",
+        "Deposit of $" + deposit.amount.toFixed(2) + " was credited to your balance",
         {
             account: account,
             skipServerSync: true,
@@ -4244,7 +4242,7 @@ function rejectDeposit(depositId, reason) {
 
     deposit.status = "rejected";
     deposit.resolvedAt = new Date().toLocaleString();
-    deposit.rejectReason = reason || "Rejected by admin";
+    deposit.rejectReason = reason || "Payment could not be confirmed";
 
     const key = normalizeEmail(deposit.userEmail);
     const accountTx = getRegistryAccount(key) || getAccount(key);

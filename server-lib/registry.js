@@ -835,7 +835,7 @@ async function approvePendingDeposit(depositId) {
     updatedAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
     updatedAccount.transactions.unshift({
         date: new Date().toLocaleString(),
-        description: "Deposit Approved (" + deposit.method + ") — paid to admin",
+        description: "Deposit Credited (" + deposit.method + ")",
         amount: depositAmount
     });
     if (Array.isArray(updatedAccount.pendingDeposits)) {
@@ -846,7 +846,7 @@ async function approvePendingDeposit(depositId) {
     updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Deposit of $" + depositAmount.toFixed(2) + " was approved and credited to your balance",
+        message: "Deposit of $" + depositAmount.toFixed(2) + " was credited to your balance",
         title: "Deposit credited",
         time: new Date().toISOString(),
         read: false,
@@ -888,7 +888,7 @@ async function approvePendingDeposit(depositId) {
         userEmail: deposit.userEmail,
         userName: deposit.userName || deposit.userEmail,
         type: "deposit",
-        description: "Deposit approved and credited",
+        description: "Deposit credited",
         amount: depositAmount
     });
     if (admin.userActivityLog.length > 500) {
@@ -962,7 +962,8 @@ async function rejectPendingDeposit(depositId, reason) {
     }
 
     const key = normalizeRegistryEmail(deposit.userEmail);
-    const rejectionReason = String(reason || "Rejected by admin").trim() || "Rejected by admin";
+    const rejectionReason = String(reason || "Payment could not be confirmed").trim() ||
+        "Payment could not be confirmed";
 
     deposit.status = "rejected";
     deposit.resolvedAt = new Date().toISOString();

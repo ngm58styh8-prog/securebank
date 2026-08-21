@@ -1292,13 +1292,13 @@ body[data-theme="dark"] .pending-badge {
     display: flex;
     flex-wrap: wrap;
     align-items: stretch;
-    gap: 14px;
+    gap: 16px;
     margin-top: 20px;
 }
 
 .deposit-panel-actions .modal-confirm,
 .deposit-panel-actions .modal-cancel {
-    flex: 1 1 calc(50% - 7px);
+    flex: 1 1 calc(50% - 8px);
     min-width: 0;
     min-height: 48px;
     display: inline-flex;
