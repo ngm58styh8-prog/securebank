@@ -1420,13 +1420,25 @@ function authenticate(email, password) {
     return account;
 }
 
+function mergeNotificationEntry(existing, incoming) {
+    if (!existing) return incoming;
+    if (!incoming) return existing;
+    const merged = Object.assign({}, existing, incoming);
+    // Once marked read, keep it read even if a stale in-memory copy is unread.
+    merged.read = !!(existing.read || incoming.read);
+    return merged;
+}
+
 function mergeNotificationLists(primary, secondary) {
     const map = new Map();
     (secondary || []).forEach(function(n) {
+        if (!n || n.id == null) return;
         map.set(String(n.id), n);
     });
     (primary || []).forEach(function(n) {
-        map.set(String(n.id), n);
+        if (!n || n.id == null) return;
+        const key = String(n.id);
+        map.set(key, mergeNotificationEntry(map.get(key), n));
     });
     return Array.from(map.values())
         .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
@@ -1649,10 +1661,13 @@ function hydrateNotificationsFromTransactions(account) {
 }
 
 function syncAccountNotifications(email, account) {
-    const stored = getAllAccounts()[normalizeEmail(email)];
+    const stored = getAllAccounts()[normalizeEmail(email)] ||
+        getAllAccounts()[findAccountKey(email)];
+    // Prefer stored notifications as the baseline so dashboard in-memory
+    // unread state cannot overwrite mark-read / mark-all-read.
     account.notifications = mergeNotificationLists(
-        account.notifications || [],
-        stored && stored.notifications ? stored.notifications : []
+        stored && stored.notifications ? stored.notifications : [],
+        account.notifications || []
     );
     hydrateNotificationsFromTransactions(account);
     return account.notifications;
@@ -1665,8 +1680,8 @@ function saveAccount(email, account, options) {
     const existing = accounts[key];
     if (existing && Array.isArray(existing.notifications)) {
         account.notifications = mergeNotificationLists(
-            account.notifications || [],
-            existing.notifications
+            existing.notifications,
+            account.notifications || []
         );
     } else {
         ensureNotifications(account);

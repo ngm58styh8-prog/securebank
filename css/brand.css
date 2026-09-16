@@ -1,9 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Manrope:wght@400;600;700;800&display=swap");
 
 :root {
-    --gv-primary: #1F6BFF;
-    --gv-dark: #081B45;
-    --gv-accent: #3B82F6;
+    --gv-primary: #3EE0A0;
+    --gv-dark: #050807;
+    --gv-accent: #9AF5C8;
     --gv-white: #FFFFFF;
     --font-brand: "Inter", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Manrope", sans-serif;
 }

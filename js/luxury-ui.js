@@ -61,7 +61,7 @@
             ctx.clearRect(0, 0, w, h);
             var t = Date.now() / 1000;
 
-            ctx.strokeStyle = "rgba(109, 93, 246, 0.08)";
+            ctx.strokeStyle = "rgba(62, 224, 160, 0.10)";
             ctx.lineWidth = 1;
             for (var i = 0; i < dots.length; i++) {
                 for (var j = i + 1; j < dots.length; j++) {
@@ -80,7 +80,7 @@
                 var pulse = 0.5 + 0.5 * Math.sin(t * 1.5 + d.phase);
                 ctx.beginPath();
                 ctx.arc(d.x, d.y, d.r + pulse * 0.8, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(109, 93, 246, " + (0.15 + pulse * 0.25) + ")";
+                ctx.fillStyle = "rgba(62, 224, 160, " + (0.12 + pulse * 0.22) + ")";
                 ctx.fill();
             });
 

@@ -43,7 +43,7 @@ function initParticles() {
             if (p.y > h) p.y = 0;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(120, 180, 255, " + p.a + ")";
+            ctx.fillStyle = "rgba(62, 224, 160, " + p.a + ")";
             ctx.fill();
         });
         requestAnimationFrame(draw);

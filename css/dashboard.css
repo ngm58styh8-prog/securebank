@@ -1,30 +1,30 @@
 :root {
-    --bg: #f4f7fb;
+    --bg: #F3F8F5;
     --card: #ffffff;
     --text: #222222;
     --muted: #666666;
-    --primary: #1F6BFF;
-    --primary-dark: #081B45;
-    --header: linear-gradient(135deg, #081B45 0%, #1F6BFF 100%);
+    --primary: #1E7A5C;
+    --primary-dark: #0B110E;
+    --header: linear-gradient(135deg, #0B110E 0%, #1E7A5C 100%);
     --border: #e5e9f0;
     --shadow: rgba(0, 0, 0, 0.1);
     --table-stripe: #f5f5f5;
-    --success: #1a8f4c;
+    --success: #22D68A;
     --danger: #c0392b;
     --warning: #f39c12;
 }
 
 body[data-theme="dark"] {
-    --bg: #0f1419;
-    --card: #1a2332;
-    --text: #e8eef7;
-    --muted: #9aa8bc;
-    --primary: #3B82F6;
-    --primary-dark: #1F6BFF;
-    --header: linear-gradient(135deg, #081B45 0%, #0c2d6e 100%);
-    --border: #2a3548;
-    --shadow: rgba(0, 0, 0, 0.35);
-    --table-stripe: #212b3d;
+    --bg: #050807;
+    --card: #121A17;
+    --text: #F3F7F5;
+    --muted: #8FA39A;
+    --primary: #3EE0A0;
+    --primary-dark: #0B110E;
+    --header: linear-gradient(135deg, #050807 0%, #121A17 100%);
+    --border: #1C2A25;
+    --shadow: rgba(0, 0, 0, 0.42);
+    --table-stripe: #0B110E;
 }
 
 * {
@@ -195,7 +195,7 @@ header {
 .notif-mark-all {
     background: none;
     border: none;
-    color: var(--primary, #1F6BFF);
+    color: var(--primary, #1E7A5C);
     font-size: 0.75rem;
     font-weight: 600;
     cursor: pointer;
@@ -304,6 +304,11 @@ header {
     background: rgba(16, 185, 129, 0.22);
 }
 
+@keyframes notifBadgePulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+    50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+}
+
 .notif-badge {
     display: none;
     align-items: center;
@@ -314,6 +319,7 @@ header {
     border-radius: 999px;
     font-size: 0.65rem;
     line-height: 1;
+    animation: notifBadgePulse 1.8s ease infinite;
 }
 
 .notif-bell-wrap {
@@ -1286,7 +1292,7 @@ body[data-theme="dark"] .pending-badge {
     border: none;
     border-radius: 10px;
     cursor: pointer;
-    background: linear-gradient(135deg, #1F6BFF, #3B82F6);
+    background: linear-gradient(135deg, #1E7A5C, #3EE0A0);
     color: #fff;
 }
 

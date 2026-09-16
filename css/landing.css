@@ -1,6 +1,6 @@
 .landing-body {
-    background: #030818;
-    color: #eef4ff;
+    background: #050807;
+    color: #FFFFFF;
     overflow-x: hidden;
 }
 
@@ -9,9 +9,9 @@
     inset: 0;
     z-index: 0;
     background:
-        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(31, 107, 255, 0.22), transparent 55%),
-        radial-gradient(ellipse 70% 50% at 80% 20%, rgba(80, 60, 255, 0.18), transparent 50%),
-        linear-gradient(160deg, #020612 0%, #041433 45%, #062454 100%);
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(62, 224, 160, 0.22), transparent 55%),
+        radial-gradient(ellipse 70% 50% at 80% 20%, rgba(30, 122, 92, 0.22), transparent 50%),
+        linear-gradient(160deg, #050807 0%, #0B110E 45%, #121A17 100%);
     animation: landingGradientShift 18s ease-in-out infinite alternate;
 }
 
@@ -39,7 +39,7 @@
     justify-content: space-between;
     padding: 18px 5vw;
     backdrop-filter: blur(14px);
-    background: rgba(3, 8, 24, 0.55);
+    background: rgba(5, 8, 7, 0.62);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -93,9 +93,9 @@
 }
 
 .landing-btn-primary {
-    background: linear-gradient(135deg, #1F6BFF, #3B82F6);
-    color: #fff;
-    box-shadow: 0 8px 28px rgba(31, 107, 255, 0.35);
+    background: linear-gradient(135deg, #3EE0A0, #9AF5C8);
+    color: #050807;
+    box-shadow: 0 8px 28px rgba(62, 224, 160, 0.32);
 }
 
 .landing-btn-secondary {
@@ -139,11 +139,11 @@
     font-weight: 800;
     letter-spacing: -0.03em;
     margin-bottom: 16px;
-    background: linear-gradient(135deg, #fff 30%, #8ec5ff 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: #fff; /* fallback if clip unsupported */
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    -webkit-text-fill-color: #F3F7F5;
+    color: #F3F7F5;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -342,10 +342,10 @@
 .landing-stat-value {
     font-size: clamp(1.8rem, 3vw, 2.4rem);
     font-weight: 800;
-    background: linear-gradient(135deg, #fff, #6eb6ff);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+    color: #9AF5C8;
 }
 
 .landing-stat-label {
@@ -396,7 +396,7 @@
     padding: 18px 42px;
     font-size: 1.1rem;
     border-radius: 999px;
-    background: linear-gradient(135deg, #1F6BFF, #081B45);
+    background: linear-gradient(135deg, #3EE0A0, #1C2A25);
     color: #fff;
     text-decoration: none;
     font-weight: 700;

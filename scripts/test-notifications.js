@@ -5,13 +5,24 @@
  */
 const assert = require("assert");
 
+function mergeNotificationEntry(existing, incoming) {
+    if (!existing) return incoming;
+    if (!incoming) return existing;
+    const merged = Object.assign({}, existing, incoming);
+    merged.read = !!(existing.read || incoming.read);
+    return merged;
+}
+
 function mergeNotificationLists(primary, secondary) {
     const map = new Map();
     (secondary || []).forEach(function(n) {
+        if (!n || n.id == null) return;
         map.set(String(n.id), n);
     });
     (primary || []).forEach(function(n) {
-        map.set(String(n.id), n);
+        if (!n || n.id == null) return;
+        const key = String(n.id);
+        map.set(key, mergeNotificationEntry(map.get(key), n));
     });
     return Array.from(map.values())
         .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
@@ -88,6 +99,14 @@ const merged = mergeNotificationLists(
 assert.strictEqual(merged[0].id, "2");
 assert.strictEqual(merged.length, 2);
 
+const readPreserved = mergeNotificationLists(
+    [{ id: "a", message: "stale unread", time: "2026-07-13T12:00:00.000Z", read: false }],
+    [{ id: "a", message: "marked read", time: "2026-07-13T12:00:00.000Z", read: true }]
+);
+assert.strictEqual(readPreserved.length, 1);
+assert.strictEqual(readPreserved[0].read, true, "read state must survive stale unread merge");
+assert.strictEqual(readPreserved[0].message, "stale unread");
+
 const firstId = account.notifications[1].id;
 assert.strictEqual(markNotificationRead(account, firstId), true);
 assert.strictEqual(getUnreadNotificationCount(account), 1);
@@ -144,4 +163,4 @@ assert.ok(ledgerAccount.notifications.some(function(n) { return n.type === "trad
 hydrateNotificationsFromTransactions(ledgerAccount);
 assert.strictEqual(ledgerAccount.notifications.length, 2, "hydrate should not duplicate transactions");
 
-console.log("notification tests: 7 passed");
+console.log("notification tests: 8 passed");
