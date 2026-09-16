@@ -1,13 +1,13 @@
 :root {
-    --auth-bg-start: #081B45;
-    --auth-bg-end: #1F6BFF;
+    --auth-bg-start: #050807;
+    --auth-bg-end: #121A17;
     --auth-card: #ffffff;
     --auth-text: #1a1a2e;
     --auth-muted: #666;
     --auth-border: #d8dee9;
     --auth-input-bg: #f8fafc;
-    --auth-primary: #1F6BFF;
-    --auth-primary-hover: #081B45;
+    --auth-primary: #1E7A5C;
+    --auth-primary-hover: #0B110E;
     --auth-success: #1a8f4c;
     --auth-warning: #e67e22;
     --auth-danger: #c0392b;
@@ -16,15 +16,15 @@
 }
 
 body[data-theme="dark"] {
-    --auth-bg-start: #0a0e17;
-    --auth-bg-end: #1a2744;
-    --auth-card: #151b28;
-    --auth-text: #eef2ff;
-    --auth-muted: #9aa5b8;
-    --auth-border: #2a3448;
-    --auth-input-bg: #0f1420;
-    --auth-primary: #3B82F6;
-    --auth-primary-hover: #1F6BFF;
+    --auth-bg-start: #050807;
+    --auth-bg-end: #17221E;
+    --auth-card: #121A17;
+    --auth-text: #F3F7F5;
+    --auth-muted: #8FA39A;
+    --auth-border: #1C2A25;
+    --auth-input-bg: #0B110E;
+    --auth-primary: #3EE0A0;
+    --auth-primary-hover: #9AF5C8;
     --auth-shadow: 0 15px 40px rgba(0, 0, 0, 0.55);
 }
 
@@ -49,8 +49,8 @@ body.auth-body::before {
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(ellipse 70% 50% at 15% 0%, rgba(31, 107, 255, 0.22), transparent 55%),
-        radial-gradient(ellipse 60% 45% at 85% 100%, rgba(59, 130, 246, 0.16), transparent 50%);
+        radial-gradient(ellipse 70% 50% at 15% 0%, rgba(62, 224, 160, 0.16), transparent 55%),
+        radial-gradient(ellipse 60% 45% at 85% 100%, rgba(30, 122, 92, 0.16), transparent 50%);
     z-index: 0;
 }
 
@@ -483,6 +483,11 @@ body[data-theme="dark"] .float-field select:focus {
 .auth-submit:hover {
     background: var(--auth-primary-hover);
     transform: translateY(-1px);
+}
+
+body[data-theme="dark"] .auth-submit,
+body[data-theme="dark"] .auth-submit:hover {
+    color: #050807;
 }
 
 .signup-progress {

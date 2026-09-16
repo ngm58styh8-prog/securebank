@@ -20,8 +20,8 @@ body.send-money-page-body {
     margin-bottom: 24px;
     padding: 28px 24px;
     border-radius: 20px;
-    background: linear-gradient(135deg, rgba(109, 93, 246, 0.18), rgba(59, 130, 246, 0.1));
-    border: 1px solid rgba(109, 93, 246, 0.25);
+    background: linear-gradient(135deg, rgba(62, 224, 160, 0.18), rgba(30, 122, 92, 0.1));
+    border: 1px solid rgba(62, 224, 160, 0.25);
     overflow: hidden;
 }
 
@@ -31,14 +31,14 @@ body.send-money-page-body {
     right: -10%;
     width: 280px;
     height: 280px;
-    background: radial-gradient(circle, rgba(109, 93, 246, 0.35), transparent 70%);
+    background: radial-gradient(circle, rgba(62, 224, 160, 0.35), transparent 70%);
     pointer-events: none;
 }
 
 .sm-hero h1 {
     font-size: 1.75rem;
     margin: 0 0 8px;
-    background: linear-gradient(135deg, #fff, #a5b4fc);
+    background: linear-gradient(135deg, #fff, #9AF5C8);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -57,7 +57,7 @@ body.send-money-page-body {
     flex-wrap: wrap;
     padding: 10px 14px;
     border-radius: 12px;
-    background: rgba(7, 11, 24, 0.5);
+    background: rgba(5, 8, 7, 0.5);
     border: 1px solid rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(12px);
 }
@@ -71,13 +71,13 @@ body.send-money-page-body {
 
 .sm-wallet-chip code {
     font-size: 0.85rem;
-    color: #93c5fd;
+    color: #9AF5C8;
     word-break: break-all;
 }
 
 .sm-copy-btn {
     border: none;
-    background: rgba(109, 93, 246, 0.2);
+    background: rgba(62, 224, 160, 0.2);
     border-radius: 8px;
     padding: 6px 10px;
     cursor: pointer;
@@ -98,7 +98,7 @@ body.send-money-page-body {
 }
 
 .lv-glass-card {
-    background: rgba(13, 19, 38, 0.72);
+    background: rgba(5, 8, 7, 0.72);
     backdrop-filter: blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 18px;
@@ -138,7 +138,7 @@ body.send-money-page-body {
     padding: 12px 16px;
     border: none;
     border-radius: 10px;
-    background: linear-gradient(135deg, #6d5df6, #3b82f6);
+    background: linear-gradient(135deg, #1E7A5C, #3EE0A0);
     color: #fff;
     font-weight: 600;
     font-size: 0.85rem;
@@ -162,7 +162,7 @@ body.send-money-page-body {
     padding: 12px 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: rgba(7, 11, 24, 0.6);
+    background: rgba(5, 8, 7, 0.6);
     color: var(--text);
     font-size: 1rem;
     font-family: inherit;
@@ -198,7 +198,7 @@ body.send-money-page-body {
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #6d5df6, #3b82f6);
+    background: linear-gradient(135deg, #1E7A5C, #3EE0A0);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -265,7 +265,7 @@ body.send-money-page-body {
 }
 
 .sm-summary-total strong {
-    color: #93c5fd;
+    color: #9AF5C8;
     font-size: 1.1rem;
 }
 
@@ -296,7 +296,7 @@ body.send-money-page-body {
     padding: 14px 20px;
     border: none;
     border-radius: 12px;
-    background: linear-gradient(135deg, #6d5df6 0%, #3b82f6 100%);
+    background: linear-gradient(135deg, #1E7A5C 0%, #3EE0A0 100%);
     color: #fff;
     font-weight: 700;
     font-size: 1rem;
@@ -307,7 +307,7 @@ body.send-money-page-body {
 
 .sm-send-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(109, 93, 246, 0.4);
+    box-shadow: 0 8px 24px rgba(62, 224, 160, 0.4);
 }
 
 .sm-send-btn:disabled {
@@ -342,7 +342,7 @@ body.send-money-page-body {
     display: block;
     margin-top: 16px;
     text-align: center;
-    color: #93c5fd;
+    color: #9AF5C8;
     text-decoration: none;
     font-weight: 600;
     font-size: 0.9rem;
@@ -446,7 +446,7 @@ body.send-money-page-body {
     padding: 10px 14px;
     border-radius: 10px;
     border: 1px solid var(--border);
-    background: rgba(7, 11, 24, 0.6);
+    background: rgba(5, 8, 7, 0.6);
     color: var(--text);
 }
 
@@ -459,7 +459,7 @@ body.send-money-page-body {
 .th-item {
     padding: 18px;
     border-radius: 14px;
-    background: rgba(13, 19, 38, 0.72);
+    background: rgba(5, 8, 7, 0.72);
     border: 1px solid rgba(255, 255, 255, 0.08);
     display: grid;
     grid-template-columns: 1fr auto;

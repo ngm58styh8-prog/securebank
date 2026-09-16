@@ -1001,10 +1001,10 @@ function initCharts() {
             datasets: [{
                 label: "Portfolio Value",
                 data: [12000, 14500, 17000, 19000, 21000, 24000, 25480],
-                borderColor: "#1F6BFF",
+                borderColor: "#3EE0A0",
                 borderWidth: 3,
                 fill: true,
-                backgroundColor: "rgba(31, 107, 255, 0.08)",
+                backgroundColor: "rgba(62, 224, 160, 0.10)",
                 tension: 0.4
             }]
         },
@@ -1012,7 +1012,17 @@ function initCharts() {
             responsive: true,
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: false } }
+            scales: {
+                x: {
+                    ticks: { color: "#8FA39A" },
+                    grid: { color: "rgba(184, 193, 209, 0.08)" }
+                },
+                y: {
+                    beginAtZero: false,
+                    ticks: { color: "#8FA39A" },
+                    grid: { color: "rgba(184, 193, 209, 0.08)" }
+                }
+            }
         }
     });
 
@@ -1023,13 +1033,18 @@ function initCharts() {
             labels: ["Cash", "Crypto", "Gold", "Stocks", "ETFs"],
             datasets: [{
                 data: [1, 1, 1, 1, 1],
-                backgroundColor: ["#1F6BFF", "#3B82F6", "#FFB300", "#00C853", "#627eea"]
+                backgroundColor: ["#1C2A25", "#1E7A5C", "#3EE0A0", "#9AF5C8", "#17221E"]
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom" } }
+            plugins: {
+                legend: {
+                    position: "bottom",
+                    labels: { color: "#B8C1D1" }
+                }
+            }
         }
     });
 }

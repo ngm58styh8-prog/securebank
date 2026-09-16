@@ -137,11 +137,11 @@
                 labels: ["", "", "", "", "", "", ""],
                 datasets: [{
                     data: [9200000, 9450000, 9380000, 9620000, 9780000, 9910000, 10071996],
-                    borderColor: "#3B82F6",
+                    borderColor: "#9AF5C8",
                     borderWidth: 2,
                     pointRadius: 0,
                     fill: true,
-                    backgroundColor: "rgba(31, 107, 255, 0.12)",
+                    backgroundColor: "rgba(62, 224, 160, 0.12)",
                     tension: 0.4
                 }]
             },
