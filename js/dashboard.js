@@ -46,6 +46,9 @@ ALL_ASSETS.forEach(function(a) {
 
 function saveState(options) {
     options = options || {};
+    if (typeof syncAccountNotifications === "function") {
+        syncAccountNotifications(username, account);
+    }
     const syncOptions = Object.assign({ skipServerSync: true }, options);
     saveAccount(username, account, syncOptions);
 }
@@ -1156,6 +1159,22 @@ function initUI() {
             reloadAccountFromRegistry();
             refreshNotificationsFromStorage();
         }
+    });
+
+    window.addEventListener("globalvest-accounts-changed", function() {
+        const fresh = typeof getAccount === "function" ? getAccount(username) : null;
+        if (fresh && Array.isArray(fresh.notifications)) {
+            account.notifications = fresh.notifications;
+        }
+        refreshNotificationsFromStorage();
+    });
+
+    window.addEventListener("globalvest-notifications-updated", function() {
+        const fresh = typeof getAccount === "function" ? getAccount(username) : null;
+        if (fresh && Array.isArray(fresh.notifications)) {
+            account.notifications = fresh.notifications;
+        }
+        refreshNotificationsFromStorage();
     });
 
     window.addEventListener("globalvest-registry-synced", reloadAccountFromRegistry);
