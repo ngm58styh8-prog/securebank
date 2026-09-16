@@ -126,12 +126,17 @@ async function requestPasswordReset(email) {
         console.warn("[password-reset] email failed", { email: key, error: emailError });
     }
 
+    // If Resend fails, always return the code so the sign-in UI can finish the
+    // reset. Prefer inbox delivery when send succeeds.
     return {
         ok: true,
         status: 200,
-        message: GENERIC_MESSAGE,
+        message: emailSent
+            ? GENERIC_MESSAGE
+            : "We could not deliver email right now. Use the on-screen reset code to continue.",
         emailSent: emailSent,
-        emailError: emailError
+        emailError: emailError,
+        localCode: emailSent ? null : code
     };
 }
 

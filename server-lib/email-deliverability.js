@@ -99,8 +99,16 @@ function normalizeFromAddress(rawFrom) {
     const from = cleanEnvValue(rawFrom) || DEFAULT_FROM;
     const parsed = parseFromAddress(from);
     const expectedEmail = emailConfig.fromEmail.toLowerCase();
+    const supportEmail = String(DEFAULT_SUPPORT_EMAIL || "").toLowerCase();
 
-    if (parsed.email === expectedEmail) {
+    // Transactional mail should always come from noreply@, even if Vercel still
+    // has RESEND_FROM_EMAIL=support@globalvestbank.com.
+    if (
+        !parsed.email ||
+        parsed.email === expectedEmail ||
+        parsed.email === supportEmail ||
+        parsed.email.indexOf("support@") === 0
+    ) {
         return emailConfig.fromDisplayName + " <" + expectedEmail + ">";
     }
 

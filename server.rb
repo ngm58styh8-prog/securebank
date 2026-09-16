@@ -378,12 +378,22 @@ def invoke_node_api(handler_rel, req, res)
   end
 
   begin
-    payload = JSON.parse(stdout)
-    code = payload["ok"] == false ? 400 : 200
+    payload = JSON.parse(extract_json_payload(stdout))
+    code = payload["ok"] == false ? (payload["status"] || 400) : (payload["status"] || 200)
     send_api_json(res, code, payload)
   rescue JSON::ParserError
     send_api_json(res, 500, { "ok" => false, "error" => "Invalid API response", "raw" => stdout })
   end
+end
+
+def extract_json_payload(raw)
+  text = raw.to_s.strip
+  return text if text.empty?
+  return text if text.start_with?("{") || text.start_with?("[")
+
+  start = text.rindex("{")
+  raise JSON::ParserError, "No JSON object in API output" unless start
+  text[start..]
 end
 
 server.mount_proc "/api/registry-health" do |req, res|
