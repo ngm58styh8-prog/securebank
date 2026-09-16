@@ -199,12 +199,26 @@ function renderTransactions() {
     }).join("");
 }
 
-function addTransaction(description, amount) {
+function addTransaction(description, amount, options) {
+    options = options || {};
     account.transactions.unshift({
         date: new Date().toLocaleString(),
         description: description,
         amount: amount
     });
+    if (options.notify !== false) {
+        const type = options.type ||
+            (typeof classifyLedgerType === "function" ? classifyLedgerType(description) : "general");
+        addNotification(options.message || description, {
+            type: type,
+            title: options.title || (typeof ledgerTypeTitle === "function" ? ledgerTypeTitle(type) : null),
+            amount: amount != null ? Math.abs(Number(amount)) : null,
+            currency: options.currency || "USD",
+            status: options.status || (/pending/i.test(description) ? "pending" : "completed")
+        });
+        renderTransactions();
+        return;
+    }
     saveState();
     renderTransactions();
 }
@@ -474,8 +488,13 @@ function tradeAsset(assetKey, type) {
         }
         account.cash -= cost;
         setHoldings(assetKey, getHoldings(assetKey) + qty);
-        addNotification(formatTradeNotification(asset, "buy", qty, price), { type: "trade" });
-        addTransaction("Buy " + formatQuantity(asset, qty), -cost);
+        addNotification(formatTradeNotification(asset, "buy", qty, price), {
+            type: "trade",
+            title: "Trade",
+            amount: cost,
+            currency: "USD"
+        });
+        addTransaction("Buy " + formatQuantity(asset, qty), -cost, { notify: false });
     } else {
         if (getHoldings(assetKey) < qty) {
             addNotification("Sell failed — insufficient " + asset.label + " holdings", { type: "trade" });
@@ -484,8 +503,13 @@ function tradeAsset(assetKey, type) {
         const proceeds = price * qty;
         setHoldings(assetKey, getHoldings(assetKey) - qty);
         account.cash += proceeds;
-        addTransaction("Sell " + formatQuantity(asset, qty), proceeds);
-        addNotification(formatTradeNotification(asset, "sell", qty, price), { type: "trade" });
+        addTransaction("Sell " + formatQuantity(asset, qty), proceeds, { notify: false });
+        addNotification(formatTradeNotification(asset, "sell", qty, price), {
+            type: "trade",
+            title: "Trade",
+            amount: proceeds,
+            currency: "USD"
+        });
     }
 
     saveStateAndSync("trade");

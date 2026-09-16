@@ -45,6 +45,7 @@
         if (type === "trade") return "Trade";
         if (type === "exchange") return "Exchange";
         if (type === "support") return "Support";
+        if (type === "admin") return "Account update";
         return "Activity";
     }
 
@@ -66,36 +67,69 @@
             .replace(/"/g, "&quot;");
     }
 
+    function panelMarkup() {
+        return '<div class="notif-header">' +
+            '<span>🔔 Notifications</span>' +
+            '<button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>' +
+            "</div>" +
+            '<div id="notifList" class="notif-list"></div>';
+    }
+
     function ensureBellMarkup() {
-        if (document.getElementById("notifBtn")) {
+        const host = document.querySelector(".gv-header-actions") ||
+            document.querySelector("header .header-right");
+        let btn = document.getElementById("notifBtn");
+        let panel = document.getElementById("notifPanel");
+        let wrap = btn ? btn.closest(".notif-bell-wrap") : document.querySelector(".notif-bell-wrap");
+
+        if (!btn) {
+            if (!host) return;
+            wrap = document.createElement("div");
+            wrap.className = "notif-bell-wrap";
+            wrap.innerHTML =
+                '<button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications" aria-label="Notifications">' +
+                '🔔 <span id="notifCount" class="badge notif-badge" style="display:none">0</span>' +
+                "</button>" +
+                '<div id="notifPanel" class="notif-panel hidden" role="dialog" aria-label="Notifications">' +
+                panelMarkup() +
+                "</div>";
+
+            const themeBtn = document.getElementById("themeToggle");
+            if (themeBtn && host.contains(themeBtn)) {
+                host.insertBefore(wrap, themeBtn);
+            } else {
+                host.insertBefore(wrap, host.firstChild);
+            }
             ensureMarkAllButton();
             return;
         }
 
-        const host = document.querySelector(".gv-header-actions") ||
-            document.querySelector("header .header-right");
-        if (!host) return;
-
-        const wrap = document.createElement("div");
-        wrap.className = "notif-bell-wrap";
-        wrap.innerHTML =
-            '<button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications">' +
-            '🔔 <span id="notifCount" class="badge notif-badge" style="display:none">0</span>' +
-            "</button>" +
-            '<div id="notifPanel" class="notif-panel hidden">' +
-            '<div class="notif-header">' +
-            '<span>🔔 Notifications</span>' +
-            '<button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>' +
-            "</div>" +
-            '<div id="notifList" class="notif-list"></div>' +
-            "</div>";
-
-        const themeBtn = document.getElementById("themeToggle");
-        if (themeBtn && host.contains(themeBtn)) {
-            host.insertBefore(wrap, themeBtn);
-        } else {
-            host.insertBefore(wrap, host.firstChild);
+        if (!wrap) {
+            wrap = document.createElement("div");
+            wrap.className = "notif-bell-wrap";
+            btn.parentNode.insertBefore(wrap, btn);
+            wrap.appendChild(btn);
         }
+
+        btn.setAttribute("aria-label", "Notifications");
+        const count = document.getElementById("notifCount");
+        if (count && count.className.indexOf("notif-badge") === -1) {
+            count.className = (count.className + " notif-badge").trim();
+        }
+
+        if (!panel) {
+            panel = document.createElement("div");
+            panel.id = "notifPanel";
+            panel.className = "notif-panel hidden";
+            panel.setAttribute("role", "dialog");
+            panel.setAttribute("aria-label", "Notifications");
+            panel.innerHTML = panelMarkup();
+            wrap.appendChild(panel);
+        } else if (!wrap.contains(panel)) {
+            wrap.appendChild(panel);
+        }
+
+        ensureMarkAllButton();
     }
 
     function ensureMarkAllButton() {
@@ -153,8 +187,13 @@
 
         if (typeof syncAccountNotifications === "function") {
             syncAccountNotifications(email, account);
-        } else if (typeof ensureNotifications === "function") {
-            ensureNotifications(account);
+        } else {
+            if (typeof ensureNotifications === "function") {
+                ensureNotifications(account);
+            }
+            if (typeof hydrateNotificationsFromTransactions === "function") {
+                hydrateNotificationsFromTransactions(account);
+            }
         }
 
         const list = document.getElementById("notifList");
@@ -163,14 +202,14 @@
         const unread = notifications.filter(function(n) { return !n.read; }).length;
 
         if (count) {
-            count.textContent = unread > 99 ? "99+" : String(unread);
+            count.textContent = unread > 0 ? (unread > 99 ? "99+" : String(unread)) : "";
             count.style.display = unread > 0 ? "inline-flex" : "none";
         }
 
         if (!list) return;
 
         if (!notifications.length) {
-            list.innerHTML = '<div class="notif-empty">No notifications yet.</div>';
+            list.innerHTML = '<div class="notif-empty">No transactions yet.</div>';
             return;
         }
 
@@ -258,16 +297,18 @@
 
     function wireNotificationEvents() {
         const notifBtn = document.getElementById("notifBtn");
-        const notifPanel = document.getElementById("notifPanel");
         const markAllBtn = document.getElementById("notifMarkAllBtn");
+        const notifPanel = document.getElementById("notifPanel");
 
         if (notifBtn && !notifBtn.dataset.notifBound) {
             notifBtn.dataset.notifBound = "1";
             notifBtn.addEventListener("click", function(e) {
                 e.stopPropagation();
-                if (!notifPanel) return;
-                const opening = notifPanel.classList.contains("hidden");
-                notifPanel.classList.toggle("hidden");
+                const panel = document.getElementById("notifPanel");
+                if (!panel) return;
+                const opening = panel.classList.contains("hidden");
+                panel.classList.toggle("hidden");
+                notifBtn.setAttribute("aria-expanded", opening ? "true" : "false");
                 if (opening) {
                     refreshNotificationsForUser(getSessionEmail());
                 }
@@ -285,6 +326,7 @@
         if (notifPanel && !notifPanel.dataset.notifBound) {
             notifPanel.dataset.notifBound = "1";
             notifPanel.addEventListener("click", function(e) {
+                e.stopPropagation();
                 const readBtn = e.target.closest(".notif-read-btn");
                 const item = e.target.closest(".notif-item.unread");
                 const id = readBtn
@@ -299,9 +341,12 @@
         if (!document.body.dataset.notifDismissBound) {
             document.body.dataset.notifDismissBound = "1";
             document.addEventListener("click", function(e) {
-                if (!notifPanel || notifPanel.classList.contains("hidden")) return;
+                const panel = document.getElementById("notifPanel");
+                if (!panel || panel.classList.contains("hidden")) return;
                 if (!e.target.closest("#notifBtn") && !e.target.closest("#notifPanel")) {
-                    notifPanel.classList.add("hidden");
+                    panel.classList.add("hidden");
+                    const btn = document.getElementById("notifBtn");
+                    if (btn) btn.setAttribute("aria-expanded", "false");
                 }
             });
         }

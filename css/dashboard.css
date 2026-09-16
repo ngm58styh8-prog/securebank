@@ -318,6 +318,19 @@ header {
 
 .notif-bell-wrap {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.notif-bell-wrap .notif-panel {
+    right: 0;
+    left: auto;
+}
+
+.gv-header,
+.gv-header-actions,
+.header-right {
+    overflow: visible;
 }
 
 .notif-item.read {

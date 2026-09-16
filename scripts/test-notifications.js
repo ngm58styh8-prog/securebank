@@ -92,4 +92,56 @@ const firstId = account.notifications[1].id;
 assert.strictEqual(markNotificationRead(account, firstId), true);
 assert.strictEqual(getUnreadNotificationCount(account), 1);
 
-console.log("notification tests: 5 passed");
+function classifyLedgerType(description) {
+    const d = String(description || "").toLowerCase();
+    if (d.indexOf("deposit") !== -1) return "deposit";
+    if (d.indexOf("withdraw") !== -1 || d.indexOf("transfer request") !== -1) return "withdrawal";
+    if (d.indexOf("send money") !== -1 || d.indexOf("funds received") !== -1 || d.indexOf("transfer") !== -1) {
+        return "transfer";
+    }
+    if (d.indexOf("buy") !== -1 || d.indexOf("sell") !== -1 || d.indexOf("purchase") !== -1) return "trade";
+    return "general";
+}
+
+function transactionNotificationId(tx) {
+    return "tx:" + String(tx.date || "") + "|" + String(tx.description || "") + "|" + String(tx.amount != null ? tx.amount : "");
+}
+
+function hydrateNotificationsFromTransactions(acct) {
+    if (!acct.notifications) acct.notifications = [];
+    (acct.transactions || []).forEach(function(tx) {
+        const covered = acct.notifications.some(function(n) {
+            return String(n.id) === transactionNotificationId(tx) ||
+                String(n.message || "").toLowerCase().indexOf(String(tx.description || "").toLowerCase()) !== -1;
+        });
+        if (covered) return;
+        acct.notifications.push({
+            id: transactionNotificationId(tx),
+            title: classifyLedgerType(tx.description) === "deposit" ? "Deposit" : "Transaction",
+            message: tx.description,
+            amount: Math.abs(Number(tx.amount)),
+            type: classifyLedgerType(tx.description),
+            status: /pending/i.test(tx.description) ? "pending" : "completed",
+            time: new Date().toISOString(),
+            read: false
+        });
+    });
+    return acct.notifications;
+}
+
+const ledgerAccount = {
+    notifications: [],
+    transactions: [
+        { date: "Today", description: "Salary Deposit", amount: 4500 },
+        { date: "Yesterday", description: "Bitcoin Purchase", amount: -24000 }
+    ]
+};
+hydrateNotificationsFromTransactions(ledgerAccount);
+assert.strictEqual(ledgerAccount.notifications.length, 2);
+assert.ok(ledgerAccount.notifications.some(function(n) { return n.type === "deposit" && n.amount === 4500; }));
+assert.ok(ledgerAccount.notifications.some(function(n) { return n.type === "trade"; }));
+
+hydrateNotificationsFromTransactions(ledgerAccount);
+assert.strictEqual(ledgerAccount.notifications.length, 2, "hydrate should not duplicate transactions");
+
+console.log("notification tests: 7 passed");

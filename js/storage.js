@@ -1486,30 +1486,141 @@ function markAllNotificationsRead(email) {
     return { ok: true, account: account, changed: changed };
 }
 
+function classifyLedgerType(description) {
+    const d = String(description || "").toLowerCase();
+    if (d.indexOf("deposit") !== -1) return "deposit";
+    if (d.indexOf("withdraw") !== -1 || d.indexOf("transfer request") !== -1 || d.indexOf("transfer approved") !== -1) {
+        return "withdrawal";
+    }
+    if (d.indexOf("send money") !== -1 || d.indexOf("funds received") !== -1 || d.indexOf("transfer") !== -1) {
+        return "transfer";
+    }
+    if (d.indexOf("buy") !== -1 || d.indexOf("sell") !== -1 || d.indexOf("purchase") !== -1 || d.indexOf("exchange") !== -1) {
+        return "trade";
+    }
+    if (d.indexOf("gold") !== -1) return "trade";
+    if (d.indexOf("admin") !== -1) return "admin";
+    return "general";
+}
+
+function ledgerTypeTitle(type) {
+    if (type === "deposit") return "Deposit";
+    if (type === "withdrawal") return "Withdrawal";
+    if (type === "transfer") return "Transfer";
+    if (type === "trade") return "Trade";
+    if (type === "exchange") return "Exchange";
+    if (type === "admin") return "Account update";
+    return "Transaction";
+}
+
+function transactionNotificationId(tx) {
+    return "tx:" + String(tx && tx.date || "") + "|" +
+        String(tx && tx.description || "") + "|" +
+        String(tx && tx.amount != null ? tx.amount : "");
+}
+
+function parseTransactionTime(tx, index) {
+    if (tx && tx.time && !isNaN(Date.parse(tx.time))) {
+        return new Date(tx.time).toISOString();
+    }
+    const raw = String(tx && tx.date || "").trim();
+    const lower = raw.toLowerCase();
+    if (lower === "today") return new Date().toISOString();
+    if (lower === "yesterday") return new Date(Date.now() - 86400000).toISOString();
+    const parsed = Date.parse(raw);
+    if (!isNaN(parsed)) return new Date(parsed).toISOString();
+    return new Date(Date.now() - (Number(index) + 1) * 3600000).toISOString();
+}
+
 function buildTransactionNotification(options) {
     options = options || {};
     const type = options.type || "general";
     const amount = options.amount != null ? Number(options.amount) : null;
     const currency = options.currency || "USD";
     const status = options.status || "completed";
-    const title = options.title || (
-        type === "deposit" ? "Deposit" :
-        type === "withdrawal" ? "Withdrawal" :
-        type === "transfer" ? "Transfer" :
-        "Notification"
-    );
+    const title = options.title || ledgerTypeTitle(type);
 
     return {
         title: title,
         message: options.message || "",
         type: type,
         category: type,
-        amount: amount,
+        amount: amount != null && !isNaN(amount) ? Math.abs(amount) : null,
         currency: currency,
         status: status,
         reference: options.reference || null,
         time: options.time || new Date().toISOString()
     };
+}
+
+function notificationFromTransaction(tx, index) {
+    const type = classifyLedgerType(tx && tx.description);
+    const amount = tx && tx.amount != null && !isNaN(Number(tx.amount)) ? Number(tx.amount) : null;
+    const pending = /pending/i.test(String(tx && tx.description || ""));
+    const built = buildTransactionNotification({
+        type: type,
+        title: ledgerTypeTitle(type),
+        message: String(tx && tx.description || "Transaction"),
+        amount: amount,
+        currency: "USD",
+        status: pending ? "pending" : "completed",
+        time: parseTransactionTime(tx, index)
+    });
+    built.id = transactionNotificationId(tx);
+    built.read = false;
+    built.source = "transaction";
+    return built;
+}
+
+function notificationCoversTransaction(notification, tx) {
+    if (!notification || !tx) return false;
+    if (String(notification.id) === transactionNotificationId(tx)) return true;
+    const msg = String(notification.message || "").trim().toLowerCase();
+    const desc = String(tx.description || "").trim().toLowerCase();
+    if (!desc) return false;
+    if (msg && (msg === desc || msg.indexOf(desc) !== -1 || desc.indexOf(msg) !== -1)) {
+        return true;
+    }
+    if (notification.reference && desc.indexOf(String(notification.reference).toLowerCase()) !== -1) {
+        return true;
+    }
+    const nType = notification.type || notification.category || classifyLedgerType(notification.message);
+    const tType = classifyLedgerType(tx.description);
+    if (!nType || nType === "general" || nType !== tType) return false;
+    if (tx.date && notification.time) {
+        const notifDate = new Date(notification.time).toLocaleString();
+        if (notifDate === String(tx.date)) return true;
+        const txMs = Date.parse(tx.date);
+        const nMs = Date.parse(notification.time);
+        if (!isNaN(txMs) && !isNaN(nMs) && Math.abs(txMs - nMs) < 120000) return true;
+    }
+    return false;
+}
+
+function hydrateNotificationsFromTransactions(account) {
+    if (!account) return [];
+    ensureNotifications(account);
+    const txs = Array.isArray(account.transactions) ? account.transactions : [];
+    account.notifications = account.notifications.filter(function(n, index, list) {
+        if (n.source !== "transaction") return true;
+        const tx = txs.find(function(item) {
+            return transactionNotificationId(item) === String(n.id);
+        });
+        if (!tx) return true;
+        return !list.some(function(other) {
+            return other !== n && other.source !== "transaction" && notificationCoversTransaction(other, tx);
+        });
+    });
+    txs.forEach(function(tx, index) {
+        if (!tx || !tx.description) return;
+        const covered = account.notifications.some(function(n) {
+            return notificationCoversTransaction(n, tx);
+        });
+        if (covered) return;
+        account.notifications.push(notificationFromTransaction(tx, index));
+    });
+    account.notifications = mergeNotificationLists(account.notifications, []);
+    return account.notifications;
 }
 
 function syncAccountNotifications(email, account) {
@@ -1518,6 +1629,7 @@ function syncAccountNotifications(email, account) {
         account.notifications || [],
         stored && stored.notifications ? stored.notifications : []
     );
+    hydrateNotificationsFromTransactions(account);
     return account.notifications;
 }
 
@@ -1534,6 +1646,7 @@ function saveAccount(email, account, options) {
     } else {
         ensureNotifications(account);
     }
+    hydrateNotificationsFromTransactions(account);
     accounts[key] = account;
     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
     notifyAccountsChanged();

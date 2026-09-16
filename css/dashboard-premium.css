@@ -195,8 +195,10 @@ body.dashboard-premium .gv-header-actions {
     align-items: center;
     gap: 10px;
     position: relative;
+    overflow: visible;
 }
 
+body.dashboard-premium .gv-header-actions .notif-bell-wrap .notif-panel,
 body.dashboard-premium .gv-header-actions .notif-panel {
     position: absolute;
     top: calc(100% + 10px);
