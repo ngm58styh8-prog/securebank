@@ -62,6 +62,17 @@ function writeAccount(key, merged) {
     return { email: key, account: merged };
 }
 
+function deleteAccount(email) {
+    const key = normalizeRegistryEmail(email);
+    const accounts = loadAllAccounts();
+    const existed = !!accounts[key];
+    if (existed) {
+        delete accounts[key];
+        saveAllAccounts(accounts);
+    }
+    return { email: key, deleted: existed };
+}
+
 function loadAdminRegistry() {
     const admin = readJson(ADMIN_PATH, null);
     if (!admin || typeof admin !== "object" || !admin.email) return null;
@@ -90,6 +101,7 @@ module.exports = {
     saveAllAccounts,
     readExistingAccount,
     writeAccount,
+    deleteAccount,
     loadAdminRegistry,
     saveAdminRegistry,
     isLocalRegistryReady

@@ -62,6 +62,17 @@ export interface PendingDeposit {
   payTo: string;
   status: string;
   date: string;
+  currency?: string;
+  cryptoAmount?: number | null;
+  btcAmount?: number | null;
+  ethAmount?: number | null;
+  walletAddress?: string;
+}
+
+export interface CryptoDepositWallet {
+  symbol: string;
+  name: string;
+  address: string;
 }
 
 export interface PaymentRecord {
@@ -112,6 +123,7 @@ export interface AdminData {
   pendingDeposits: PendingDeposit[];
   walletAddress: string;
   bankDetails: string;
+  cryptoDepositWallets?: CryptoDepositWallet[];
   userActivityLog: ActivityEntry[];
   registeredUsers: Record<string, unknown>;
   notificationLog: Array<{
@@ -134,6 +146,7 @@ export interface UserAccount {
   notifications?: Notification[];
   profile?: UserProfile;
   pendingTransfers?: Array<{ id: string; amount: number; destination: string; status: string; date: string }>;
+  pendingDeposits?: Array<{ id: string; amount: number; status: string; date: string; currency?: string }>;
   withdrawalsFrozen?: boolean;
   withdrawalsFrozenReason?: string;
   withdrawalsFrozenAt?: string;

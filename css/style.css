@@ -597,6 +597,22 @@ body[data-theme="dark"] .float-field select:focus {
     color: var(--text-muted, #64748b);
 }
 
+.forgot-local-code {
+    background: rgba(26, 143, 76, 0.12);
+    border: 1px solid rgba(26, 143, 76, 0.35);
+    color: var(--auth-text);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    line-height: 1.45;
+}
+
+.forgot-local-code strong {
+    letter-spacing: 0.18em;
+    font-size: 1.05rem;
+}
+
 .link-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;

@@ -709,13 +709,17 @@ function populateDepositPageAddress() {
 
 function hideDepositConfirmSection() {
     const section = document.getElementById("depositConfirmSection");
+    const addressBox = document.getElementById("depositAddressBox");
     const error = document.getElementById("depositAmountError");
     if (section) section.classList.add("hidden");
+    if (addressBox) addressBox.classList.add("hidden");
     if (error) error.classList.add("hidden");
 }
 
 function showDepositConfirmSection() {
     const section = document.getElementById("depositConfirmSection");
+    const addressBox = document.getElementById("depositAddressBox");
+    if (addressBox) addressBox.classList.remove("hidden");
     if (section) section.classList.remove("hidden");
     updateDepositConfirmInstruction();
     updateDepositPagePreview();
@@ -802,6 +806,11 @@ function submitDepositFromPanel() {
 
     const symbol = wallet.symbol;
     const cryptoAmount = getDepositCryptoAmount(amount, symbol);
+    if (cryptoAmount == null || !(cryptoAmount > 0)) {
+        alert("Could not calculate the " + symbol + " amount. Wait for the live price and try again.");
+        loadMarketPrices().then(updateDepositPagePreview).catch(updateDepositPagePreview);
+        return;
+    }
     const depositMeta = { currency: symbol, cryptoAmount: cryptoAmount };
     const submitHandler = typeof submitDepositRequestAsync === "function"
         ? submitDepositRequestAsync(username, amount, "crypto", depositMeta)

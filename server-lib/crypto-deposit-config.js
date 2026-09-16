@@ -113,9 +113,20 @@ function formatDepositCurrencyLabel(symbol, name) {
     return (name || sym) + " (" + sym + ")";
 }
 
+function inferDepositCurrency(deposit) {
+    deposit = deposit || {};
+    if (deposit.currency) return normalizeSymbol(deposit.currency);
+    if (deposit.cryptoAsset) return normalizeSymbol(deposit.cryptoAsset);
+    if (deposit.ethAmount != null && deposit.ethAmount !== "" && deposit.btcAmount == null) {
+        return "ETH";
+    }
+    const addr = String(deposit.walletAddress || deposit.payTo || "").trim();
+    if (/^0x[a-fA-F0-9]{40}$/.test(addr)) return "ETH";
+    return "BTC";
+}
+
 function normalizeDepositCurrencyFields(deposit) {
-    const currency = normalizeSymbol(deposit.currency || deposit.cryptoAsset || "BTC");
-    const wallet = getWalletBySymbol(null, currency);
+    const currency = inferDepositCurrency(deposit);
     const cryptoAmount = deposit.cryptoAmount != null
         ? Number(deposit.cryptoAmount)
         : (currency === "BTC" && deposit.btcAmount != null
@@ -151,5 +162,6 @@ module.exports = {
     getWalletAddressForCurrency,
     getDepositSendLabel,
     formatDepositCurrencyLabel,
+    inferDepositCurrency,
     normalizeDepositCurrencyFields
 };

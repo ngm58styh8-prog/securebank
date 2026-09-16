@@ -105,6 +105,15 @@ function checkGold() {
     else fail("gold investment tests", (result.stdout || result.stderr || "").trim());
 }
 
+function checkPasswordReset() {
+    const result = spawnSync(process.execPath, [path.join(root, "scripts", "test-password-reset.js")], {
+        cwd: root,
+        encoding: "utf8"
+    });
+    if (result.status === 0) pass("password reset tests");
+    else fail("password reset tests", (result.stdout || result.stderr || "").trim());
+}
+
 function checkEnv() {
     loadProjectEnv(root);
     if (useLocalRegistry()) {
@@ -143,6 +152,7 @@ checkSyntax();
 checkModules();
 checkNotifications();
 checkGold();
+checkPasswordReset();
 
 const envReady = checkEnv();
 if (envReady) {

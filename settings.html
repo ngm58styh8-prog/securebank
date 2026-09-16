@@ -88,6 +88,16 @@
     </div>
     <p class="setting-hint" id="twoFactorHint">Add an extra layer of security to your account.</p>
     <button class="edit-profile-btn" type="button" id="changePasswordBtn">Change Password</button>
+    <form id="changePasswordForm" class="change-password-form hidden">
+        <label class="form-label" for="currentPassword">Current password</label>
+        <input id="currentPassword" type="password" autocomplete="current-password" required>
+        <label class="form-label" for="newPassword">New password</label>
+        <input id="newPassword" type="password" autocomplete="new-password" minlength="6" required>
+        <label class="form-label" for="confirmNewPassword">Confirm new password</label>
+        <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="6" required>
+        <button class="edit-profile-btn" type="submit" id="savePasswordBtn">Update Password</button>
+        <p class="setting-hint" id="changePasswordMessage"></p>
+    </form>
 </div>
 
 <div id="linked-banks" class="card settings-section">

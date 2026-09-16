@@ -411,23 +411,133 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 
     document.getElementById("forgotPasswordBtn").addEventListener("click", function() {
+        resetForgotModal();
         document.getElementById("forgotModal").classList.remove("hidden");
         document.getElementById("forgotEmail").value = document.getElementById("signInEmail").value;
+        document.getElementById("forgotEmail").focus();
         hideMessage(document.getElementById("forgotMessage"));
     });
 
     document.getElementById("forgotCancel").addEventListener("click", closeForgotModal);
     document.getElementById("forgotModalBackdrop").addEventListener("click", closeForgotModal);
 
-    document.getElementById("forgotSubmit").addEventListener("click", function() {
-        const email = normalizeEmail(document.getElementById("forgotEmail").value);
-        const result = requestPasswordReset(email);
-        if (!result.ok) {
-            showMessage(document.getElementById("forgotMessage"), result.error, "error");
+    document.getElementById("forgotSubmit").addEventListener("click", sendForgotCode);
+    document.getElementById("forgotResend").addEventListener("click", sendForgotCode);
+    document.getElementById("forgotEmail").addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            sendForgotCode();
+        }
+    });
+    document.getElementById("forgotResetSubmit").addEventListener("click", submitForgotReset);
+
+    function forgotEmailValue() {
+        return normalizeEmail(document.getElementById("forgotEmail").value);
+    }
+
+    function showForgotResetStep(result) {
+        document.getElementById("forgotStepRequest").classList.add("hidden");
+        document.getElementById("forgotStepReset").classList.remove("hidden");
+        const desc = document.getElementById("forgotResetDesc");
+        const localBox = document.getElementById("forgotLocalCode");
+        const email = result.email || forgotEmailValue();
+        if (result.localCode) {
+            desc.textContent = "We couldn't send email right now. Use this code to set a new password for " + email + ".";
+            localBox.textContent = "";
+            localBox.appendChild(document.createTextNode("Your reset code: "));
+            const strong = document.createElement("strong");
+            strong.textContent = result.localCode;
+            localBox.appendChild(strong);
+            localBox.classList.remove("hidden");
+        } else {
+            desc.textContent = "Enter the 6-digit code we sent to " + email + ", then choose a new password.";
+            localBox.classList.add("hidden");
+            localBox.textContent = "";
+        }
+        document.getElementById("forgotCode").focus();
+    }
+
+    function sendForgotCode() {
+        const email = forgotEmailValue();
+        const msg = document.getElementById("forgotMessage");
+        const submitBtn = document.getElementById("forgotSubmit");
+        const resendBtn = document.getElementById("forgotResend");
+        hideMessage(msg);
+
+        if (!isValidEmail(email)) {
+            showMessage(msg, "Please enter a valid email address.", "error");
             return;
         }
-        showMessage(document.getElementById("forgotMessage"), result.message, "success");
-    });
+
+        submitBtn.disabled = true;
+        resendBtn.disabled = true;
+        showMessage(msg, "Sending reset code…", "success");
+
+        const handler = typeof requestPasswordResetAsync === "function"
+            ? requestPasswordResetAsync(email)
+            : Promise.resolve(requestPasswordReset(email));
+
+        handler.then(function(result) {
+            submitBtn.disabled = false;
+            resendBtn.disabled = false;
+            if (!result.ok) {
+                showMessage(msg, result.error || "Could not send a reset code.", "error");
+                return;
+            }
+            showForgotResetStep(result);
+            showMessage(msg, result.message, "success");
+        }).catch(function() {
+            submitBtn.disabled = false;
+            resendBtn.disabled = false;
+            showMessage(msg, "Could not send a reset code. Try again.", "error");
+        });
+    }
+
+    function submitForgotReset() {
+        const email = forgotEmailValue();
+        const code = document.getElementById("forgotCode").value.trim();
+        const newPassword = document.getElementById("forgotNewPassword").value;
+        const confirm = document.getElementById("forgotConfirmPassword").value;
+        const msg = document.getElementById("forgotMessage");
+        const btn = document.getElementById("forgotResetSubmit");
+
+        if (!/^\d{6}$/.test(code)) {
+            showMessage(msg, "Enter the 6-digit code from your email.", "error");
+            return;
+        }
+        if (!newPassword || newPassword.length < 6) {
+            showMessage(msg, "New password must be at least 6 characters.", "error");
+            return;
+        }
+        if (newPassword !== confirm) {
+            showMessage(msg, "New password and confirmation do not match.", "error");
+            return;
+        }
+
+        btn.disabled = true;
+        showMessage(msg, "Updating password…", "success");
+
+        const handler = typeof completePasswordResetAsync === "function"
+            ? completePasswordResetAsync(email, code, newPassword)
+            : Promise.resolve(completePasswordReset(email, code, newPassword));
+
+        handler.then(function(result) {
+            btn.disabled = false;
+            if (!result.ok) {
+                showMessage(msg, result.error || "Could not reset password.", "error");
+                return;
+            }
+            closeForgotModal();
+            document.getElementById("signInEmail").value = email;
+            document.getElementById("signInPassword").value = "";
+            document.getElementById("signInEmail").dispatchEvent(new Event("input"));
+            showSignIn();
+            showMessage(document.getElementById("signInMessage"), "Password updated. Sign in with your new password.", "success");
+        }).catch(function() {
+            btn.disabled = false;
+            showMessage(msg, "Could not reset password. Try again.", "error");
+        });
+    }
 
     document.getElementById("termsLink").addEventListener("click", function(e) {
         e.preventDefault();
@@ -446,6 +556,18 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function closeForgotModal() {
         document.getElementById("forgotModal").classList.add("hidden");
+        resetForgotModal();
+    }
+
+    function resetForgotModal() {
+        document.getElementById("forgotStepRequest").classList.remove("hidden");
+        document.getElementById("forgotStepReset").classList.add("hidden");
+        document.getElementById("forgotCode").value = "";
+        document.getElementById("forgotNewPassword").value = "";
+        document.getElementById("forgotConfirmPassword").value = "";
+        document.getElementById("forgotLocalCode").classList.add("hidden");
+        document.getElementById("forgotLocalCode").textContent = "";
+        hideMessage(document.getElementById("forgotMessage"));
     }
 
     function loadRememberedEmail() {

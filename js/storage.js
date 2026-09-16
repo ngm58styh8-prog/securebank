@@ -351,17 +351,40 @@ function verifyEmailCodeLocalFallback(email, code) {
     return markEmailVerifiedLocally(key);
 }
 
-function sendPasswordResetEmail(account, email) {
+function sendPasswordResetEmail(account, email, code) {
     const profile = account.profile || {};
     queueAccountEmail(account, {
         to: email,
-        subject: "GlobalVest password reset",
+        subject: "Reset your GlobalVest password",
         body: "Hi " + (profile.fullName || email) + ",\n\n" +
-            "We received a request to reset your password. In this demo, use your existing password or contact support.\n\n" +
-            "If you did not request this, you can safely ignore this message.\n\n" +
+            "We received a request to reset your password. Enter this 6-digit code on the sign-in page:\n\n" +
+            code + "\n\n" +
+            "This code expires in 15 minutes. If you did not request a reset, you can ignore this email.\n\n" +
             "GlobalVest Security Team",
         type: "security"
     });
+}
+
+function applyPasswordResetToAccount(account, newPassword) {
+    account.password = newPassword;
+    account.passwordUpdatedAt = new Date().toISOString();
+    account.passwordResetCode = null;
+    account.passwordResetExpiresAt = null;
+    account.passwordResetSentAt = null;
+    account.passwordResetAttempts = 0;
+    if (!Array.isArray(account.notifications)) account.notifications = [];
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Your password was reset successfully.",
+        title: "Password updated",
+        time: new Date().toISOString(),
+        read: false,
+        type: "security",
+        category: "security"
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
 }
 
 function requestPasswordReset(email) {
@@ -369,13 +392,220 @@ function requestPasswordReset(email) {
     if (!isValidEmail(key)) {
         return { ok: false, error: "Please enter a valid email address." };
     }
+    const generic = "If an account exists for that email, we sent a 6-digit reset code.";
     const account = getAccount(key);
     if (!account) {
-        return { ok: true, message: "If an account exists for that email, reset instructions were sent." };
+        return { ok: true, message: generic, email: key, emailSent: true };
     }
-    sendPasswordResetEmail(account, key);
+
+    const lastSent = account.passwordResetSentAt ? Date.parse(account.passwordResetSentAt) : 0;
+    if (lastSent && Date.now() - lastSent < 60 * 1000) {
+        return { ok: true, message: generic, email: key, emailSent: true, localCode: null };
+    }
+
+    const code = generateVerificationCode();
+    account.passwordResetCode = code;
+    account.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    account.passwordResetSentAt = new Date().toISOString();
+    account.passwordResetAttempts = 0;
+    sendPasswordResetEmail(account, key, code);
     saveAccount(key, account);
-    return { ok: true, message: "If an account exists for that email, reset instructions were sent." };
+    return { ok: true, message: generic, email: key, emailSent: false, localCode: code, account: account };
+}
+
+function requestPasswordResetAsync(email) {
+    const key = normalizeEmail(email);
+    if (!isValidEmail(key)) {
+        return Promise.resolve({ ok: false, error: "Please enter a valid email address." });
+    }
+
+    const hadLocalAccount = !!getAllAccounts()[key];
+    const generic = "If an account exists for that email, we sent a 6-digit reset code.";
+
+    function withLocalFallback() {
+        const local = requestPasswordReset(key);
+        if (!local.ok) return Promise.resolve(local);
+        const account = local.account;
+        const code = local.localCode;
+        if (!account || !code || typeof sendRealEmail !== "function") {
+            return Promise.resolve({
+                ok: true,
+                message: generic,
+                email: key,
+                emailSent: false,
+                localCode: hadLocalAccount ? code : null
+            });
+        }
+
+        const queued = (account.emails && account.emails[0]) || {};
+        return sendRealEmail(key, queued.subject || "Reset your GlobalVest password", queued.body || ("Your code is " + code), {
+            category: "password-reset"
+        }).then(function(sent) {
+            return {
+                ok: true,
+                message: generic,
+                email: key,
+                emailSent: !!(sent && sent.ok),
+                localCode: (sent && sent.ok) ? null : (hadLocalAccount ? code : null)
+            };
+        });
+    }
+
+    if (typeof fetch !== "function") {
+        return withLocalFallback();
+    }
+
+    return fetch("/api/request-password-reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: key })
+    })
+        .then(function(response) {
+            return response.json().catch(function() {
+                return { ok: false };
+            }).then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return withLocalFallback();
+                }
+                return Promise.resolve(
+                    typeof pullAccountsFromServer === "function" ? pullAccountsFromServer() : null
+                ).catch(function() { return null; }).then(function() {
+                    const account = hadLocalAccount ? getAccount(key) : null;
+                    const localCode = (!data.emailSent && account && account.passwordResetCode)
+                        ? account.passwordResetCode
+                        : null;
+                    return {
+                        ok: true,
+                        message: data.message || generic,
+                        email: key,
+                        emailSent: data.emailSent !== false,
+                        localCode: localCode
+                    };
+                });
+            });
+        })
+        .catch(function() {
+            return withLocalFallback();
+        });
+}
+
+function completePasswordReset(email, code, newPassword) {
+    const key = normalizeEmail(email);
+    const submitted = String(code || "").trim();
+    if (!isValidEmail(key)) {
+        return { ok: false, error: "Please enter a valid email address." };
+    }
+    if (!/^\d{6}$/.test(submitted)) {
+        return { ok: false, error: "Enter the 6-digit code from your email." };
+    }
+    if (!newPassword || newPassword.length < 6 || newPassword.length > 128) {
+        return { ok: false, error: "Password must be 6–128 characters." };
+    }
+
+    const account = getAccount(key);
+    if (!account || !account.passwordResetCode) {
+        return { ok: false, error: "No active reset code. Request a new code." };
+    }
+    if (Number(account.passwordResetAttempts || 0) >= 5) {
+        account.passwordResetCode = null;
+        account.passwordResetExpiresAt = null;
+        saveAccount(key, account);
+        return { ok: false, error: "Too many attempts. Request a new reset code." };
+    }
+    const expiresAt = Date.parse(account.passwordResetExpiresAt || "");
+    if (!expiresAt || expiresAt < Date.now()) {
+        account.passwordResetCode = null;
+        account.passwordResetExpiresAt = null;
+        saveAccount(key, account);
+        return { ok: false, error: "That code has expired. Request a new one." };
+    }
+    if (String(account.passwordResetCode) !== submitted) {
+        account.passwordResetAttempts = Number(account.passwordResetAttempts || 0) + 1;
+        saveAccount(key, account);
+        return { ok: false, error: "Invalid reset code." };
+    }
+
+    applyPasswordResetToAccount(account, newPassword);
+    saveAccount(key, account);
+    return { ok: true, email: key, account: account };
+}
+
+function completePasswordResetAsync(email, code, newPassword) {
+    const payload = {
+        email: normalizeEmail(email),
+        code: String(code || "").trim(),
+        newPassword: newPassword
+    };
+
+    function applyLocallyAndSync() {
+        const localResult = completePasswordReset(email, code, newPassword);
+        if (!localResult.ok || !localResult.account) {
+            return Promise.resolve(localResult);
+        }
+        return syncAccountToServer(localResult.email, localResult.account, "password-reset")
+            .then(function() { return localResult; })
+            .catch(function() { return localResult; });
+    }
+
+    if (typeof fetch !== "function") {
+        return applyLocallyAndSync();
+    }
+
+    return fetch("/api/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    })
+        .then(function(response) {
+            return response.json().catch(function() {
+                return { ok: false };
+            }).then(function(data) {
+                if (response.ok && data.ok) {
+                    const account = getAccount(payload.email);
+                    if (account) {
+                        applyPasswordResetToAccount(account, newPassword);
+                        saveAccount(payload.email, account);
+                    }
+                    return { ok: true, email: payload.email };
+                }
+                return applyLocallyAndSync().then(function(localResult) {
+                    if (localResult.ok) return localResult;
+                    return { ok: false, error: data.error || localResult.error || "Could not reset password." };
+                });
+            });
+        })
+        .catch(function() {
+            return applyLocallyAndSync();
+        });
+}
+
+function changeAccountPassword(email, currentPassword, newPassword) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account) return { ok: false, error: "Account not found." };
+    if (!currentPassword || account.password !== currentPassword) {
+        return { ok: false, error: "Current password is incorrect." };
+    }
+    if (!newPassword || newPassword.length < 6 || newPassword.length > 128) {
+        return { ok: false, error: "New password must be 6–128 characters." };
+    }
+    if (newPassword === currentPassword) {
+        return { ok: false, error: "Choose a different password from your current one." };
+    }
+    account.password = newPassword;
+    account.passwordUpdatedAt = new Date().toISOString();
+    if (!Array.isArray(account.notifications)) account.notifications = [];
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Your password was changed.",
+        title: "Password updated",
+        time: new Date().toISOString(),
+        read: false,
+        type: "security",
+        category: "security"
+    });
+    saveAccount(key, account);
+    return { ok: true, email: key, account: account };
 }
 
 function recordSuccessfulLogin(email) {
@@ -1125,6 +1355,7 @@ function createAccount(email, password, fullName, phone, extras) {
 
     const account = getStarterAccount(fullName.trim(), key, phone.trim(), extras);
     account.password = password;
+    account.passwordUpdatedAt = new Date().toISOString();
     account.emailVerified = false;
     account.emailVerificationCode = null;
     account.knownDevices = [];
@@ -1140,6 +1371,22 @@ function createAccount(email, password, fullName, phone, extras) {
     recordAdminUserEvent(key, "signup", "New account registered", 0);
     syncAdminRegisteredUsers(getAdminData());
     return { ok: true, email: key };
+}
+
+function pickPreferredPasswordTimestamp(localAcct, serverAcct) {
+    const localTs = Date.parse(localAcct.passwordUpdatedAt || "") || 0;
+    const serverTs = Date.parse(serverAcct.passwordUpdatedAt || "") || 0;
+    if (serverTs > localTs) return serverAcct.passwordUpdatedAt;
+    if (localTs > serverTs) return localAcct.passwordUpdatedAt;
+    return localAcct.passwordUpdatedAt || serverAcct.passwordUpdatedAt || null;
+}
+
+function pickPreferredPassword(localAcct, serverAcct) {
+    const localTs = Date.parse(localAcct.passwordUpdatedAt || "") || 0;
+    const serverTs = Date.parse(serverAcct.passwordUpdatedAt || "") || 0;
+    if (serverTs > localTs) return serverAcct.password;
+    if (localTs > serverTs) return localAcct.password;
+    return localAcct.password || serverAcct.password;
 }
 
 function authenticate(email, password) {
@@ -1351,7 +1598,8 @@ function mergeAccountRecords(serverAcct, localAcct) {
         ? (serverAcct.serverSyncedAt || localAcct.serverSyncedAt)
         : (localAcct.serverSyncedAt || serverAcct.serverSyncedAt);
 
-    merged.password = localAcct.password || serverAcct.password;
+    merged.password = pickPreferredPassword(localAcct, serverAcct);
+    merged.passwordUpdatedAt = pickPreferredPasswordTimestamp(localAcct, serverAcct);
     merged.emailVerified = localAcct.emailVerified != null ? localAcct.emailVerified : serverAcct.emailVerified;
     if (localAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = localAcct.withdrawalsFrozen;
     else if (serverAcct.withdrawalsFrozen != null) merged.withdrawalsFrozen = serverAcct.withdrawalsFrozen;
@@ -3543,6 +3791,15 @@ function getAdminCryptoDepositWallets() {
     ];
 }
 
+function inferPendingDepositCurrency(deposit) {
+    if (typeof CryptoDepositConfig !== "undefined" && CryptoDepositConfig.inferDepositCurrency) {
+        return CryptoDepositConfig.inferDepositCurrency(deposit);
+    }
+    if (deposit && deposit.currency) return String(deposit.currency).trim().toUpperCase();
+    if (deposit && deposit.ethAmount != null && deposit.btcAmount == null) return "ETH";
+    return "BTC";
+}
+
 function getAdminWalletAddressForCurrency(currency) {
     const symbol = String(currency || "BTC").trim().toUpperCase();
     const wallets = getAdminCryptoDepositWallets();
@@ -3691,6 +3948,7 @@ function getPendingDepositsFromAccounts() {
             if (!d) return;
             if (d.status && d.status !== "pending") return;
 
+            const currency = inferPendingDepositCurrency(d);
             deposits.push({
                 id: d.id,
                 userEmail: key,
@@ -3699,10 +3957,10 @@ function getPendingDepositsFromAccounts() {
                 btcAmount: d.btcAmount,
                 ethAmount: d.ethAmount,
                 cryptoAmount: d.cryptoAmount,
-                currency: d.currency || (d.btcAmount != null ? "BTC" : "BTC"),
+                currency: currency,
                 walletAddress: d.walletAddress || d.payTo,
                 method: d.method || "crypto",
-                payTo: d.payTo || getAdminWalletAddressForCurrency(d.currency || "BTC"),
+                payTo: d.payTo || getAdminWalletAddressForCurrency(currency),
                 status: "pending",
                 requestedAt: d.requestedAt || null,
                 date: d.date || new Date().toLocaleString(),
@@ -3789,7 +4047,8 @@ function linkAccountPendingDepositsToAdmin() {
         const exists = admin.pendingDeposits.some(function(entry) {
             if (String(entry.id) === String(dep.id)) return true;
             if (normalizeEmail(entry.userEmail) === dep.userEmail &&
-                Number(entry.amount) === Number(dep.amount)) {
+                Number(entry.amount) === Number(dep.amount) &&
+                inferPendingDepositCurrency(entry) === inferPendingDepositCurrency(dep)) {
                 return true;
             }
             return false;

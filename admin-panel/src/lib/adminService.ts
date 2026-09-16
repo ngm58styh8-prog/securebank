@@ -39,7 +39,11 @@ const DEFAULT_ADMIN: AdminData = {
     supportEmail: "support@globalvest.com",
     announcement: "",
     maintenanceMode: false
-  }
+  },
+  cryptoDepositWallets: [
+    { symbol: "BTC", name: "Bitcoin", address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" },
+    { symbol: "ETH", name: "Ethereum", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+  ]
 };
 
 function ensureAdminShape(admin: AdminData): AdminData {
@@ -51,7 +55,27 @@ function ensureAdminShape(admin: AdminData): AdminData {
   if (!admin.registeredUsers) admin.registeredUsers = {};
   if (!admin.auditLog) admin.auditLog = [];
   if (!admin.websiteSettings) admin.websiteSettings = DEFAULT_ADMIN.websiteSettings!;
+  const defaults = DEFAULT_ADMIN.cryptoDepositWallets || [];
+  const existing = Array.isArray(admin.cryptoDepositWallets) ? admin.cryptoDepositWallets : [];
+  admin.cryptoDepositWallets = defaults.map((entry) => {
+    const override = existing.find((w) => String(w.symbol || "").toUpperCase() === entry.symbol);
+    if (entry.symbol === "BTC" && admin.walletAddress) {
+      return { ...entry, ...override, address: override?.address || admin.walletAddress };
+    }
+    return { ...entry, ...override };
+  });
+  if (admin.cryptoDepositWallets[0]?.address) {
+    admin.walletAddress = admin.cryptoDepositWallets[0].address;
+  }
   return admin;
+}
+
+async function reloadRegistry(): Promise<{ accounts: Record<string, UserAccount>; admin: AdminData }> {
+  const [accounts, admin] = await Promise.all([api.fetchAccounts(), api.fetchAdmin()]);
+  const shaped = ensureAdminShape(admin || { ...DEFAULT_ADMIN });
+  cacheAccountsLocal(accounts);
+  cacheAdminLocal(shaped);
+  return { accounts, admin: shaped };
 }
 
 function mergeAccounts(
@@ -227,13 +251,12 @@ export async function persist(
   accounts: Record<string, UserAccount>,
   admin: AdminData
 ): Promise<void> {
+  const shaped = ensureAdminShape(admin);
   cacheAccountsLocal(accounts);
-  cacheAdminLocal(admin);
+  cacheAdminLocal(shaped);
   await Promise.all([
-    ...Object.entries(accounts).map(([email, acct]) =>
-      api.saveAccount(email, acct).catch(() => undefined)
-    ),
-    api.saveAdmin(admin).catch(() => undefined)
+    ...Object.entries(accounts).map(([email, acct]) => api.saveAccount(email, acct)),
+    api.saveAdmin(shaped)
   ]);
 }
 
@@ -414,167 +437,88 @@ export async function approveTransfer(
   reason: string
 ): Promise<{ accounts: Record<string, UserAccount>; admin: AdminData }> {
   const transfer = (admin.pendingTransfers || []).find(
-    (t) => t.id === transferId && t.status === "pending"
+    (t) => String(t.id) === String(transferId) && t.status === "pending"
   );
   if (!transfer) throw new Error("Transfer not found");
 
-  const key = normalizeEmail(transfer.userEmail);
-  const account = accounts[key];
-  if (!account) throw new Error("User not found");
-  if ((account.cash || 0) < transfer.amount) throw new Error("Insufficient balance");
-
-  const updated: UserAccount = {
-    ...account,
-    cash: (account.cash || 0) - transfer.amount,
-    transactions: [
-      {
-        date: new Date().toLocaleString(),
-        description: `Withdrawal approved — ${transfer.destination}`,
-        amount: -transfer.amount
-      },
-      ...(account.transactions || [])
-    ]
-  };
-
-  const nextTransfers = (admin.pendingTransfers || []).map((t) =>
-    t.id === transferId ? { ...t, status: "approved" } : t
-  );
-
-  let nextAdmin = appendAudit(admin, adminId, "approve_withdrawal", reason, {
+  await api.postAdminAction({ action: "approve-transfer", transferId });
+  const reloaded = await reloadRegistry();
+  const nextAdmin = appendAudit(reloaded.admin, adminId, "approve_withdrawal", reason, {
     amount: transfer.amount,
-    userEmail: key
+    userEmail: normalizeEmail(transfer.userEmail)
   });
-  nextAdmin = {
-    ...nextAdmin,
-    pendingTransfers: nextTransfers,
-    balance: (nextAdmin.balance || 0) - transfer.amount,
-    payments: [
-      {
-        id: Date.now(),
-        userEmail: key,
-        userName: transfer.userName,
-        type: "withdraw",
-        amount: transfer.amount,
-        method: transfer.method,
-        date: new Date().toLocaleString()
-      },
-      ...(nextAdmin.payments || [])
-    ].slice(0, 200)
-  };
-
-  const nextAccounts = { ...accounts, [key]: updated };
-  await persist(nextAccounts, nextAdmin);
-  return { accounts: nextAccounts, admin: nextAdmin };
+  cacheAdminLocal(nextAdmin);
+  await api.saveAdmin(nextAdmin);
+  return { accounts: reloaded.accounts, admin: nextAdmin };
 }
 
 export async function rejectTransfer(
-  accounts: Record<string, UserAccount>,
+  _accounts: Record<string, UserAccount>,
   admin: AdminData,
   adminId: string,
   transferId: string,
   reason: string
 ): Promise<{ accounts: Record<string, UserAccount>; admin: AdminData }> {
   const transfer = (admin.pendingTransfers || []).find(
-    (t) => t.id === transferId && t.status === "pending"
+    (t) => String(t.id) === String(transferId) && t.status === "pending"
   );
   if (!transfer) throw new Error("Transfer not found");
 
-  const nextTransfers = (admin.pendingTransfers || []).map((t) =>
-    t.id === transferId ? { ...t, status: "rejected" } : t
-  );
-  let nextAdmin = appendAudit(admin, adminId, "reject_withdrawal", reason, {
+  await api.postAdminAction({ action: "reject-transfer", transferId, reason });
+  const reloaded = await reloadRegistry();
+  const nextAdmin = appendAudit(reloaded.admin, adminId, "reject_withdrawal", reason, {
     amount: transfer.amount,
     userEmail: transfer.userEmail
   });
-  nextAdmin = { ...nextAdmin, pendingTransfers: nextTransfers };
-
-  await persist(accounts, nextAdmin);
-  return { accounts, admin: nextAdmin };
+  cacheAdminLocal(nextAdmin);
+  await api.saveAdmin(nextAdmin);
+  return { accounts: reloaded.accounts, admin: nextAdmin };
 }
 
 export async function approveDeposit(
-  accounts: Record<string, UserAccount>,
+  _accounts: Record<string, UserAccount>,
   admin: AdminData,
   adminId: string,
   depositId: string,
   reason: string
 ): Promise<{ accounts: Record<string, UserAccount>; admin: AdminData }> {
   const deposit = (admin.pendingDeposits || []).find(
-    (d) => d.id === depositId && d.status === "pending"
+    (d) => String(d.id) === String(depositId) && d.status === "pending"
   );
   if (!deposit) throw new Error("Deposit not found");
 
-  const key = normalizeEmail(deposit.userEmail);
-  const account = accounts[key];
-  if (!account) throw new Error("User not found");
-
-  const updated: UserAccount = {
-    ...account,
-    cash: (account.cash || 0) + deposit.amount,
-    transactions: [
-      {
-        date: new Date().toLocaleString(),
-        description: `Deposit approved — ${deposit.method}`,
-        amount: deposit.amount
-      },
-      ...(account.transactions || [])
-    ]
-  };
-
-  const nextDeposits = (admin.pendingDeposits || []).map((d) =>
-    d.id === depositId ? { ...d, status: "approved" } : d
-  );
-
-  let nextAdmin = appendAudit(admin, adminId, "approve_deposit", reason, {
+  await api.postAdminAction({ action: "approve-deposit", depositId });
+  const reloaded = await reloadRegistry();
+  const nextAdmin = appendAudit(reloaded.admin, adminId, "approve_deposit", reason, {
     amount: deposit.amount,
-    userEmail: key
+    userEmail: normalizeEmail(deposit.userEmail)
   });
-  nextAdmin = {
-    ...nextAdmin,
-    pendingDeposits: nextDeposits,
-    balance: (nextAdmin.balance || 0) + deposit.amount,
-    payments: [
-      {
-        id: Date.now(),
-        userEmail: key,
-        userName: deposit.userName,
-        type: "deposit",
-        amount: deposit.amount,
-        method: deposit.method,
-        date: new Date().toLocaleString()
-      },
-      ...(nextAdmin.payments || [])
-    ].slice(0, 200)
-  };
-
-  const nextAccounts = { ...accounts, [key]: updated };
-  await persist(nextAccounts, nextAdmin);
-  return { accounts: nextAccounts, admin: nextAdmin };
+  cacheAdminLocal(nextAdmin);
+  await api.saveAdmin(nextAdmin);
+  return { accounts: reloaded.accounts, admin: nextAdmin };
 }
 
 export async function rejectDeposit(
-  accounts: Record<string, UserAccount>,
+  _accounts: Record<string, UserAccount>,
   admin: AdminData,
   adminId: string,
   depositId: string,
   reason: string
 ): Promise<{ accounts: Record<string, UserAccount>; admin: AdminData }> {
   const deposit = (admin.pendingDeposits || []).find(
-    (d) => d.id === depositId && d.status === "pending"
+    (d) => String(d.id) === String(depositId) && d.status === "pending"
   );
   if (!deposit) throw new Error("Deposit not found");
 
-  const nextDeposits = (admin.pendingDeposits || []).map((d) =>
-    d.id === depositId ? { ...d, status: "rejected" } : d
-  );
-  let nextAdmin = appendAudit(admin, adminId, "reject_deposit", reason, {
+  await api.postAdminAction({ action: "reject-deposit", depositId, reason });
+  const reloaded = await reloadRegistry();
+  const nextAdmin = appendAudit(reloaded.admin, adminId, "reject_deposit", reason, {
     amount: deposit.amount,
     userEmail: deposit.userEmail
   });
-  nextAdmin = { ...nextAdmin, pendingDeposits: nextDeposits };
-
-  await persist(accounts, nextAdmin);
-  return { accounts, admin: nextAdmin };
+  cacheAdminLocal(nextAdmin);
+  await api.saveAdmin(nextAdmin);
+  return { accounts: reloaded.accounts, admin: nextAdmin };
 }
 
 export async function deleteUser(
@@ -595,6 +539,9 @@ export async function deleteUser(
   nextAdmin = recordActivity(nextAdmin, key, key, "admin-delete", "Account deleted", 0);
   nextAdmin = {
     ...nextAdmin,
+    registeredUsers: Object.fromEntries(
+      Object.entries(nextAdmin.registeredUsers || {}).filter(([email]) => normalizeEmail(email) !== key)
+    ),
     pendingTransfers: (nextAdmin.pendingTransfers || []).filter(
       (t) => normalizeEmail(t.userEmail) !== key || t.status !== "pending"
     ),
@@ -603,8 +550,14 @@ export async function deleteUser(
     )
   };
 
-  await api.deleteAccountApi(key).catch(() => undefined);
-  await persist(nextAccounts, nextAdmin);
+  await api.deleteAccountApi(key);
+  try {
+    await persist(nextAccounts, nextAdmin);
+  } catch (err) {
+    cacheAccountsLocal(nextAccounts);
+    cacheAdminLocal(nextAdmin);
+    throw err;
+  }
   return { accounts: nextAccounts, admin: nextAdmin };
 }
 

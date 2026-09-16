@@ -1492,6 +1492,17 @@ body[data-theme="dark"] .type-badge.invest { color: #8fa8ff; }
     margin: 12px 0;
 }
 
+.change-password-form {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+    max-width: 360px;
+}
+
+.change-password-form.hidden {
+    display: none;
+}
+
 .toggle-switch {
     position: relative;
     display: inline-block;

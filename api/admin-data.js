@@ -4,6 +4,7 @@ const {
     registryConfigError,
     loadAdminRegistry,
     saveAdminRegistry,
+    ensureAdminRegistryShape,
     appendPendingDeposit,
     approvePendingDeposit,
     rejectPendingDeposit,
@@ -28,7 +29,7 @@ module.exports = async function handler(req, res) {
                 res.status(200).json({ ok: false, error: "Admin registry empty." });
                 return;
             }
-            res.status(200).json({ ok: true, admin: admin });
+            res.status(200).json({ ok: true, admin: ensureAdminRegistryShape(admin) });
             return;
         }
 

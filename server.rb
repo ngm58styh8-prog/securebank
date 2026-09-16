@@ -410,6 +410,30 @@ server.mount_proc "/api/gold-investments" do |req, res|
   invoke_node_api("api/gold-investments.js", req, res)
 end
 
+server.mount_proc "/api/request-password-reset" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/request-password-reset.js", req, res)
+end
+
+server.mount_proc "/api/reset-password" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/reset-password.js", req, res)
+end
+
 trap("INT") { server.shutdown }
 
 puts ""

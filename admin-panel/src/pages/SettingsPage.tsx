@@ -22,6 +22,9 @@ export default function SettingsPage() {
     announcement: ws.announcement,
     maintenanceMode: ws.maintenanceMode,
     walletAddress: admin.walletAddress,
+    ethWalletAddress:
+      (admin.cryptoDepositWallets || []).find((w) => w.symbol === "ETH")?.address ||
+      "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
     bankDetails: admin.bankDetails
   });
 
@@ -39,6 +42,10 @@ export default function SettingsPage() {
                 ...admin,
                 walletAddress: form.walletAddress,
                 bankDetails: form.bankDetails,
+                cryptoDepositWallets: [
+                  { symbol: "BTC", name: "Bitcoin", address: form.walletAddress },
+                  { symbol: "ETH", name: "Ethereum", address: form.ethWalletAddress }
+                ],
                 websiteSettings: {
                   siteName: form.siteName,
                   siteTagline: form.siteTagline,
@@ -78,6 +85,7 @@ export default function SettingsPage() {
           <GlassCard>
             <h3 className="mb-4 font-semibold">Payment & Email</h3>
             <Field label="BTC Wallet Address" value={form.walletAddress} onChange={(v) => setForm({ ...form, walletAddress: v })} />
+            <Field label="ETH Wallet Address" value={form.ethWalletAddress} onChange={(v) => setForm({ ...form, ethWalletAddress: v })} />
             <Field label="Bank Details" value={form.bankDetails} onChange={(v) => setForm({ ...form, bankDetails: v })} />
             <p className="mt-4 text-xs text-gv-muted">
               Resend email verification uses Vercel env vars: RESEND_API_KEY, RESEND_FROM_EMAIL, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.

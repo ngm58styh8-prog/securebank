@@ -56,6 +56,19 @@ export async function saveAdmin(admin: AdminData): Promise<void> {
   }
 }
 
+export async function postAdminAction(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const res = await fetch("/api/admin-data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const payload = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  if (!res.ok || payload.ok === false) {
+    throw new Error(payload.error || "Admin action failed");
+  }
+  return payload;
+}
+
 export async function checkRegistryHealth(): Promise<boolean> {
   try {
     const res = await fetch("/api/registry-health", { cache: "no-store" });

@@ -70,7 +70,38 @@ renderApiKeys();
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 document.getElementById("twoFactorToggle").addEventListener("change", updateTwoFactorHint);
 document.getElementById("changePasswordBtn").addEventListener("click", function() {
-    alert("Password change would be handled securely on a production server.");
+    const form = document.getElementById("changePasswordForm");
+    form.classList.toggle("hidden");
+    if (!form.classList.contains("hidden")) {
+        document.getElementById("currentPassword").focus();
+    }
+});
+
+document.getElementById("changePasswordForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const currentPassword = document.getElementById("currentPassword").value;
+    const newPassword = document.getElementById("newPassword").value;
+    const confirmPassword = document.getElementById("confirmNewPassword").value;
+    const msg = document.getElementById("changePasswordMessage");
+
+    if (newPassword !== confirmPassword) {
+        msg.textContent = "New password and confirmation do not match.";
+        return;
+    }
+
+    const result = changeAccountPassword(username, currentPassword, newPassword);
+    if (!result.ok) {
+        msg.textContent = result.error || "Could not update password.";
+        return;
+    }
+
+    if (result.account) {
+        syncAccountToServer(username, result.account, "password-change");
+    }
+    document.getElementById("currentPassword").value = "";
+    document.getElementById("newPassword").value = "";
+    document.getElementById("confirmNewPassword").value = "";
+    msg.textContent = "Password updated.";
 });
 document.getElementById("themeSelect").addEventListener("change", function() {
     applyThemeToDocument(document.getElementById("themeSelect").value);

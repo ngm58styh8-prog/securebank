@@ -208,21 +208,51 @@
     <div class="auth-modal-backdrop" id="forgotModalBackdrop"></div>
     <div class="auth-modal-box">
         <h3 id="forgotModalTitle">Reset password</h3>
-        <p>Enter your email and we&apos;ll send reset instructions if an account exists.</p>
-        <div class="float-field" data-field="forgotEmail">
-            <span class="field-icon" aria-hidden="true">✉</span>
-            <input id="forgotEmail" type="email" placeholder=" ">
-            <label for="forgotEmail">Email address</label>
+
+        <div id="forgotStepRequest">
+            <p>Enter your email and we&apos;ll send a 6-digit code if an account exists.</p>
+            <div class="float-field" data-field="forgotEmail">
+                <span class="field-icon" aria-hidden="true">✉</span>
+                <input id="forgotEmail" type="email" placeholder=" " autocomplete="email">
+                <label for="forgotEmail">Email address</label>
+            </div>
+            <button type="button" class="auth-submit" id="forgotSubmit">Send reset code</button>
         </div>
-        <button type="button" class="auth-submit" id="forgotSubmit">Send reset link</button>
+
+        <div id="forgotStepReset" class="hidden">
+            <p id="forgotResetDesc">Enter the 6-digit code we sent, then choose a new password.</p>
+            <p id="forgotLocalCode" class="forgot-local-code hidden" role="status"></p>
+            <div class="float-field" data-field="forgotCode">
+                <span class="field-icon" aria-hidden="true">🔐</span>
+                <input id="forgotCode" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder=" " autocomplete="one-time-code">
+                <label for="forgotCode">Reset code</label>
+            </div>
+            <div class="float-field password-field" data-field="forgotNewPassword">
+                <span class="field-icon" aria-hidden="true">🔒</span>
+                <input id="forgotNewPassword" type="password" minlength="6" placeholder=" " autocomplete="new-password">
+                <label for="forgotNewPassword">New password</label>
+                <button type="button" class="pwd-toggle" data-target="forgotNewPassword" aria-label="Show password">👁</button>
+            </div>
+            <div class="float-field password-field" data-field="forgotConfirmPassword">
+                <span class="field-icon" aria-hidden="true">🔒</span>
+                <input id="forgotConfirmPassword" type="password" minlength="6" placeholder=" " autocomplete="new-password">
+                <label for="forgotConfirmPassword">Confirm new password</label>
+                <button type="button" class="pwd-toggle" data-target="forgotConfirmPassword" aria-label="Show password">👁</button>
+            </div>
+            <button type="button" class="auth-submit" id="forgotResetSubmit">Update password</button>
+            <div class="auth-resend-row">
+                <button type="button" class="link-btn" id="forgotResend">Resend code</button>
+            </div>
+        </div>
+
         <button type="button" class="link-btn" id="forgotCancel">Cancel</button>
         <p class="auth-message hidden" id="forgotMessage"></p>
     </div>
 </div>
 
-<script src="js/storage.js"></script>
-<script src="js/common.js"></script>
-<script src="js/verification-api.js"></script>
-<script src="js/app.js"></script>
+<script src="js/storage.js?v=pwreset"></script>
+<script src="js/common.js?v=pwreset"></script>
+<script src="js/verification-api.js?v=pwreset"></script>
+<script src="js/app.js?v=pwreset"></script>
 </body>
 </html>

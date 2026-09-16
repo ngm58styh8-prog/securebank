@@ -133,6 +133,40 @@
         return amount.toFixed(6) + " " + sym;
     }
 
+    function inferDepositCurrency(deposit) {
+        deposit = deposit || {};
+        if (deposit.currency) return normalizeSymbol(deposit.currency);
+        if (deposit.cryptoAsset) return normalizeSymbol(deposit.cryptoAsset);
+        if (deposit.ethAmount != null && deposit.ethAmount !== "" && deposit.btcAmount == null) {
+            return "ETH";
+        }
+        var addr = String(deposit.walletAddress || deposit.payTo || "").trim();
+        if (/^0x[a-fA-F0-9]{40}$/.test(addr)) return "ETH";
+        return "BTC";
+    }
+
+    function normalizeDepositCurrencyFields(deposit) {
+        var currency = inferDepositCurrency(deposit);
+        var cryptoAmount = deposit.cryptoAmount != null
+            ? Number(deposit.cryptoAmount)
+            : (currency === "BTC" && deposit.btcAmount != null
+                ? Number(deposit.btcAmount)
+                : (currency === "ETH" && deposit.ethAmount != null ? Number(deposit.ethAmount) : null));
+        var walletAddress = String(
+            deposit.walletAddress || deposit.payTo || getWalletAddressForCurrency(null, currency) || ""
+        ).trim();
+        var normalized = {
+            currency: currency,
+            cryptoAsset: currency,
+            walletAddress: walletAddress,
+            payTo: walletAddress,
+            cryptoAmount: cryptoAmount && !isNaN(cryptoAmount) ? cryptoAmount : null
+        };
+        if (currency === "BTC") normalized.btcAmount = normalized.cryptoAmount;
+        if (currency === "ETH") normalized.ethAmount = normalized.cryptoAmount;
+        return normalized;
+    }
+
     global.CryptoDepositConfig = {
         DEFAULT_CRYPTO_DEPOSIT_WALLETS: DEFAULT_CRYPTO_DEPOSIT_WALLETS,
         normalizeSymbol: normalizeSymbol,
@@ -145,6 +179,8 @@
         getDepositSendLabel: getDepositSendLabel,
         formatDepositCurrencyLabel: formatDepositCurrencyLabel,
         getCryptoAmountForUsd: getCryptoAmountForUsd,
-        formatCryptoAmount: formatCryptoAmount
+        formatCryptoAmount: formatCryptoAmount,
+        inferDepositCurrency: inferDepositCurrency,
+        normalizeDepositCurrencyFields: normalizeDepositCurrencyFields
     };
 })(typeof window !== "undefined" ? window : globalThis);

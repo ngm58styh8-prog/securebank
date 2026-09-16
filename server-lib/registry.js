@@ -449,6 +449,12 @@ async function deleteAccount(email) {
         throw new Error("The admin account cannot be deleted.");
     }
 
+    if (useLocalRegistry()) {
+        localRegistry.deleteAccount(key);
+        await unlinkAccountFromAdminRegistry(key);
+        return { email: key, deleted: true };
+    }
+
     const supabase = getSupabaseServiceRoleClient();
     const { error } = await supabase
         .from(ACCOUNTS_TABLE)
@@ -491,6 +497,7 @@ async function saveAdminRegistry(admin) {
         throw new Error("Missing or invalid admin payload.");
     }
 
+    admin = ensureAdminRegistryShape(admin);
     admin.serverSyncedAt = new Date().toISOString();
     const now = new Date().toISOString();
 
@@ -1494,6 +1501,7 @@ module.exports = {
     deleteAccount,
     loadAdminRegistry,
     saveAdminRegistry,
+    ensureAdminRegistryShape,
     useLocalRegistry,
     appendPendingDeposit,
     approvePendingDeposit,
