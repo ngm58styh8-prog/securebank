@@ -430,10 +430,12 @@ function requestPasswordResetAsync(email) {
         if (!account || !code || typeof sendRealEmail !== "function") {
             return Promise.resolve({
                 ok: true,
-                message: generic,
+                message: code
+                    ? "Use the on-screen reset code to continue."
+                    : generic,
                 email: key,
                 emailSent: false,
-                localCode: hadLocalAccount ? code : null
+                localCode: code || null
             });
         }
 
@@ -441,12 +443,16 @@ function requestPasswordResetAsync(email) {
         return sendRealEmail(key, queued.subject || "Reset your GlobalVest password", queued.body || ("Your code is " + code), {
             category: "password-reset"
         }).then(function(sent) {
+            const sentOk = !!(sent && sent.ok);
             return {
                 ok: true,
-                message: generic,
+                message: sentOk
+                    ? generic
+                    : "We could not deliver email right now. Use the on-screen reset code to continue.",
                 email: key,
-                emailSent: !!(sent && sent.ok),
-                localCode: (sent && sent.ok) ? null : (hadLocalAccount ? code : null)
+                emailSent: sentOk,
+                // Always keep a usable code if inbox delivery did not confirm.
+                localCode: sentOk ? null : code
             };
         });
     }
@@ -471,12 +477,23 @@ function requestPasswordResetAsync(email) {
                     typeof pullAccountsFromServer === "function" ? pullAccountsFromServer() : null
                 ).catch(function() { return null; }).then(function() {
                     const account = getAccount(key);
-                    const localCode = data.localCode ||
+                    const serverCode = data.localCode ||
                         ((!data.emailSent && account && account.passwordResetCode)
                             ? account.passwordResetCode
                             : null);
-                    if (account && localCode && !account.passwordResetCode) {
-                        account.passwordResetCode = String(localCode);
+
+                    // Server may return a privacy "sent" response when the account
+                    // only exists in this browser — fall back so the user still gets a code.
+                    const serverHasReset = !!(account && account.passwordResetCode);
+                    if (hadLocalAccount && !serverCode && !serverHasReset && !data.throttled) {
+                        return withLocalFallback();
+                    }
+                    if (!data.emailSent && !serverCode && hadLocalAccount) {
+                        return withLocalFallback();
+                    }
+
+                    if (account && serverCode && !account.passwordResetCode) {
+                        account.passwordResetCode = String(serverCode);
                         account.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
                         account.passwordResetSentAt = new Date().toISOString();
                         account.passwordResetAttempts = 0;
@@ -487,7 +504,7 @@ function requestPasswordResetAsync(email) {
                         message: data.message || generic,
                         email: key,
                         emailSent: !!data.emailSent,
-                        localCode: localCode
+                        localCode: serverCode
                     };
                 });
             });

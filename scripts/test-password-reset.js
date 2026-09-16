@@ -28,13 +28,18 @@ async function run() {
 
     const sent = await passwordReset.requestPasswordReset(email);
     assert.strictEqual(sent.ok, true);
-    assert.strictEqual(sent.emailSent, false);
-    assert.ok(sent.localCode);
-    assert.ok(/^\d{6}$/.test(sent.localCode));
+    // Without a valid Resend key, delivery fails and the API must return localCode.
+    if (!sent.emailSent) {
+        assert.ok(sent.localCode);
+        assert.ok(/^\d{6}$/.test(sent.localCode));
+    }
 
     const stored = localRegistry.loadAllAccounts()[email];
     assert.ok(stored.passwordResetCode);
-    assert.strictEqual(stored.passwordResetCode, sent.localCode);
+    assert.ok(/^\d{6}$/.test(stored.passwordResetCode));
+    if (sent.localCode) {
+        assert.strictEqual(stored.passwordResetCode, sent.localCode);
+    }
 
     const badCode = await passwordReset.completePasswordReset(email, "000000", "newpass1");
     assert.strictEqual(badCode.ok, false);

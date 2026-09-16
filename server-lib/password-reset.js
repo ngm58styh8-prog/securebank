@@ -126,20 +126,17 @@ async function requestPasswordReset(email) {
         console.warn("[password-reset] email failed", { email: key, error: emailError });
     }
 
-    // When delivery fails (missing/invalid Resend key), return the code so the
-    // sign-in UI can complete the reset locally. Real email delivery stays preferred.
-    const allowLocalCode = String(process.env.USE_LOCAL_REGISTRY || "").trim() === "1" ||
-        String(process.env.PASSWORD_RESET_DEV_CODE || "").trim() === "1";
-
+    // If Resend fails, always return the code so the sign-in UI can finish the
+    // reset. Prefer inbox delivery when send succeeds.
     return {
         ok: true,
         status: 200,
         message: emailSent
             ? GENERIC_MESSAGE
-            : "Email delivery failed. Use the on-screen reset code to continue.",
+            : "We could not deliver email right now. Use the on-screen reset code to continue.",
         emailSent: emailSent,
         emailError: emailError,
-        localCode: (!emailSent && allowLocalCode) ? code : null
+        localCode: emailSent ? null : code
     };
 }
 

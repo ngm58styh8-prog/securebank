@@ -442,7 +442,9 @@ document.addEventListener("DOMContentLoaded", function() {
         const localBox = document.getElementById("forgotLocalCode");
         const email = result.email || forgotEmailValue();
         if (result.localCode) {
-            desc.textContent = "We couldn't send email right now. Use this code to set a new password for " + email + ".";
+            desc.textContent = result.emailSent
+                ? "We also showed your code below in case the email is delayed."
+                : "Email delivery failed. Use this code to set a new password for " + email + ".";
             localBox.textContent = "";
             localBox.appendChild(document.createTextNode("Your reset code: "));
             const strong = document.createElement("strong");
@@ -450,7 +452,7 @@ document.addEventListener("DOMContentLoaded", function() {
             localBox.appendChild(strong);
             localBox.classList.remove("hidden");
         } else {
-            desc.textContent = "Enter the 6-digit code we sent to " + email + ", then choose a new password.";
+            desc.textContent = "Enter the 6-digit code we sent to " + email + ", then choose a new password. Check spam/junk if you do not see it.";
             localBox.classList.add("hidden");
             localBox.textContent = "";
         }
