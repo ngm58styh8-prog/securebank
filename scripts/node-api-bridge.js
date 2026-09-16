@@ -14,6 +14,17 @@ if (!process.env.USE_LOCAL_REGISTRY) {
     process.env.USE_LOCAL_REGISTRY = "1";
 }
 
+// Keep stdout JSON-only for the Ruby bridge. Route logs to stderr.
+["log", "info", "warn", "debug"].forEach(function(method) {
+    console[method] = function() {
+        const args = Array.prototype.slice.call(arguments);
+        process.stderr.write(args.map(function(arg) {
+            if (typeof arg === "string") return arg;
+            try { return JSON.stringify(arg); } catch (err) { return String(arg); }
+        }).join(" ") + "\n");
+    };
+});
+
 const handlerRel = process.argv[2];
 const method = (process.argv[3] || "GET").toUpperCase();
 const queryJson = process.argv[4] || "{}";

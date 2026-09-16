@@ -470,15 +470,23 @@ function requestPasswordResetAsync(email) {
                 return Promise.resolve(
                     typeof pullAccountsFromServer === "function" ? pullAccountsFromServer() : null
                 ).catch(function() { return null; }).then(function() {
-                    const account = hadLocalAccount ? getAccount(key) : null;
-                    const localCode = (!data.emailSent && account && account.passwordResetCode)
-                        ? account.passwordResetCode
-                        : null;
+                    const account = getAccount(key);
+                    const localCode = data.localCode ||
+                        ((!data.emailSent && account && account.passwordResetCode)
+                            ? account.passwordResetCode
+                            : null);
+                    if (account && localCode && !account.passwordResetCode) {
+                        account.passwordResetCode = String(localCode);
+                        account.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+                        account.passwordResetSentAt = new Date().toISOString();
+                        account.passwordResetAttempts = 0;
+                        saveAccount(key, account);
+                    }
                     return {
                         ok: true,
                         message: data.message || generic,
                         email: key,
-                        emailSent: data.emailSent !== false,
+                        emailSent: !!data.emailSent,
                         localCode: localCode
                     };
                 });
