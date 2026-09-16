@@ -1,13 +1,14 @@
 /**
- * Shared in-app notification bell — all authenticated customer pages.
- * Shows transaction history and admin notifications.
+ * Shared in-app notification bell — presentation layer.
+ * Keeps existing read/unread, mark-all, sync, and data handlers unchanged.
  */
 (function() {
     const POLL_MS = 15000;
     const STATUS_LABELS = {
         pending: "Pending",
         completed: "Completed",
-        failed: "Failed"
+        failed: "Failed",
+        info: "Info"
     };
 
     let activeFilter = "all";
@@ -30,27 +31,50 @@
         return typeof getAccount === "function" ? getAccount(email) : null;
     }
 
-    function formatNotifAmount(amount, currency) {
+    function formatNotifAmount(amount, currency, signed) {
         if (amount == null || isNaN(Number(amount))) return "";
         currency = String(currency || "USD").toUpperCase();
         const value = Number(amount);
-        if (currency === "USD") return "$" + value.toFixed(2);
-        if (currency === "BTC") return value.toFixed(8) + " BTC";
-        if (currency === "ETH") return value.toFixed(6) + " ETH";
-        if (currency === "USDT") return value.toFixed(2) + " USDT";
-        return value.toFixed(2) + " " + currency;
+        const abs = Math.abs(value);
+        let core = "";
+        if (currency === "USD") core = "$" + abs.toFixed(2);
+        else if (currency === "BTC") core = abs.toFixed(8) + " BTC";
+        else if (currency === "ETH") core = abs.toFixed(6) + " ETH";
+        else if (currency === "USDT") core = abs.toFixed(2) + " USDT";
+        else core = abs.toFixed(2) + " " + currency;
+        if (!signed) return core;
+        if (value > 0) return "+" + core;
+        if (value < 0) return "-" + core;
+        return core;
+    }
+
+    function amountToneClass(n) {
+        if (n.amount == null || isNaN(Number(n.amount))) return "notif-amount-neutral";
+        const value = Number(n.amount);
+        if (value > 0) return "notif-amount-positive";
+        if (value < 0) return "notif-amount-negative";
+        return "notif-amount-neutral";
     }
 
     function isAdminNotification(n) {
         return !!(n && (n.fromAdmin || n.source === "admin" || n.type === "admin" || n.category === "admin"));
     }
 
-    function isTransactionNotification(n) {
+    function isInvestmentNotification(n) {
         if (!n || isAdminNotification(n)) return false;
+        const type = String(n.type || n.category || "").toLowerCase();
+        const msg = String(n.message || n.title || "").toLowerCase();
+        if (type === "trade" || type === "exchange" || type === "market") return true;
+        if (msg.indexOf("gold") !== -1 || msg.indexOf("invest") !== -1) return true;
+        if (msg.indexOf("buy ") !== -1 || msg.indexOf("sell ") !== -1) return true;
+        return false;
+    }
+
+    function isTransactionNotification(n) {
+        if (!n || isAdminNotification(n) || isInvestmentNotification(n)) return false;
         if (n.source === "transaction") return true;
         const type = n.type || n.category || "";
-        return type === "deposit" || type === "withdrawal" || type === "transfer" ||
-            type === "trade" || type === "exchange";
+        return type === "deposit" || type === "withdrawal" || type === "transfer";
     }
 
     function getCategoryLabel(n) {
@@ -59,24 +83,52 @@
         if (type === "deposit") return "Deposit";
         if (type === "withdrawal") return "Withdrawal";
         if (type === "transfer") return "Transfer";
-        if (type === "trade") return "Trade";
+        if (type === "trade") return "Investment";
         if (type === "exchange") return "Exchange";
         if (type === "support") return "Support";
         if (type === "market") return "Market";
+        if (type === "security") return "Security";
         return "Activity";
     }
 
+    function svgIcon(paths, viewBox) {
+        viewBox = viewBox || "0 0 24 24";
+        return '<svg class="notif-svg" viewBox="' + viewBox + '" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            paths + "</svg>";
+    }
+
     function getCategoryIcon(n) {
-        if (isAdminNotification(n)) return "🛡️";
         const type = (n && (n.type || n.category)) || "general";
-        if (type === "deposit") return "↓";
-        if (type === "withdrawal") return "↑";
-        if (type === "transfer") return "⇄";
-        if (type === "trade") return "📈";
-        if (type === "exchange") return "💱";
-        if (type === "support") return "💬";
-        if (type === "market") return "📊";
-        return "🔔";
+        const msg = String(n && n.message || "").toLowerCase();
+
+        if (isAdminNotification(n)) {
+            return svgIcon('<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>');
+        }
+        if (msg.indexOf("gold") !== -1) {
+            return svgIcon('<rect x="3" y="10" width="6" height="10" rx="1"/><rect x="9" y="6" width="6" height="14" rx="1"/><rect x="15" y="8" width="6" height="12" rx="1"/>');
+        }
+        if (type === "deposit" || msg.indexOf("deposit") !== -1) {
+            return svgIcon('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12v4"/><path d="m15 15 3 3 3-3"/>');
+        }
+        if (type === "withdrawal" || msg.indexOf("withdraw") !== -1) {
+            return svgIcon('<path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 16v-4"/><path d="m15 13 3-3 3 3"/>');
+        }
+        if (type === "transfer" || msg.indexOf("transfer") !== -1 || msg.indexOf("funds received") !== -1) {
+            return svgIcon('<path d="m17 3 4 4-4 4"/><path d="M3 7h18"/><path d="m7 21-4-4 4-4"/><path d="M21 17H3"/>');
+        }
+        if (type === "trade" || type === "exchange" || msg.indexOf("buy") !== -1 || msg.indexOf("sell") !== -1) {
+            return svgIcon('<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>');
+        }
+        if (type === "market") {
+            return svgIcon('<line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/>');
+        }
+        if (type === "security" || msg.indexOf("password") !== -1 || msg.indexOf("login") !== -1 || msg.indexOf("device") !== -1) {
+            return svgIcon('<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>');
+        }
+        if (type === "support") {
+            return svgIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>');
+        }
+        return svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>');
     }
 
     function escapeHtml(value) {
@@ -87,17 +139,43 @@
             .replace(/"/g, "&quot;");
     }
 
+    function bellButtonMarkup() {
+        return '<button type="button" class="gv-icon-btn icon-btn notif-bell-btn" id="notifBtn" title="Notifications" aria-label="Notifications" aria-expanded="false">' +
+            svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>') +
+            '<span id="notifCount" class="badge notif-badge" style="display:none">0</span>' +
+            "</button>";
+    }
+
     function panelMarkup() {
-        return '<div class="notif-header">' +
-            '<span>🔔 Notifications</span>' +
-            '<button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>' +
+        return '<div class="notif-center">' +
+            '<div class="notif-header">' +
+            '<div class="notif-header-copy">' +
+            '<div class="notif-header-title">' +
+            '<span class="notif-header-icon" aria-hidden="true">' +
+            svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>') +
+            "</span>" +
+            "<span>Notifications</span>" +
+            "</div>" +
+            '<p class="notif-header-sub">Stay updated with your account activity</p>' +
+            "</div>" +
+            '<button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all as read</button>' +
             "</div>" +
             '<div class="notif-filters" role="tablist" aria-label="Notification filters">' +
-            '<button type="button" class="notif-filter-btn active" data-notif-filter="all">All</button>' +
-            '<button type="button" class="notif-filter-btn" data-notif-filter="transactions">Transactions</button>' +
-            '<button type="button" class="notif-filter-btn" data-notif-filter="admin">Admin</button>' +
+            filterButtonHtml("all", "All", true) +
+            filterButtonHtml("transactions", "Transactions", false) +
+            filterButtonHtml("investments", "Investments", false) +
+            filterButtonHtml("admin", "Admin", false) +
             "</div>" +
-            '<div id="notifList" class="notif-list"></div>';
+            '<div id="notifList" class="notif-list"></div>' +
+            "</div>";
+    }
+
+    function filterButtonHtml(key, label, active) {
+        return '<button type="button" class="notif-filter-btn' + (active ? " active" : "") +
+            '" data-notif-filter="' + key + '" role="tab" aria-selected="' + (active ? "true" : "false") + '">' +
+            '<span class="notif-filter-label">' + label + "</span>" +
+            '<span class="notif-filter-count" data-filter-count="' + key + '">0</span>' +
+            "</button>";
     }
 
     function ensureBellMarkup() {
@@ -111,10 +189,7 @@
             if (!host) return;
             wrap = document.createElement("div");
             wrap.className = "notif-bell-wrap";
-            wrap.innerHTML =
-                '<button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications" aria-label="Notifications" aria-expanded="false">' +
-                '🔔 <span id="notifCount" class="badge notif-badge" style="display:none">0</span>' +
-                "</button>" +
+            wrap.innerHTML = bellButtonMarkup() +
                 '<div id="notifPanel" class="notif-panel hidden" role="dialog" aria-label="Notifications">' +
                 panelMarkup() +
                 "</div>";
@@ -125,6 +200,8 @@
             } else {
                 host.insertBefore(wrap, host.firstChild);
             }
+            btn = document.getElementById("notifBtn");
+            panel = document.getElementById("notifPanel");
             ensureMarkAllButton();
             ensureFilterButtons();
             return;
@@ -135,6 +212,22 @@
             wrap.className = "notif-bell-wrap";
             btn.parentNode.insertBefore(wrap, btn);
             wrap.appendChild(btn);
+        }
+
+        if (!btn.classList.contains("notif-bell-btn")) {
+            btn.classList.add("notif-bell-btn");
+        }
+        if (!btn.querySelector(".notif-svg")) {
+            const count = document.getElementById("notifCount");
+            btn.innerHTML =
+                svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>') +
+                '<span id="notifCount" class="badge notif-badge" style="display:none">' +
+                (count ? count.textContent : "0") +
+                "</span>";
+            if (count && count.style.display === "none") {
+                const next = document.getElementById("notifCount");
+                if (next) next.style.display = "none";
+            }
         }
 
         btn.setAttribute("aria-label", "Notifications");
@@ -158,103 +251,206 @@
             wrap.appendChild(panel);
         }
 
-        if (!panel.querySelector(".notif-filters")) {
-            const header = panel.querySelector(".notif-header");
-            const filters = document.createElement("div");
-            filters.className = "notif-filters";
-            filters.setAttribute("role", "tablist");
-            filters.setAttribute("aria-label", "Notification filters");
-            filters.innerHTML =
-                '<button type="button" class="notif-filter-btn active" data-notif-filter="all">All</button>' +
-                '<button type="button" class="notif-filter-btn" data-notif-filter="transactions">Transactions</button>' +
-                '<button type="button" class="notif-filter-btn" data-notif-filter="admin">Admin</button>';
-            if (header && header.nextSibling) {
-                panel.insertBefore(filters, header.nextSibling);
-            } else {
-                panel.appendChild(filters);
-            }
+        if (!panel.querySelector(".notif-center")) {
+            panel.innerHTML = panelMarkup();
+            delete panel.dataset.notifBound;
+            const markAll = document.getElementById("notifMarkAllBtn");
+            if (markAll) delete markAll.dataset.notifBound;
         }
 
         if (!document.getElementById("notifList")) {
             const list = document.createElement("div");
             list.id = "notifList";
             list.className = "notif-list";
-            panel.appendChild(list);
+            const center = panel.querySelector(".notif-center") || panel;
+            center.appendChild(list);
         }
 
         ensureMarkAllButton();
         ensureFilterButtons();
+        wireNotificationEvents();
     }
 
     function ensureMarkAllButton() {
         const header = document.querySelector("#notifPanel .notif-header");
-        if (!header || document.getElementById("notifMarkAllBtn")) return;
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.id = "notifMarkAllBtn";
+        if (!header) return;
+        let btn = document.getElementById("notifMarkAllBtn");
+        if (!btn) {
+            btn = document.createElement("button");
+            btn.type = "button";
+            btn.id = "notifMarkAllBtn";
+            btn.className = "notif-mark-all";
+            header.appendChild(btn);
+        }
+        btn.textContent = "Mark all as read";
         btn.className = "notif-mark-all";
-        btn.textContent = "Mark all read";
-        header.appendChild(btn);
     }
 
     function ensureFilterButtons() {
         const root = document.querySelector("#notifPanel .notif-filters");
         if (!root) return;
+        if (!root.querySelector('[data-notif-filter="investments"]')) {
+            root.innerHTML =
+                filterButtonHtml("all", "All", activeFilter === "all") +
+                filterButtonHtml("transactions", "Transactions", activeFilter === "transactions") +
+                filterButtonHtml("investments", "Investments", activeFilter === "investments") +
+                filterButtonHtml("admin", "Admin", activeFilter === "admin");
+        }
         Array.prototype.forEach.call(root.querySelectorAll("[data-notif-filter]"), function(btn) {
-            btn.classList.toggle("active", btn.getAttribute("data-notif-filter") === activeFilter);
+            const on = btn.getAttribute("data-notif-filter") === activeFilter;
+            btn.classList.toggle("active", on);
+            btn.setAttribute("aria-selected", on ? "true" : "false");
+        });
+    }
+
+    function updateFilterCounts(notifications) {
+        const counts = {
+            all: notifications.filter(function(n) { return !n.read; }).length,
+            transactions: notifications.filter(function(n) { return isTransactionNotification(n) && !n.read; }).length,
+            investments: notifications.filter(function(n) { return isInvestmentNotification(n) && !n.read; }).length,
+            admin: notifications.filter(function(n) { return isAdminNotification(n) && !n.read; }).length
+        };
+        Object.keys(counts).forEach(function(key) {
+            const el = document.querySelector('[data-filter-count="' + key + '"]');
+            if (!el) return;
+            const value = counts[key];
+            el.textContent = value > 99 ? "99+" : String(value);
+            el.hidden = value <= 0;
+            el.classList.toggle("is-empty", value <= 0);
         });
     }
 
     function filterNotifications(notifications) {
-        if (activeFilter === "admin") {
-            return notifications.filter(isAdminNotification);
-        }
-        if (activeFilter === "transactions") {
-            return notifications.filter(isTransactionNotification);
-        }
+        if (activeFilter === "admin") return notifications.filter(isAdminNotification);
+        if (activeFilter === "transactions") return notifications.filter(isTransactionNotification);
+        if (activeFilter === "investments") return notifications.filter(isInvestmentNotification);
         return notifications;
     }
 
     function emptyMessage() {
         if (activeFilter === "admin") return "No admin notifications yet.";
         if (activeFilter === "transactions") return "No transactions yet.";
-        return "No transactions or admin notices yet.";
+        if (activeFilter === "investments") return "No investment updates yet.";
+        return "You're all caught up.";
     }
 
-    function renderNotificationItem(n) {
+    function startOfDay(date) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d.getTime();
+    }
+
+    function groupLabelForTime(iso) {
+        const parsed = iso ? new Date(iso) : new Date();
+        if (isNaN(parsed.getTime())) {
+            return { key: "unknown", label: "Earlier", sub: "" };
+        }
+        const today = startOfDay(new Date());
+        const day = startOfDay(parsed);
+        const full = parsed.toLocaleDateString(undefined, {
+            weekday: "long",
+            day: "numeric",
+            month: "short",
+            year: "numeric"
+        });
+        if (day === today) {
+            return { key: "today", label: "Today", sub: full };
+        }
+        if (day === today - 86400000) {
+            return { key: "yesterday", label: "Yesterday", sub: full };
+        }
+        return {
+            key: String(day),
+            label: parsed.toLocaleDateString(undefined, { weekday: "long" }),
+            sub: full
+        };
+    }
+
+    function groupNotificationsByDate(notifications) {
+        const groups = [];
+        const map = {};
+        notifications.forEach(function(n) {
+            const meta = groupLabelForTime(n.time);
+            if (!map[meta.key]) {
+                map[meta.key] = { key: meta.key, label: meta.label, sub: meta.sub, items: [] };
+                groups.push(map[meta.key]);
+            }
+            map[meta.key].items.push(n);
+        });
+        return groups;
+    }
+
+    function formatTimeOnly(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return String(iso);
+        return d.toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+        });
+    }
+
+    function renderNotificationItem(n, index) {
         const status = n.status || "completed";
         const statusLabel = STATUS_LABELS[status] || status;
-        const amountLabel = formatNotifAmount(n.amount, n.currency);
+        const amountLabel = formatNotifAmount(n.amount, n.currency, true);
         const title = n.title || getCategoryLabel(n);
         const message = n.message || "";
-        const time = n.time ? new Date(n.time).toLocaleString() : "";
+        const time = formatTimeOnly(n.time);
         const adminClass = isAdminNotification(n) ? " notif-item-admin" : "";
+        const investClass = isInvestmentNotification(n) ? " notif-item-invest" : "";
         const txClass = isTransactionNotification(n) ? " notif-item-tx" : "";
+        const delay = Math.min(index * 35, 280);
 
         return (
-            '<div class="notif-item ' + (n.read ? "read" : "unread") + adminClass + txClass +
-            '" data-notif-id="' + escapeHtml(String(n.id)) + '">' +
-            '<div class="notif-item-top">' +
-            '<span class="notif-type-icon" aria-hidden="true">' + getCategoryIcon(n) + "</span>" +
+            '<article class="notif-item ' + (n.read ? "read" : "unread") + adminClass + investClass + txClass +
+            '" data-notif-id="' + escapeHtml(String(n.id)) + '" style="--notif-delay:' + delay + 'ms">' +
+            '<div class="notif-item-main">' +
+            '<div class="notif-type-icon" aria-hidden="true">' + getCategoryIcon(n) + "</div>" +
             '<div class="notif-item-body">' +
-            '<div class="notif-item-title">' + escapeHtml(title) +
-            (isAdminNotification(n) ? '<span class="notif-admin-pill">Admin</span>' : "") +
+            '<div class="notif-item-heading">' +
+            '<h3 class="notif-item-title">' + escapeHtml(title) + "</h3>" +
+            (!n.read ? '<span class="notif-unread-dot" aria-hidden="true"></span>' : "") +
             "</div>" +
-            '<div class="notif-item-message">' + escapeHtml(message) + "</div>" +
-            (amountLabel
-                ? '<div class="notif-item-amount">' + escapeHtml(amountLabel) + "</div>"
-                : "") +
+            '<p class="notif-item-message">' + escapeHtml(message) + "</p>" +
             '<div class="notif-item-meta">' +
-            '<span class="notif-status notif-status-' + escapeHtml(status) + '">' + escapeHtml(statusLabel) + "</span>" +
             '<span class="notif-time">' + escapeHtml(time) + "</span>" +
+            '<span class="notif-status notif-status-' + escapeHtml(status) + '">' + escapeHtml(statusLabel) + "</span>" +
             "</div>" +
             "</div>" +
+            '<div class="notif-item-aside">' +
+            (amountLabel
+                ? '<div class="notif-item-amount ' + amountToneClass(n) + '">' + escapeHtml(amountLabel) + "</div>"
+                : "") +
             (!n.read
-                ? '<button type="button" class="notif-read-btn" data-notif-id="' + escapeHtml(String(n.id)) + '" title="Mark as read">✓</button>'
+                ? '<button type="button" class="notif-read-btn" data-notif-id="' + escapeHtml(String(n.id)) + '" title="Mark as read" aria-label="Mark as read">' +
+                  svgIcon('<path d="M20 6 9 17l-5-5"/>') +
+                  "</button>"
                 : "") +
             "</div>" +
-            "</div>"
+            "</div>" +
+            "</article>"
         );
+    }
+
+    function renderGroupedList(notifications) {
+        const groups = groupNotificationsByDate(notifications);
+        let html = "";
+        let index = 0;
+        groups.forEach(function(group) {
+            html += '<section class="notif-group">' +
+                '<header class="notif-group-header">' +
+                '<span class="notif-group-label">' + escapeHtml(group.label) + "</span>" +
+                (group.sub ? '<span class="notif-group-sub">' + escapeHtml(group.sub) + "</span>" : "") +
+                "</header>" +
+                '<div class="notif-group-list">';
+            group.items.forEach(function(item) {
+                html += renderNotificationItem(item, index++);
+            });
+            html += "</div></section>";
+        });
+        return html;
     }
 
     function prepareAccountNotifications(email, account) {
@@ -298,14 +494,20 @@
         }
 
         ensureFilterButtons();
+        updateFilterCounts(notifications);
         if (!list) return;
 
         if (!visible.length) {
-            list.innerHTML = '<div class="notif-empty">' + emptyMessage() + "</div>";
+            list.innerHTML = '<div class="notif-empty">' +
+                '<div class="notif-empty-icon" aria-hidden="true">' +
+                svgIcon('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>') +
+                "</div>" +
+                "<p>" + emptyMessage() + "</p>" +
+                "</div>";
             return;
         }
 
-        list.innerHTML = visible.map(renderNotificationItem).join("");
+        list.innerHTML = renderGroupedList(visible);
     }
 
     function persistAndRender(email, account) {
@@ -388,9 +590,32 @@
     }
 
     function setFilter(filter) {
-        activeFilter = filter === "admin" || filter === "transactions" ? filter : "all";
+        if (filter === "admin" || filter === "transactions" || filter === "investments") {
+            activeFilter = filter;
+        } else {
+            activeFilter = "all";
+        }
         ensureFilterButtons();
         renderNotificationBell(getSessionEmail());
+    }
+
+    function openPanel() {
+        const panel = document.getElementById("notifPanel");
+        const btn = document.getElementById("notifBtn");
+        if (!panel) return;
+        panel.classList.remove("hidden");
+        panel.classList.add("is-open");
+        if (btn) btn.setAttribute("aria-expanded", "true");
+        refreshNotificationsForUser(getSessionEmail());
+    }
+
+    function closePanel() {
+        const panel = document.getElementById("notifPanel");
+        const btn = document.getElementById("notifBtn");
+        if (!panel) return;
+        panel.classList.add("hidden");
+        panel.classList.remove("is-open");
+        if (btn) btn.setAttribute("aria-expanded", "false");
     }
 
     function wireNotificationEvents() {
@@ -404,12 +629,8 @@
                 e.stopPropagation();
                 const panel = document.getElementById("notifPanel");
                 if (!panel) return;
-                const opening = panel.classList.contains("hidden");
-                panel.classList.toggle("hidden");
-                notifBtn.setAttribute("aria-expanded", opening ? "true" : "false");
-                if (opening) {
-                    refreshNotificationsForUser(getSessionEmail());
-                }
+                if (panel.classList.contains("hidden")) openPanel();
+                else closePanel();
             });
         }
 
@@ -447,9 +668,7 @@
                 const panel = document.getElementById("notifPanel");
                 if (!panel || panel.classList.contains("hidden")) return;
                 if (!e.target.closest("#notifBtn") && !e.target.closest("#notifPanel")) {
-                    panel.classList.add("hidden");
-                    const btn = document.getElementById("notifBtn");
-                    if (btn) btn.setAttribute("aria-expanded", "false");
+                    closePanel();
                 }
             });
         }
