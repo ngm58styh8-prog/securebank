@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 48" role="img" aria-label="GlobalVest">
   <defs>
     <linearGradient id="gvGradLight" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1F6BFF"/>
-      <stop offset="100%" stop-color="#3B82F6"/>
+      <stop offset="0%" stop-color="#3EE0A0"/>
+      <stop offset="100%" stop-color="#9AF5C8"/>
     </linearGradient>
   </defs>
   <circle cx="24" cy="24" r="22" fill="url(#gvGradLight)" opacity="0.18"/>

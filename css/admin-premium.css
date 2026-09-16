@@ -192,7 +192,7 @@ body.admin-dashboard-body.admin-premium:not(.admin-auth-ready) { visibility: hid
     padding: 4px 12px 20px;
 }
 
-.admin-sidebar-brand img { height: 32px; }
+.admin-sidebar-brand img { height: 36px; width: auto; object-fit: contain; border-radius: 8px; }
 
 .admin-sidebar-brand p {
     margin: 10px 0 0;

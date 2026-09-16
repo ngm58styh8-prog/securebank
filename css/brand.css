@@ -24,11 +24,13 @@ body {
     height: 36px;
     width: auto;
     display: block;
-    max-width: 100%;
+    max-width: min(220px, 55vw);
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 .brand-logo-img.sm {
-    height: 28px;
+    height: 32px;
 }
 
 .brand-logo-img.lg {
@@ -36,7 +38,7 @@ body {
 }
 
 .brand-logo-img.xl {
-    height: 52px;
+    height: 56px;
 }
 
 .brand-wordmark {

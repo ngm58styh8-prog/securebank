@@ -222,9 +222,10 @@
 }
 
 .landing-scene-logo {
-    width: min(120px, 28vw);
+    width: min(160px, 36vw);
     height: auto;
-    filter: drop-shadow(0 0 40px rgba(31, 107, 255, 0.45));
+    border-radius: 12px;
+    filter: drop-shadow(0 0 40px rgba(62, 224, 160, 0.35));
 }
 
 .landing-scene-coin {

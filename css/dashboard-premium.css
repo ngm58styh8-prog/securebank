@@ -69,7 +69,11 @@ body.dashboard-premium .gv-sidebar-logo {
 }
 
 body.dashboard-premium .gv-sidebar-logo img {
-    height: 32px;
+    height: 40px;
+    width: auto;
+    max-width: 180px;
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 body.dashboard-premium .gv-nav-section {
