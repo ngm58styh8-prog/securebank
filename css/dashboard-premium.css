@@ -208,9 +208,11 @@ body.dashboard-premium .gv-header-actions .notif-panel {
     top: calc(100% + 10px);
     right: 0;
     width: min(360px, calc(100vw - 32px));
-    max-height: 420px;
+    max-height: min(70vh, 480px);
+    overflow-x: hidden;
     overflow-y: auto;
-    z-index: 400;
+    z-index: 500;
+    animation: none;
 }
 
 body.dashboard-premium .gv-header-actions .dropdown {
@@ -744,6 +746,9 @@ body.dashboard-premium .notif-panel {
     backdrop-filter: blur(20px);
     border: 1px solid var(--gv-glass-border);
     color: var(--gv-text);
+}
+
+body.dashboard-premium .dropdown {
     animation: gvSlideUp 0.25s ease;
 }
 

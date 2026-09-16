@@ -1426,6 +1426,14 @@ function mergeNotificationEntry(existing, incoming) {
     const merged = Object.assign({}, existing, incoming);
     // Once marked read, keep it read even if a stale in-memory copy is unread.
     merged.read = !!(existing.read || incoming.read);
+    merged.fromAdmin = !!(existing.fromAdmin || incoming.fromAdmin ||
+        existing.type === "admin" || incoming.type === "admin" ||
+        existing.source === "admin" || incoming.source === "admin");
+    if (merged.fromAdmin) {
+        merged.type = merged.type || "admin";
+        merged.title = merged.title || "From Admin";
+        merged.source = merged.source || "admin";
+    }
     return merged;
 }
 
@@ -1433,15 +1441,19 @@ function mergeNotificationLists(primary, secondary) {
     const map = new Map();
     (secondary || []).forEach(function(n) {
         if (!n || n.id == null) return;
-        map.set(String(n.id), n);
+        map.set(String(n.id), normalizeNotificationShape(n));
     });
     (primary || []).forEach(function(n) {
         if (!n || n.id == null) return;
         const key = String(n.id);
-        map.set(key, mergeNotificationEntry(map.get(key), n));
+        map.set(key, mergeNotificationEntry(map.get(key), normalizeNotificationShape(n)));
     });
     return Array.from(map.values())
-        .sort(function(a, b) { return new Date(b.time) - new Date(a.time); })
+        .sort(function(a, b) {
+            const unreadDelta = Number(!a.read) - Number(!b.read);
+            if (unreadDelta !== 0) return -unreadDelta;
+            return new Date(b.time) - new Date(a.time);
+        })
         .slice(0, 30);
 }
 
@@ -1454,24 +1466,52 @@ function pushAccountNotification(account, message, options) {
     options = options || {};
     if (!account || !message) return ensureNotifications(account);
     ensureNotifications(account);
+    const type = options.type || options.category || (options.fromAdmin ? "admin" : "general");
+    const fromAdmin = !!options.fromAdmin || type === "admin";
     account.notifications.unshift({
         id: options.id || (Date.now() + Math.random()),
         message: message,
-        title: options.title || null,
+        title: options.title || (fromAdmin ? "From Admin" : null),
         time: options.time || new Date().toISOString(),
         read: false,
-        type: options.type || options.category || "general",
-        category: options.category || options.type || "general",
+        type: type,
+        category: options.category || type,
         amount: options.amount != null && !isNaN(Number(options.amount)) ? Number(options.amount) : null,
         currency: options.currency || (options.amount != null ? "USD" : null),
         status: options.status || "completed",
         reference: options.reference || null,
-        fromAdmin: !!options.fromAdmin
+        fromAdmin: fromAdmin,
+        source: options.source || (fromAdmin ? "admin" : "event")
     });
     if (account.notifications.length > 30) {
         account.notifications = account.notifications.slice(0, 30);
     }
     return account.notifications;
+}
+
+function normalizeNotificationShape(notification) {
+    if (!notification || typeof notification !== "object") return notification;
+    const n = Object.assign({}, notification);
+    if (n.id == null) n.id = Date.now() + Math.random();
+    if (!n.time) n.time = new Date().toISOString();
+    const fromAdmin = !!(n.fromAdmin || n.source === "admin" || n.type === "admin" || n.category === "admin");
+    n.fromAdmin = fromAdmin;
+    if (fromAdmin) {
+        n.type = n.type || "admin";
+        n.category = n.category || "admin";
+        n.title = n.title || "From Admin";
+        n.source = n.source || "admin";
+    } else {
+        n.type = n.type || n.category || "general";
+        n.category = n.category || n.type;
+    }
+    if (n.read == null) n.read = false;
+    if (!n.status) n.status = "completed";
+    return n;
+}
+
+function normalizeNotificationList(list) {
+    return (list || []).map(normalizeNotificationShape).filter(Boolean);
 }
 
 function getUnreadNotificationCount(email) {
@@ -1669,6 +1709,7 @@ function syncAccountNotifications(email, account) {
         stored && stored.notifications ? stored.notifications : [],
         account.notifications || []
     );
+    account.notifications = normalizeNotificationList(account.notifications);
     hydrateNotificationsFromTransactions(account);
     return account.notifications;
 }
@@ -3085,7 +3126,7 @@ function applyAdminBalanceAdjustment(key, account, action, amount, note) {
     pushAccountNotification(account, action === "credit"
         ? "Your account was credited $" + amount.toFixed(2)
         : "Your account was debited $" + amount.toFixed(2),
-        { type: "admin" }
+        { type: "admin", fromAdmin: true, title: "From Admin" }
     );
 
     account.serverSyncedAt = new Date().toISOString();
@@ -4046,20 +4087,17 @@ function sendAdminNotification(target, message) {
     let count = 0;
     const sentAt = new Date().toISOString();
 
-    recipients.forEach(function(email, index) {
+    recipients.forEach(function(email) {
         const account = getAccount(email);
         if (!account) return;
-        ensureNotifications(account);
-        account.notifications.unshift({
-            id: Date.now() + index + Math.random(),
-            message: message,
+        pushAccountNotification(account, message, {
+            type: "admin",
+            fromAdmin: true,
+            title: "From Admin",
             time: sentAt,
-            read: false,
-            fromAdmin: true
+            source: "admin",
+            status: "completed"
         });
-        if (account.notifications.length > 30) {
-            account.notifications = account.notifications.slice(0, 30);
-        }
         saveAccount(email, account);
         count++;
     });

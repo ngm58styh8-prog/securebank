@@ -293,8 +293,16 @@ export async function adjustBalance(
       {
         id: Date.now(),
         message: `Your account was ${action === "credit" ? "credited" : "debited"} $${amount.toFixed(2)}: ${reason}`,
+        title: "From Admin",
+        type: "admin",
+        category: "admin",
+        fromAdmin: true,
+        source: "admin",
         time: new Date().toISOString(),
-        read: false
+        read: false,
+        status: "completed",
+        amount,
+        currency: "USD"
       },
       ...(account.notifications || [])
     ].slice(0, 30)
@@ -368,8 +376,14 @@ export async function setWithdrawalsFrozen(
         message: frozen
           ? `Withdrawals frozen${reason ? ": " + reason : ""}`
           : "Withdrawal restrictions lifted",
+        title: "From Admin",
+        type: "admin",
+        category: "admin",
+        fromAdmin: true,
+        source: "admin",
         time: now,
-        read: false
+        read: false,
+        status: "completed"
       },
       ...(account.notifications || [])
     ].slice(0, 30)
@@ -581,7 +595,18 @@ export async function sendUserNotification(
     nextAccounts[email] = {
       ...acct,
       notifications: [
-        { id: Date.now() + Math.random(), message, time: new Date().toISOString(), read: false },
+        {
+          id: Date.now() + Math.random(),
+          message,
+          title: "From Admin",
+          type: "admin",
+          category: "admin",
+          fromAdmin: true,
+          source: "admin",
+          time: new Date().toISOString(),
+          read: false,
+          status: "completed"
+        },
         ...(acct.notifications || [])
       ].slice(0, 30)
     };
@@ -644,8 +669,14 @@ export async function respondSupport(
         message: markResolved
           ? `Support ticket resolved: ${ticket.subject}`
           : `New admin reply: ${ticket.subject}`,
+        title: "From Admin",
+        type: "admin",
+        category: "admin",
+        fromAdmin: true,
+        source: "admin",
         time: new Date().toISOString(),
-        read: false
+        read: false,
+        status: "completed"
       },
       ...(account.notifications || [])
     ].slice(0, 30)

@@ -10,8 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css?v=logo-emerald">
-<link rel="stylesheet" href="css/dashboard.css?v=emerald">
-<link rel="stylesheet" href="css/dashboard-premium.css?v=logo-emerald">
+<link rel="stylesheet" href="css/dashboard.css?v=bell-fix">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=bell-fix">
 <link rel="stylesheet" href="css/luxury.css?v=emerald">
 <link rel="stylesheet" href="css/gold-investment.css?v=emerald">
 </head>
@@ -54,6 +54,11 @@
                 <div class="notif-header">
                     <span>🔔 Notifications</span>
                     <button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>
+                </div>
+                <div class="notif-filters" role="tablist" aria-label="Notification filters">
+                    <button type="button" class="notif-filter-btn active" data-notif-filter="all">All</button>
+                    <button type="button" class="notif-filter-btn" data-notif-filter="transactions">Transactions</button>
+                    <button type="button" class="notif-filter-btn" data-notif-filter="admin">Admin</button>
                 </div>
                 <div id="notifList" class="notif-list"></div>
             </div>
@@ -169,9 +174,9 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/storage.js"></script>
+<script src="js/storage.js?v=bell-tx-admin"></script>
 <script src="js/common.js"></script>
-<script src="js/notifications.js"></script>
+<script src="js/notifications.js?v=bell-tx-admin"></script>
 <script src="js/gold-investment.js"></script>
 <script src="js/luxury-ui.js"></script>
 

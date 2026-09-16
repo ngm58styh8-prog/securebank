@@ -1,5 +1,6 @@
 /**
  * Shared in-app notification bell — all authenticated customer pages.
+ * Shows transaction history and admin notifications.
  */
 (function() {
     const POLL_MS = 15000;
@@ -8,6 +9,8 @@
         completed: "Completed",
         failed: "Failed"
     };
+
+    let activeFilter = "all";
 
     function getSessionEmail() {
         if (typeof getSession !== "function") return null;
@@ -38,24 +41,41 @@
         return value.toFixed(2) + " " + currency;
     }
 
-    function getCategoryLabel(type) {
+    function isAdminNotification(n) {
+        return !!(n && (n.fromAdmin || n.source === "admin" || n.type === "admin" || n.category === "admin"));
+    }
+
+    function isTransactionNotification(n) {
+        if (!n || isAdminNotification(n)) return false;
+        if (n.source === "transaction") return true;
+        const type = n.type || n.category || "";
+        return type === "deposit" || type === "withdrawal" || type === "transfer" ||
+            type === "trade" || type === "exchange";
+    }
+
+    function getCategoryLabel(n) {
+        if (isAdminNotification(n)) return "From Admin";
+        const type = (n && (n.type || n.category)) || "general";
         if (type === "deposit") return "Deposit";
         if (type === "withdrawal") return "Withdrawal";
         if (type === "transfer") return "Transfer";
         if (type === "trade") return "Trade";
         if (type === "exchange") return "Exchange";
         if (type === "support") return "Support";
-        if (type === "admin") return "Account update";
+        if (type === "market") return "Market";
         return "Activity";
     }
 
-    function getCategoryIcon(type) {
+    function getCategoryIcon(n) {
+        if (isAdminNotification(n)) return "🛡️";
+        const type = (n && (n.type || n.category)) || "general";
         if (type === "deposit") return "↓";
         if (type === "withdrawal") return "↑";
         if (type === "transfer") return "⇄";
         if (type === "trade") return "📈";
         if (type === "exchange") return "💱";
         if (type === "support") return "💬";
+        if (type === "market") return "📊";
         return "🔔";
     }
 
@@ -72,6 +92,11 @@
             '<span>🔔 Notifications</span>' +
             '<button type="button" class="notif-mark-all" id="notifMarkAllBtn">Mark all read</button>' +
             "</div>" +
+            '<div class="notif-filters" role="tablist" aria-label="Notification filters">' +
+            '<button type="button" class="notif-filter-btn active" data-notif-filter="all">All</button>' +
+            '<button type="button" class="notif-filter-btn" data-notif-filter="transactions">Transactions</button>' +
+            '<button type="button" class="notif-filter-btn" data-notif-filter="admin">Admin</button>' +
+            "</div>" +
             '<div id="notifList" class="notif-list"></div>';
     }
 
@@ -87,7 +112,7 @@
             wrap = document.createElement("div");
             wrap.className = "notif-bell-wrap";
             wrap.innerHTML =
-                '<button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications" aria-label="Notifications">' +
+                '<button type="button" class="gv-icon-btn icon-btn" id="notifBtn" title="Notifications" aria-label="Notifications" aria-expanded="false">' +
                 '🔔 <span id="notifCount" class="badge notif-badge" style="display:none">0</span>' +
                 "</button>" +
                 '<div id="notifPanel" class="notif-panel hidden" role="dialog" aria-label="Notifications">' +
@@ -101,6 +126,7 @@
                 host.insertBefore(wrap, host.firstChild);
             }
             ensureMarkAllButton();
+            ensureFilterButtons();
             return;
         }
 
@@ -112,6 +138,9 @@
         }
 
         btn.setAttribute("aria-label", "Notifications");
+        if (!btn.hasAttribute("aria-expanded")) {
+            btn.setAttribute("aria-expanded", "false");
+        }
         const count = document.getElementById("notifCount");
         if (count && count.className.indexOf("notif-badge") === -1) {
             count.className = (count.className + " notif-badge").trim();
@@ -129,7 +158,32 @@
             wrap.appendChild(panel);
         }
 
+        if (!panel.querySelector(".notif-filters")) {
+            const header = panel.querySelector(".notif-header");
+            const filters = document.createElement("div");
+            filters.className = "notif-filters";
+            filters.setAttribute("role", "tablist");
+            filters.setAttribute("aria-label", "Notification filters");
+            filters.innerHTML =
+                '<button type="button" class="notif-filter-btn active" data-notif-filter="all">All</button>' +
+                '<button type="button" class="notif-filter-btn" data-notif-filter="transactions">Transactions</button>' +
+                '<button type="button" class="notif-filter-btn" data-notif-filter="admin">Admin</button>';
+            if (header && header.nextSibling) {
+                panel.insertBefore(filters, header.nextSibling);
+            } else {
+                panel.appendChild(filters);
+            }
+        }
+
+        if (!document.getElementById("notifList")) {
+            const list = document.createElement("div");
+            list.id = "notifList";
+            list.className = "notif-list";
+            panel.appendChild(list);
+        }
+
         ensureMarkAllButton();
+        ensureFilterButtons();
     }
 
     function ensureMarkAllButton() {
@@ -143,21 +197,49 @@
         header.appendChild(btn);
     }
 
+    function ensureFilterButtons() {
+        const root = document.querySelector("#notifPanel .notif-filters");
+        if (!root) return;
+        Array.prototype.forEach.call(root.querySelectorAll("[data-notif-filter]"), function(btn) {
+            btn.classList.toggle("active", btn.getAttribute("data-notif-filter") === activeFilter);
+        });
+    }
+
+    function filterNotifications(notifications) {
+        if (activeFilter === "admin") {
+            return notifications.filter(isAdminNotification);
+        }
+        if (activeFilter === "transactions") {
+            return notifications.filter(isTransactionNotification);
+        }
+        return notifications;
+    }
+
+    function emptyMessage() {
+        if (activeFilter === "admin") return "No admin notifications yet.";
+        if (activeFilter === "transactions") return "No transactions yet.";
+        return "No transactions or admin notices yet.";
+    }
+
     function renderNotificationItem(n) {
-        const type = n.type || n.category || "general";
         const status = n.status || "completed";
         const statusLabel = STATUS_LABELS[status] || status;
         const amountLabel = formatNotifAmount(n.amount, n.currency);
-        const title = n.title || getCategoryLabel(type);
+        const title = n.title || getCategoryLabel(n);
         const message = n.message || "";
         const time = n.time ? new Date(n.time).toLocaleString() : "";
+        const adminClass = isAdminNotification(n) ? " notif-item-admin" : "";
+        const txClass = isTransactionNotification(n) ? " notif-item-tx" : "";
 
         return (
-            '<div class="notif-item ' + (n.read ? "read" : "unread") + '" data-notif-id="' + escapeHtml(String(n.id)) + '">' +
+            '<div class="notif-item ' + (n.read ? "read" : "unread") + adminClass + txClass +
+            '" data-notif-id="' + escapeHtml(String(n.id)) + '">' +
             '<div class="notif-item-top">' +
-            '<span class="notif-type-icon" aria-hidden="true">' + getCategoryIcon(type) + "</span>" +
+            '<span class="notif-type-icon" aria-hidden="true">' + getCategoryIcon(n) + "</span>" +
             '<div class="notif-item-body">' +
-            '<div class="notif-item-title">' + escapeHtml(title) + "</div>" +
+            '<div class="notif-item-title">' + escapeHtml(title) +
+            (isAdminNotification(n) ? '<span class="notif-admin-pill">Admin</span>' : "") +
+            "</div>" +
             '<div class="notif-item-message">' + escapeHtml(message) + "</div>" +
             (amountLabel
                 ? '<div class="notif-item-amount">' + escapeHtml(amountLabel) + "</div>"
@@ -175,16 +257,8 @@
         );
     }
 
-    function renderNotificationBell(accountOrEmail) {
-        const email = typeof accountOrEmail === "string"
-            ? accountOrEmail
-            : getSessionEmail();
-        let account = typeof accountOrEmail === "object" && accountOrEmail
-            ? accountOrEmail
-            : getAccountForBell(email);
-
-        if (!account) return;
-
+    function prepareAccountNotifications(email, account) {
+        if (!account) return [];
         if (typeof syncAccountNotifications === "function") {
             syncAccountNotifications(email, account);
         } else {
@@ -195,25 +269,43 @@
                 hydrateNotificationsFromTransactions(account);
             }
         }
+        if (typeof normalizeNotificationList === "function") {
+            account.notifications = normalizeNotificationList(account.notifications || []);
+        }
+        return Array.isArray(account.notifications) ? account.notifications : [];
+    }
 
+    function renderNotificationBell(accountOrEmail) {
+        const email = typeof accountOrEmail === "string"
+            ? accountOrEmail
+            : getSessionEmail();
+        let account = typeof accountOrEmail === "object" && accountOrEmail
+            ? accountOrEmail
+            : getAccountForBell(email);
+
+        if (!account) return;
+
+        ensureBellMarkup();
+        const notifications = prepareAccountNotifications(email, account);
         const list = document.getElementById("notifList");
         const count = document.getElementById("notifCount");
-        const notifications = Array.isArray(account.notifications) ? account.notifications : [];
         const unread = notifications.filter(function(n) { return !n.read; }).length;
+        const visible = filterNotifications(notifications);
 
         if (count) {
             count.textContent = unread > 0 ? (unread > 99 ? "99+" : String(unread)) : "";
             count.style.display = unread > 0 ? "inline-flex" : "none";
         }
 
+        ensureFilterButtons();
         if (!list) return;
 
-        if (!notifications.length) {
-            list.innerHTML = '<div class="notif-empty">No transactions yet.</div>';
+        if (!visible.length) {
+            list.innerHTML = '<div class="notif-empty">' + emptyMessage() + "</div>";
             return;
         }
 
-        list.innerHTML = notifications.map(renderNotificationItem).join("");
+        list.innerHTML = visible.map(renderNotificationItem).join("");
     }
 
     function persistAndRender(email, account) {
@@ -295,6 +387,12 @@
         });
     }
 
+    function setFilter(filter) {
+        activeFilter = filter === "admin" || filter === "transactions" ? filter : "all";
+        ensureFilterButtons();
+        renderNotificationBell(getSessionEmail());
+    }
+
     function wireNotificationEvents() {
         const notifBtn = document.getElementById("notifBtn");
         const markAllBtn = document.getElementById("notifMarkAllBtn");
@@ -327,6 +425,11 @@
             notifPanel.dataset.notifBound = "1";
             notifPanel.addEventListener("click", function(e) {
                 e.stopPropagation();
+                const filterBtn = e.target.closest("[data-notif-filter]");
+                if (filterBtn) {
+                    setFilter(filterBtn.getAttribute("data-notif-filter"));
+                    return;
+                }
                 const readBtn = e.target.closest(".notif-read-btn");
                 const item = e.target.closest(".notif-item.unread");
                 const id = readBtn
@@ -411,6 +514,9 @@
     window.refreshNotificationsForUser = refreshNotificationsForUser;
     window.markNotificationReadForUser = markNotificationReadForUser;
     window.markAllNotificationsReadForUser = markAllNotificationsReadForUser;
+    window.normalizeNotificationList = typeof normalizeNotificationList === "function"
+        ? normalizeNotificationList
+        : function(list) { return list || []; };
 
     if (typeof getSession === "function" && getSession()) {
         if (document.readyState === "loading") {
