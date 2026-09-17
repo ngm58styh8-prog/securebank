@@ -97,8 +97,8 @@ function removeDeviceFromSettings(fingerprint) {
 
     const confirmed = window.confirm(
         isCurrent
-            ? "Remove this device (" + label + ") and log out now?\n\nYou will need to sign in again on this device."
-            : "Remove " + label + " and end its login session?\n\nThat device will be logged out automatically."
+            ? "Remove this device (" + label + ") and log out now?\n\nYou will be asked to sign in again on this device."
+            : "Remove " + label + " and end its login session?\n\nThat device will be logged out and must sign in again."
     );
     if (!confirmed) return;
 
@@ -129,22 +129,27 @@ function removeDeviceFromSettings(fingerprint) {
         Object.keys(fresh).forEach(function(key) {
             account[key] = fresh[key];
         });
-        if (typeof syncAccountToServer === "function") {
-            syncAccountToServer(username, account, "login");
+    }
+
+    const shouldLogout = !!(result.logoutCurrent || isCurrent);
+    const finish = function() {
+        if (shouldLogout) {
+            if (typeof clearSession === "function") clearSession();
+            window.location.href = "login.html?reason=device-removed";
+            return;
         }
-    }
+        renderDevices();
+        if (typeof renderNotificationBell === "function") {
+            renderNotificationBell(account);
+        }
+        alert("Device removed. That device must sign in again.");
+    };
 
-    if (result.logoutCurrent || isCurrent) {
-        if (typeof clearSession === "function") clearSession();
-        window.location.href = "login.html?reason=device-removed";
-        return;
-    }
+    const syncPromise = typeof syncAccountToServer === "function"
+        ? syncAccountToServer(username, account, "login")
+        : Promise.resolve();
 
-    renderDevices();
-    if (typeof renderNotificationBell === "function") {
-        renderNotificationBell(account);
-    }
-    alert("Device removed. That device will be logged out.");
+    Promise.resolve(syncPromise).then(finish).catch(finish);
 }
 
 function renderLinkedBanks() {

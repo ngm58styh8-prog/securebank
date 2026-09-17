@@ -692,6 +692,28 @@ function mergeSessionRevocations(localMap, serverMap) {
     return merged;
 }
 
+function filterRevokedDevices(list, revocations) {
+    return normalizeKnownDevices(list).filter(function(device) {
+        const revokedAt = revocations && revocations[device.fingerprint];
+        if (!revokedAt) return true;
+        const lastSeen = Date.parse(device.lastSeen || "") || 0;
+        const revoked = Date.parse(revokedAt) || 0;
+        // Keep only if the user signed in again after this device was removed.
+        return lastSeen > revoked;
+    });
+}
+
+function mergeKnownDeviceLists(localList, serverList, serverIsNewer, revocations) {
+    // Prefer the newer side even when empty (empty can mean every device was removed).
+    let chosen;
+    if (serverIsNewer) {
+        chosen = Array.isArray(serverList) ? serverList : (Array.isArray(localList) ? localList : []);
+    } else {
+        chosen = Array.isArray(localList) ? localList : (Array.isArray(serverList) ? serverList : []);
+    }
+    return filterRevokedDevices(chosen, revocations || {}).slice(-10);
+}
+
 function isDeviceSessionValid(session, account) {
     if (!session || !account) return false;
     if (typeof getDeviceFingerprint !== "function") return true;
@@ -705,10 +727,10 @@ function isDeviceSessionValid(session, account) {
     if (revokedAt) {
         const issued = Date.parse(session.issuedAt || "") || 0;
         const revoked = Date.parse(revokedAt) || 0;
-        if (revoked >= issued) return false;
+        if (!session.issuedAt || revoked >= issued) return false;
     }
 
-    const devices = normalizeKnownDevices(account.knownDevices || []);
+    const devices = filterRevokedDevices(account.knownDevices || [], account.sessionRevocations || {});
     const index = findKnownDeviceIndex(devices, fingerprint);
     if (index === -1) return false;
 
@@ -804,6 +826,9 @@ function removeKnownDevice(email, fingerprint) {
 
     const currentFingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
     const isCurrentDevice = currentFingerprint && currentFingerprint === target;
+    if (isCurrentDevice && typeof clearSession === "function") {
+        clearSession();
+    }
     return {
         ok: true,
         account: account,
@@ -1967,15 +1992,6 @@ function isServerSyncAvailable() {
     return window.location.protocol === "http:" || window.location.protocol === "https:";
 }
 
-function mergeKnownDeviceLists(localList, serverList, serverIsNewer) {
-    const chosen = serverIsNewer ? (serverList || []) : (localList || []);
-    const fallback = serverIsNewer ? (localList || []) : (serverList || []);
-    if ((chosen && chosen.length) || !fallback.length) {
-        return normalizeKnownDevices(chosen).slice(-10);
-    }
-    return normalizeKnownDevices(fallback).slice(-10);
-}
-
 function mergeAccountRecords(serverAcct, localAcct) {
     if (!serverAcct) return localAcct;
     if (!localAcct) return serverAcct;
@@ -1993,14 +2009,15 @@ function mergeAccountRecords(serverAcct, localAcct) {
         serverAcct.notifications || []
     );
 
-    merged.knownDevices = mergeKnownDeviceLists(
-        localAcct.knownDevices || [],
-        serverAcct.knownDevices || [],
-        serverIsNewer
-    );
     merged.sessionRevocations = mergeSessionRevocations(
         localAcct.sessionRevocations || {},
         serverAcct.sessionRevocations || {}
+    );
+    merged.knownDevices = mergeKnownDeviceLists(
+        localAcct.knownDevices,
+        serverAcct.knownDevices,
+        serverIsNewer,
+        merged.sessionRevocations
     );
 
     const localTx = localAcct.transactions || [];
@@ -2606,34 +2623,35 @@ function requireAuth() {
 
     const key = normalizeEmail(email);
     const fingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
-    const devices = normalizeKnownDevices(account.knownDevices || []);
-    let deviceIndex = findKnownDeviceIndex(devices, fingerprint);
+    if (!fingerprint) {
+        forceLogoutForRevokedDevice("device-removed");
+        return null;
+    }
+
     const revokedAt = account.sessionRevocations && account.sessionRevocations[fingerprint];
     const revokedTs = Date.parse(revokedAt || "") || 0;
     const issuedTs = Date.parse(session.issuedAt || "") || 0;
-
     if (revokedAt && (!session.issuedAt || revokedTs >= issuedTs)) {
         forceLogoutForRevokedDevice("device-removed");
         return null;
     }
 
-    // Device removed after it was bound to this session → end access immediately.
-    if (deviceIndex === -1 && session.device) {
+    const devices = filterRevokedDevices(account.knownDevices || [], account.sessionRevocations || {});
+    const deviceIndex = findKnownDeviceIndex(devices, fingerprint);
+
+    // Removed / untrusted device must sign in again — never silent re-enroll.
+    if (deviceIndex === -1) {
         forceLogoutForRevokedDevice("device-removed");
         return null;
     }
 
-    // Legacy sessions (no device binding yet): enroll this browser once.
-    if (deviceIndex === -1) {
-        bindSessionToCurrentDevice(key, account, session.sessionToken || null);
-        saveAccount(key, account, { eventType: "login", skipServerSync: true });
-        deviceIndex = 0;
-        session = getSession();
-    } else if (!session.device || !session.sessionToken || !session.issuedAt) {
+    // Upgrade legacy session metadata only for already-trusted devices.
+    if (!session.device || !session.sessionToken || !session.issuedAt) {
         bindSessionToCurrentDevice(
             key,
             account,
-            session.sessionToken || devices[deviceIndex].sessionToken || null
+            session.sessionToken || devices[deviceIndex].sessionToken || null,
+            { clearRevocation: false }
         );
         saveAccount(key, account, { eventType: "login", skipServerSync: true });
         session = getSession();
@@ -2655,16 +2673,21 @@ function watchDeviceSessionValidity() {
 
     function recheck(options) {
         options = options || {};
-        const session = getSession();
-        if (!session) return;
-        const email = session.email || session.username;
+        const emailSession = getSession();
+        if (!emailSession) return;
+        const email = emailSession.email || emailSession.username;
         if (!email) return;
 
         const run = function() {
+            const session = getSession();
+            if (!session) return;
             const account = getAccount(email);
             if (!account) return;
-            if (!isDeviceSessionValid(session, account) ||
-                findKnownDeviceIndex(normalizeKnownDevices(account.knownDevices || []), getDeviceFingerprint()) === -1) {
+            const fingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+            const trusted = filterRevokedDevices(account.knownDevices || [], account.sessionRevocations || {});
+            if (!fingerprint ||
+                findKnownDeviceIndex(trusted, fingerprint) === -1 ||
+                !isDeviceSessionValid(session, account)) {
                 forceLogoutForRevokedDevice("device-removed");
             }
         };
@@ -2685,7 +2708,7 @@ function watchDeviceSessionValidity() {
         if (!document.hidden) recheck({ pull: true });
     });
     window.addEventListener("focus", function() { recheck({ pull: true }); });
-    setInterval(function() { recheck({ pull: true }); }, 12000);
+    setInterval(function() { recheck({ pull: true }); }, 8000);
 }
 
 function isLegacyAdminEmail(email) {
