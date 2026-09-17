@@ -643,8 +643,8 @@ function getDeviceLabelFromEntry(entry) {
     if (!entry) return "Device";
     if (typeof entry === "object" && entry.label) return String(entry.label);
     const fingerprint = getDeviceFingerprintKey(entry);
-    const label = fingerprint.split(":")[0];
-    return label || "Device";
+    const label = fingerprint.split(":");
+    return label[0] || "Device";
 }
 
 function normalizeKnownDevices(list) {
@@ -659,6 +659,9 @@ function normalizeKnownDevices(list) {
             label: getDeviceLabelFromEntry(entry),
             lastSeen: entry && typeof entry === "object" && entry.lastSeen
                 ? entry.lastSeen
+                : null,
+            sessionToken: entry && typeof entry === "object" && entry.sessionToken
+                ? String(entry.sessionToken)
                 : null
         });
     });
@@ -674,6 +677,92 @@ function findKnownDeviceIndex(list, fingerprint) {
     return -1;
 }
 
+function createDeviceSessionToken() {
+    return "ses_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+function mergeSessionRevocations(localMap, serverMap) {
+    const merged = Object.assign({}, serverMap || {}, localMap || {});
+    Object.keys(serverMap || {}).forEach(function(key) {
+        const localTs = Date.parse((localMap && localMap[key]) || "") || 0;
+        const serverTs = Date.parse(serverMap[key] || "") || 0;
+        if (serverTs > localTs) merged[key] = serverMap[key];
+        else if (localTs > 0) merged[key] = localMap[key];
+    });
+    return merged;
+}
+
+function isDeviceSessionValid(session, account) {
+    if (!session || !account) return false;
+    if (typeof getDeviceFingerprint !== "function") return true;
+
+    const fingerprint = getDeviceFingerprint();
+    if (!fingerprint) return false;
+
+    if (session.device && session.device !== fingerprint) return false;
+
+    const revokedAt = account.sessionRevocations && account.sessionRevocations[fingerprint];
+    if (revokedAt) {
+        const issued = Date.parse(session.issuedAt || "") || 0;
+        const revoked = Date.parse(revokedAt) || 0;
+        if (revoked >= issued) return false;
+    }
+
+    const devices = normalizeKnownDevices(account.knownDevices || []);
+    const index = findKnownDeviceIndex(devices, fingerprint);
+    if (index === -1) return false;
+
+    const device = devices[index];
+    if (session.sessionToken && device.sessionToken && session.sessionToken !== device.sessionToken) {
+        return false;
+    }
+    return true;
+}
+
+function bindSessionToCurrentDevice(email, account, sessionToken, options) {
+    options = options || {};
+    const key = normalizeEmail(email);
+    const fingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+    const token = sessionToken || createDeviceSessionToken();
+    const now = new Date().toISOString();
+
+    if (account && fingerprint) {
+        const devices = normalizeKnownDevices(account.knownDevices || []);
+        const index = findKnownDeviceIndex(devices, fingerprint);
+        const label = typeof getDeviceLabel === "function" ? getDeviceLabel() : getDeviceLabelFromEntry(fingerprint);
+        if (index === -1) {
+            devices.push({
+                fingerprint: fingerprint,
+                label: label,
+                lastSeen: now,
+                sessionToken: token
+            });
+        } else {
+            devices[index].label = label;
+            devices[index].lastSeen = now;
+            devices[index].sessionToken = token;
+        }
+        account.knownDevices = devices.slice(-10);
+        if (options.clearRevocation && account.sessionRevocations && account.sessionRevocations[fingerprint]) {
+            delete account.sessionRevocations[fingerprint];
+        }
+    }
+
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+        email: key,
+        device: fingerprint || null,
+        sessionToken: token,
+        issuedAt: now
+    }));
+    return token;
+}
+
+function forceLogoutForRevokedDevice(reason) {
+    clearSession();
+    const query = reason ? ("?reason=" + encodeURIComponent(reason)) : "";
+    window.location.href = "login.html" + query;
+}
+
 function removeKnownDevice(email, fingerprint) {
     const key = normalizeEmail(email);
     const account = getAccount(key);
@@ -687,15 +776,21 @@ function removeKnownDevice(email, fingerprint) {
     if (index === -1) return { ok: false, error: "Device not found.", account: account };
 
     const removed = devices[index];
+    const now = new Date().toISOString();
     devices.splice(index, 1);
-    account.knownDevices = devices;
+    account.knownDevices = normalizeKnownDevices(devices);
+
+    if (!account.sessionRevocations || typeof account.sessionRevocations !== "object") {
+        account.sessionRevocations = {};
+    }
+    account.sessionRevocations[target] = now;
 
     if (!Array.isArray(account.notifications)) account.notifications = [];
     account.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Removed trusted device: " + getDeviceLabelFromEntry(removed),
+        message: "Removed trusted device and ended its session: " + getDeviceLabelFromEntry(removed),
         title: "Device removed",
-        time: new Date().toISOString(),
+        time: now,
         read: false,
         type: "security",
         category: "security",
@@ -706,7 +801,16 @@ function removeKnownDevice(email, fingerprint) {
     }
 
     saveAccount(key, account, { eventType: "login" });
-    return { ok: true, account: account, removed: getDeviceLabelFromEntry(removed) };
+
+    const currentFingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+    const isCurrentDevice = currentFingerprint && currentFingerprint === target;
+    return {
+        ok: true,
+        account: account,
+        removed: getDeviceLabelFromEntry(removed),
+        logoutCurrent: isCurrentDevice,
+        revokedFingerprint: target
+    };
 }
 
 function recordSuccessfulLogin(email) {
@@ -723,12 +827,14 @@ function recordSuccessfulLogin(email) {
         ? { at: account.profile.lastLoginAt, device: account.profile.lastLoginDevice }
         : null;
     const now = new Date().toISOString();
+    const sessionToken = createDeviceSessionToken();
 
     if (isNewDevice) {
         knownDevices.push({
             fingerprint: fingerprint,
             label: deviceLabel,
-            lastSeen: now
+            lastSeen: now,
+            sessionToken: sessionToken
         });
         account.notifications.unshift({
             id: Date.now(),
@@ -741,8 +847,12 @@ function recordSuccessfulLogin(email) {
     } else {
         knownDevices[existingIndex].label = deviceLabel;
         knownDevices[existingIndex].lastSeen = now;
+        knownDevices[existingIndex].sessionToken = sessionToken;
     }
     account.knownDevices = knownDevices.slice(-10);
+    if (account.sessionRevocations && account.sessionRevocations[fingerprint]) {
+        delete account.sessionRevocations[fingerprint];
+    }
 
     account.notifications.unshift({
         id: Date.now() + 1,
@@ -762,7 +872,12 @@ function recordSuccessfulLogin(email) {
     saveAccount(key, account, { eventType: "login" });
     recordAdminUserEvent(key, "login", "Signed in from " + deviceLabel, 0);
 
-    return { isNewDevice: isNewDevice, deviceLabel: deviceLabel, previousLogin: previousLogin };
+    return {
+        isNewDevice: isNewDevice,
+        deviceLabel: deviceLabel,
+        previousLogin: previousLogin,
+        sessionToken: sessionToken
+    };
 }
 
 function verifyTwoFactorCode(account, code) {
@@ -1293,8 +1408,20 @@ function getSession() {
     }
 }
 
-function setSession(email) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ email: normalizeEmail(email) }));
+function setSession(email, options) {
+    options = options || {};
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    const token = bindSessionToCurrentDevice(key, account, options.sessionToken || null, {
+        clearRevocation: true
+    });
+    if (account && options.persistAccount !== false) {
+        saveAccount(key, account, {
+            eventType: "login",
+            skipServerSync: options.skipServerSync === true
+        });
+    }
+    return token;
 }
 
 function clearSession() {
@@ -1870,6 +1997,10 @@ function mergeAccountRecords(serverAcct, localAcct) {
         localAcct.knownDevices || [],
         serverAcct.knownDevices || [],
         serverIsNewer
+    );
+    merged.sessionRevocations = mergeSessionRevocations(
+        localAcct.sessionRevocations || {},
+        serverAcct.sessionRevocations || {}
     );
 
     const localTx = localAcct.transactions || [];
@@ -2460,7 +2591,7 @@ function syncCurrentUserToServer(email) {
 
 function requireAuth() {
     repairAccountsStorage();
-    const session = getSession();
+    let session = getSession();
     const email = session && (session.email || session.username);
     if (!email) {
         window.location.href = "login.html";
@@ -2472,9 +2603,89 @@ function requireAuth() {
         window.location.href = "login.html";
         return null;
     }
+
     const key = normalizeEmail(email);
+    const fingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+    const devices = normalizeKnownDevices(account.knownDevices || []);
+    let deviceIndex = findKnownDeviceIndex(devices, fingerprint);
+    const revokedAt = account.sessionRevocations && account.sessionRevocations[fingerprint];
+    const revokedTs = Date.parse(revokedAt || "") || 0;
+    const issuedTs = Date.parse(session.issuedAt || "") || 0;
+
+    if (revokedAt && (!session.issuedAt || revokedTs >= issuedTs)) {
+        forceLogoutForRevokedDevice("device-removed");
+        return null;
+    }
+
+    // Device removed after it was bound to this session → end access immediately.
+    if (deviceIndex === -1 && session.device) {
+        forceLogoutForRevokedDevice("device-removed");
+        return null;
+    }
+
+    // Legacy sessions (no device binding yet): enroll this browser once.
+    if (deviceIndex === -1) {
+        bindSessionToCurrentDevice(key, account, session.sessionToken || null);
+        saveAccount(key, account, { eventType: "login", skipServerSync: true });
+        deviceIndex = 0;
+        session = getSession();
+    } else if (!session.device || !session.sessionToken || !session.issuedAt) {
+        bindSessionToCurrentDevice(
+            key,
+            account,
+            session.sessionToken || devices[deviceIndex].sessionToken || null
+        );
+        saveAccount(key, account, { eventType: "login", skipServerSync: true });
+        session = getSession();
+    }
+
+    if (!isDeviceSessionValid(session, getAccount(key) || account)) {
+        forceLogoutForRevokedDevice("device-removed");
+        return null;
+    }
+
     syncCurrentUserToServer(key);
+    watchDeviceSessionValidity();
     return key;
+}
+
+function watchDeviceSessionValidity() {
+    if (typeof window === "undefined" || window.__gvDeviceSessionWatchBound) return;
+    window.__gvDeviceSessionWatchBound = true;
+
+    function recheck(options) {
+        options = options || {};
+        const session = getSession();
+        if (!session) return;
+        const email = session.email || session.username;
+        if (!email) return;
+
+        const run = function() {
+            const account = getAccount(email);
+            if (!account) return;
+            if (!isDeviceSessionValid(session, account) ||
+                findKnownDeviceIndex(normalizeKnownDevices(account.knownDevices || []), getDeviceFingerprint()) === -1) {
+                forceLogoutForRevokedDevice("device-removed");
+            }
+        };
+
+        if (options.pull && typeof pullAccountsFromServer === "function") {
+            pullAccountsFromServer().then(run).catch(run);
+            return;
+        }
+        run();
+    }
+
+    window.addEventListener("storage", function(e) {
+        if (e.key === ACCOUNTS_KEY || e.key === SESSION_KEY) recheck();
+    });
+    window.addEventListener("globalvest-accounts-changed", function() { recheck(); });
+    window.addEventListener("globalvest-registry-synced", function() { recheck(); });
+    document.addEventListener("visibilitychange", function() {
+        if (!document.hidden) recheck({ pull: true });
+    });
+    window.addEventListener("focus", function() { recheck({ pull: true }); });
+    setInterval(function() { recheck({ pull: true }); }, 12000);
 }
 
 function isLegacyAdminEmail(email) {

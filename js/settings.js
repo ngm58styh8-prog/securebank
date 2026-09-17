@@ -97,8 +97,8 @@ function removeDeviceFromSettings(fingerprint) {
 
     const confirmed = window.confirm(
         isCurrent
-            ? "Remove this device (" + label + ") from trusted logins?\n\nYou can keep using this session, but the next sign-in from here will be treated as a new device."
-            : "Remove " + label + " from trusted login devices?\n\nThe next sign-in from that device will trigger a new-device notice."
+            ? "Remove this device (" + label + ") and log out now?\n\nYou will need to sign in again on this device."
+            : "Remove " + label + " and end its login session?\n\nThat device will be logged out automatically."
     );
     if (!confirmed) return;
 
@@ -110,8 +110,10 @@ function removeDeviceFromSettings(fingerprint) {
             const key = typeof entry === "string" ? entry : (entry && entry.fingerprint);
             return key !== fingerprint;
         });
+        if (!account.sessionRevocations) account.sessionRevocations = {};
+        account.sessionRevocations[fingerprint] = new Date().toISOString();
         saveState();
-        result = { ok: true, account: account };
+        result = { ok: true, account: account, logoutCurrent: isCurrent };
     }
 
     if (!result || !result.ok) {
@@ -132,10 +134,17 @@ function removeDeviceFromSettings(fingerprint) {
         }
     }
 
+    if (result.logoutCurrent || isCurrent) {
+        if (typeof clearSession === "function") clearSession();
+        window.location.href = "login.html?reason=device-removed";
+        return;
+    }
+
     renderDevices();
     if (typeof renderNotificationBell === "function") {
         renderNotificationBell(account);
     }
+    alert("Device removed. That device will be logged out.");
 }
 
 function renderLinkedBanks() {

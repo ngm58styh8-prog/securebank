@@ -32,10 +32,25 @@ document.addEventListener("DOMContentLoaded", function() {
     const session = getSession();
     const sessionEmail = session && (session.email || session.username);
     if (sessionEmail && getAccount(sessionEmail)) {
-        window.location.href = "dashboard.html";
-        return;
+        const existingAccount = getAccount(sessionEmail);
+        if (typeof isDeviceSessionValid !== "function" || isDeviceSessionValid(session, existingAccount)) {
+            window.location.href = "dashboard.html";
+            return;
+        }
+        clearSession();
     }
     if (sessionEmail) clearSession();
+
+    try {
+        const reason = new URLSearchParams(window.location.search).get("reason");
+        if (reason === "device-removed") {
+            const banner = document.getElementById("lastLoginBanner");
+            if (banner) {
+                banner.textContent = "This device was removed from your account. Please sign in again.";
+                banner.classList.remove("hidden");
+            }
+        }
+    } catch (e) { /* ignore */ }
 
     function disableAuthForms(disabled) {
         signInForm.querySelectorAll("input, button, select").forEach(function(el) { el.disabled = disabled; });
@@ -150,8 +165,11 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function finalizeLogin(email) {
-        recordSuccessfulLogin(email);
-        setSession(email);
+        const loginResult = recordSuccessfulLogin(email);
+        setSession(email, {
+            sessionToken: loginResult && loginResult.sessionToken,
+            skipServerSync: true
+        });
 
         if (document.getElementById("rememberMe").checked) {
             localStorage.setItem("securebank_remember_email", normalizeEmail(email));
