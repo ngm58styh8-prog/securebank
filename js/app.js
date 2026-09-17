@@ -173,8 +173,13 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const newDeviceAlert = document.getElementById("newDeviceAlert");
         const fingerprint = getDeviceFingerprint();
-        const knownDevices = account.knownDevices || [];
-        if (knownDevices.indexOf(fingerprint) === -1 && knownDevices.length > 0) {
+        const knownDevices = typeof normalizeKnownDevices === "function"
+            ? normalizeKnownDevices(account.knownDevices || [])
+            : (account.knownDevices || []);
+        const isKnown = typeof findKnownDeviceIndex === "function"
+            ? findKnownDeviceIndex(knownDevices, fingerprint) !== -1
+            : knownDevices.indexOf(fingerprint) !== -1;
+        if (!isKnown && knownDevices.length > 0) {
             newDeviceAlert.textContent = "You're signing in from a new device (" + getDeviceLabel() + "). We'll notify your account.";
             newDeviceAlert.classList.remove("hidden");
         } else {

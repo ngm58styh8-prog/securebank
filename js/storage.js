@@ -633,6 +633,82 @@ function changeAccountPassword(email, currentPassword, newPassword) {
     return { ok: true, email: key, account: account };
 }
 
+function getDeviceFingerprintKey(entry) {
+    if (!entry) return "";
+    if (typeof entry === "string") return entry;
+    return String(entry.fingerprint || entry.id || "");
+}
+
+function getDeviceLabelFromEntry(entry) {
+    if (!entry) return "Device";
+    if (typeof entry === "object" && entry.label) return String(entry.label);
+    const fingerprint = getDeviceFingerprintKey(entry);
+    const label = fingerprint.split(":")[0];
+    return label || "Device";
+}
+
+function normalizeKnownDevices(list) {
+    const seen = {};
+    const devices = [];
+    (Array.isArray(list) ? list : []).forEach(function(entry) {
+        const fingerprint = getDeviceFingerprintKey(entry);
+        if (!fingerprint || seen[fingerprint]) return;
+        seen[fingerprint] = true;
+        devices.push({
+            fingerprint: fingerprint,
+            label: getDeviceLabelFromEntry(entry),
+            lastSeen: entry && typeof entry === "object" && entry.lastSeen
+                ? entry.lastSeen
+                : null
+        });
+    });
+    return devices;
+}
+
+function findKnownDeviceIndex(list, fingerprint) {
+    const target = String(fingerprint || "");
+    if (!target) return -1;
+    for (let i = 0; i < (list || []).length; i++) {
+        if (getDeviceFingerprintKey(list[i]) === target) return i;
+    }
+    return -1;
+}
+
+function removeKnownDevice(email, fingerprint) {
+    const key = normalizeEmail(email);
+    const account = getAccount(key);
+    if (!account) return { ok: false, error: "Account not found." };
+
+    const target = String(fingerprint || "");
+    if (!target) return { ok: false, error: "Device not found." };
+
+    const devices = Array.isArray(account.knownDevices) ? account.knownDevices.slice() : [];
+    const index = findKnownDeviceIndex(devices, target);
+    if (index === -1) return { ok: false, error: "Device not found.", account: account };
+
+    const removed = devices[index];
+    devices.splice(index, 1);
+    account.knownDevices = devices;
+
+    if (!Array.isArray(account.notifications)) account.notifications = [];
+    account.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: "Removed trusted device: " + getDeviceLabelFromEntry(removed),
+        title: "Device removed",
+        time: new Date().toISOString(),
+        read: false,
+        type: "security",
+        category: "security",
+        status: "completed"
+    });
+    if (account.notifications.length > 30) {
+        account.notifications = account.notifications.slice(0, 30);
+    }
+
+    saveAccount(key, account, { eventType: "login" });
+    return { ok: true, account: account, removed: getDeviceLabelFromEntry(removed) };
+}
+
 function recordSuccessfulLogin(email) {
     const key = normalizeEmail(email);
     const account = getAccount(key);
@@ -640,35 +716,48 @@ function recordSuccessfulLogin(email) {
 
     const fingerprint = getDeviceFingerprint();
     const deviceLabel = getDeviceLabel();
-    const knownDevices = account.knownDevices || [];
-    const isNewDevice = knownDevices.indexOf(fingerprint) === -1;
+    const knownDevices = normalizeKnownDevices(account.knownDevices || []);
+    const existingIndex = findKnownDeviceIndex(knownDevices, fingerprint);
+    const isNewDevice = existingIndex === -1;
     const previousLogin = account.profile && account.profile.lastLoginAt
         ? { at: account.profile.lastLoginAt, device: account.profile.lastLoginDevice }
         : null;
+    const now = new Date().toISOString();
 
     if (isNewDevice) {
-        knownDevices.push(fingerprint);
-        account.knownDevices = knownDevices.slice(-10);
+        knownDevices.push({
+            fingerprint: fingerprint,
+            label: deviceLabel,
+            lastSeen: now
+        });
         account.notifications.unshift({
             id: Date.now(),
             message: "New device sign-in: " + deviceLabel,
-            time: new Date().toISOString(),
-            read: false
+            time: now,
+            read: false,
+            type: "security",
+            category: "security"
         });
+    } else {
+        knownDevices[existingIndex].label = deviceLabel;
+        knownDevices[existingIndex].lastSeen = now;
     }
+    account.knownDevices = knownDevices.slice(-10);
 
     account.notifications.unshift({
         id: Date.now() + 1,
         message: "Login from " + deviceLabel,
-        time: new Date().toISOString(),
-        read: false
+        time: now,
+        read: false,
+        type: "security",
+        category: "security"
     });
     if (account.notifications.length > 30) {
         account.notifications = account.notifications.slice(0, 30);
     }
 
     ensureProfile(key, account);
-    account.profile.lastLoginAt = new Date().toISOString();
+    account.profile.lastLoginAt = now;
     account.profile.lastLoginDevice = deviceLabel;
     saveAccount(key, account, { eventType: "login" });
     recordAdminUserEvent(key, "login", "Signed in from " + deviceLabel, 0);
@@ -1751,6 +1840,15 @@ function isServerSyncAvailable() {
     return window.location.protocol === "http:" || window.location.protocol === "https:";
 }
 
+function mergeKnownDeviceLists(localList, serverList, serverIsNewer) {
+    const chosen = serverIsNewer ? (serverList || []) : (localList || []);
+    const fallback = serverIsNewer ? (localList || []) : (serverList || []);
+    if ((chosen && chosen.length) || !fallback.length) {
+        return normalizeKnownDevices(chosen).slice(-10);
+    }
+    return normalizeKnownDevices(fallback).slice(-10);
+}
+
 function mergeAccountRecords(serverAcct, localAcct) {
     if (!serverAcct) return localAcct;
     if (!localAcct) return serverAcct;
@@ -1766,6 +1864,12 @@ function mergeAccountRecords(serverAcct, localAcct) {
     merged.notifications = mergeNotificationLists(
         localAcct.notifications || [],
         serverAcct.notifications || []
+    );
+
+    merged.knownDevices = mergeKnownDeviceLists(
+        localAcct.knownDevices || [],
+        serverAcct.knownDevices || [],
+        serverIsNewer
     );
 
     const localTx = localAcct.transactions || [];

@@ -2017,6 +2017,72 @@ body[data-theme="dark"] .type-badge.invest { color: #8fa8ff; }
     font-size: 0.9rem;
 }
 
+.device-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.device-item-copy {
+    min-width: 0;
+}
+
+.device-item-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.device-item-name {
+    font-weight: 650;
+}
+
+.device-current-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #04130c;
+    background: rgba(62, 224, 160, 0.85);
+}
+
+.device-remove-btn {
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 77, 90, 0.35);
+    background: rgba(255, 77, 90, 0.1);
+    color: #ff6b76;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 36px;
+}
+
+.device-remove-btn:hover {
+    background: rgba(255, 77, 90, 0.18);
+}
+
+.device-remove-btn:active {
+    transform: scale(0.98);
+}
+
+@media (max-width: 640px) {
+    .device-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .device-remove-btn {
+        width: 100%;
+    }
+}
+
 .ticket-meta {
     color: var(--muted);
     font-size: 0.8rem;

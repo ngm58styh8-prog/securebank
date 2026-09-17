@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css?v=logo-emerald">
 <title>GlobalVest — Settings</title>
-<link rel="stylesheet" href="css/dashboard.css?v=bell-fix">
+<link rel="stylesheet" href="css/dashboard.css?v=devices-remove">
 <link rel="stylesheet" href="css/dashboard-premium.css?v=bell-fix">
 <link rel="stylesheet" href="css/luxury.css?v=emerald">
 <link rel="stylesheet" href="css/notifications.css?v=notif-premium2">
@@ -45,6 +45,7 @@
         <a href="profile.html" class="hub-link">👤 Profile</a>
         <a href="profile.html#kyc" class="hub-link">🔒 Identity Verification (KYC)</a>
         <a href="#security" class="hub-link">🛡️ Security (2FA)</a>
+        <a href="#devices" class="hub-link">📱 Login Devices</a>
         <a href="#linked-banks" class="hub-link">🏦 Linked Bank Accounts</a>
         <a href="#api-keys" class="hub-link">🔑 API Keys</a>
     </div>
@@ -101,6 +102,12 @@
     </form>
 </div>
 
+<div id="devices" class="card settings-section">
+    <h3>Login Devices</h3>
+    <p class="section-desc">Devices that have signed in to your account. Remove any you don’t recognize to require a new-device notice on next sign-in.</p>
+    <div id="devicesList" class="linked-list devices-list"></div>
+</div>
+
 <div id="linked-banks" class="card settings-section">
     <h3>Linked Bank Accounts</h3>
     <p class="section-desc">Link bank accounts for future transfers. Bank deposits are currently unavailable.</p>
@@ -127,11 +134,11 @@
 
 </div>
 
-<script src="js/storage.js?v=bell-tx-admin"></script>
+<script src="js/storage.js?v=devices-remove"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-premium2"></script>
 <script src="js/nav.js"></script>
-<script src="js/settings.js"></script>
+<script src="js/settings.js?v=devices-remove"></script>
 <script src="js/luxury-ui.js"></script>
 </body>
 </html>

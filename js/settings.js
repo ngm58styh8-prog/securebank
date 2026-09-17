@@ -26,6 +26,118 @@ function updateTwoFactorHint() {
         : "Add an extra layer of security to your account.";
 }
 
+function escapeHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function formatDeviceSeen(iso) {
+    if (!iso) return "Last seen unavailable";
+    if (typeof formatAuthDateTime === "function") return "Last seen " + formatAuthDateTime(iso);
+    try {
+        return "Last seen " + new Date(iso).toLocaleString();
+    } catch (e) {
+        return "Last seen unavailable";
+    }
+}
+
+function getCurrentDevices() {
+    if (typeof normalizeKnownDevices === "function") {
+        return normalizeKnownDevices(account.knownDevices || []);
+    }
+    return (account.knownDevices || []).map(function(entry) {
+        if (typeof entry === "string") {
+            return { fingerprint: entry, label: entry.split(":")[0] || "Device", lastSeen: null };
+        }
+        return entry;
+    });
+}
+
+function renderDevices() {
+    const list = document.getElementById("devicesList");
+    if (!list) return;
+
+    const devices = getCurrentDevices();
+    const currentFingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+
+    if (!devices.length) {
+        list.innerHTML = "<p class=\"setting-hint\">No trusted login devices yet. Devices appear here after you sign in.</p>";
+        return;
+    }
+
+    list.innerHTML = devices.map(function(device) {
+        const isCurrent = device.fingerprint === currentFingerprint;
+        return (
+            "<div class=\"linked-item device-item" + (isCurrent ? " is-current" : "") + "\">" +
+            "<div class=\"device-item-copy\">" +
+            "<div class=\"device-item-title\">" +
+            "<span class=\"device-item-name\">" + escapeHtml(device.label || "Device") + "</span>" +
+            (isCurrent ? "<span class=\"device-current-pill\">This device</span>" : "") +
+            "</div>" +
+            "<div class=\"ticket-meta\">" + escapeHtml(formatDeviceSeen(device.lastSeen)) + "</div>" +
+            "</div>" +
+            "<button type=\"button\" class=\"device-remove-btn\" data-device-id=\"" +
+            escapeHtml(device.fingerprint) + "\">Remove</button>" +
+            "</div>"
+        );
+    }).join("");
+}
+
+function removeDeviceFromSettings(fingerprint) {
+    const currentFingerprint = typeof getDeviceFingerprint === "function" ? getDeviceFingerprint() : "";
+    const devices = getCurrentDevices();
+    const target = devices.find(function(device) {
+        return device.fingerprint === fingerprint;
+    });
+    const label = target ? target.label : "this device";
+    const isCurrent = fingerprint === currentFingerprint;
+
+    const confirmed = window.confirm(
+        isCurrent
+            ? "Remove this device (" + label + ") from trusted logins?\n\nYou can keep using this session, but the next sign-in from here will be treated as a new device."
+            : "Remove " + label + " from trusted login devices?\n\nThe next sign-in from that device will trigger a new-device notice."
+    );
+    if (!confirmed) return;
+
+    let result;
+    if (typeof removeKnownDevice === "function") {
+        result = removeKnownDevice(username, fingerprint);
+    } else {
+        account.knownDevices = (account.knownDevices || []).filter(function(entry) {
+            const key = typeof entry === "string" ? entry : (entry && entry.fingerprint);
+            return key !== fingerprint;
+        });
+        saveState();
+        result = { ok: true, account: account };
+    }
+
+    if (!result || !result.ok) {
+        alert((result && result.error) || "Could not remove device.");
+        return;
+    }
+
+    if (result.account) {
+        const fresh = getAccount(username) || result.account;
+        Object.keys(account).forEach(function(key) {
+            delete account[key];
+        });
+        Object.keys(fresh).forEach(function(key) {
+            account[key] = fresh[key];
+        });
+        if (typeof syncAccountToServer === "function") {
+            syncAccountToServer(username, account, "login");
+        }
+    }
+
+    renderDevices();
+    if (typeof renderNotificationBell === "function") {
+        renderNotificationBell(account);
+    }
+}
+
 function renderLinkedBanks() {
     const list = document.getElementById("linkedBanksList");
     const banks = account.linkedBanks || [];
@@ -66,6 +178,7 @@ initPageNav("settings");
 loadForm();
 renderLinkedBanks();
 renderApiKeys();
+renderDevices();
 
 document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
 document.getElementById("twoFactorToggle").addEventListener("change", updateTwoFactorHint);
@@ -130,3 +243,12 @@ document.getElementById("generateApiKeyBtn").addEventListener("click", function(
     renderApiKeys();
     alert("API key generated:\n\n" + key + "\n\nStore it securely — it won't be shown again.");
 });
+
+const devicesList = document.getElementById("devicesList");
+if (devicesList) {
+    devicesList.addEventListener("click", function(e) {
+        const btn = e.target.closest(".device-remove-btn");
+        if (!btn) return;
+        removeDeviceFromSettings(btn.getAttribute("data-device-id"));
+    });
+}
