@@ -420,21 +420,12 @@ h1 strong {
     }
 
     .reviews {
-        grid-template-columns: repeat(3, minmax(242px, 1fr));
+        grid-template-columns: 1fr;
         gap: 10px;
-        overflow-x: auto;
-        padding-bottom: 8px;
-        scroll-snap-type: x mandatory;
-        scrollbar-width: none;
-    }
-
-    .reviews::-webkit-scrollbar {
-        display: none;
     }
 
     .reviews figure {
-        min-height: 159px;
-        scroll-snap-align: start;
+        min-height: 145px;
     }
 
     .launch-bar {
