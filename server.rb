@@ -4,10 +4,13 @@
 require "json"
 require "webrick"
 require "net/smtp"
+require "net/http"
+require "uri"
 require "fileutils"
 require "open3"
 
 require_relative "lib/email_verification"
+require_relative "lib/email_deliverability"
 
 ROOT = File.expand_path(__dir__)
 CONFIG_PATH = File.join(ROOT, "email.config.json")
@@ -95,6 +98,46 @@ rescue JSON::ParserError
   {}
 end
 
+def send_resend_email(to_addr, subject, body, category: "transactional")
+  EmailVerification.load_dotenv!
+  api_key = ENV["RESEND_API_KEY"].to_s.strip
+  return { "ok" => false, "error" => "Resend is not configured. Set RESEND_API_KEY." } if api_key.empty?
+
+  html_body = body.to_s
+                 .gsub("&", "&amp;")
+                 .gsub("<", "&lt;")
+                 .gsub(">", "&gt;")
+                 .gsub("\n", "<br>")
+
+  payload = {
+    from: EmailDeliverability.from_address,
+    to: [to_addr],
+    reply_to: EmailDeliverability.reply_to,
+    subject: subject,
+    text: body,
+    html: "<div style=\"font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#1f2937;\">#{html_body}</div>",
+    tags: [{ name: "category", value: category.to_s }]
+  }
+
+  uri = URI("https://api.resend.com/emails")
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  req = Net::HTTP::Post.new(uri)
+  req["Authorization"] = "Bearer #{api_key}"
+  req["Content-Type"] = "application/json"
+  req.body = payload.to_json
+  res = http.request(req)
+
+  unless res.code.to_i.between?(200, 299)
+    return { "ok" => false, "error" => "Resend error: #{res.body}" }
+  end
+
+  data = JSON.parse(res.body) rescue {}
+  { "ok" => true, "id" => data["id"] }
+rescue StandardError => e
+  { "ok" => false, "error" => e.message }
+end
+
 def send_smtp_email(to_addr, subject, body)
   cfg = load_email_config
   host = cfg["smtp_host"] || cfg["smtpHost"]
@@ -108,7 +151,7 @@ def send_smtp_email(to_addr, subject, body)
   if host.to_s.empty? || user.to_s.empty? || pass.to_s.empty?
     return {
       "ok" => false,
-      "error" => "Email not configured. Copy email.config.example.json to email.config.json and add SMTP credentials."
+      "error" => "Email not configured. Copy email.config.example.json to email.config.json and add SMTP credentials, or set RESEND_API_KEY in .env.local."
     }
   end
 
@@ -131,6 +174,14 @@ def send_smtp_email(to_addr, subject, body)
   { "ok" => true }
 rescue StandardError => e
   { "ok" => false, "error" => e.message }
+end
+
+def send_app_email(to_addr, subject, body, category: "transactional")
+  EmailVerification.load_dotenv!
+  if ENV["RESEND_API_KEY"].to_s.strip != ""
+    return send_resend_email(to_addr, subject, body, category: category)
+  end
+  send_smtp_email(to_addr, subject, body)
 end
 
 server = WEBrick::HTTPServer.new(
@@ -169,7 +220,8 @@ server.mount_proc "/api/send-email" do |req, res|
       next
     end
 
-    result = send_smtp_email(to_addr, subject, body)
+    category = payload["category"] || payload["type"] || "transactional"
+    result = send_app_email(to_addr, subject, body, category: category)
     res.status = result["ok"] ? 200 : 503
     res.body = JSON.generate(result)
   rescue JSON::ParserError

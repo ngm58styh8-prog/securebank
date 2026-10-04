@@ -1077,6 +1077,39 @@ function sendDepositRejectedEmail(account, userEmail, amount, method, reason) {
     return dispatchAccountEmail(account, userEmail, subject, body, "deposit");
 }
 
+function sendAdminCreditEmail(account, userEmail, amount, note) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const noteText = note ? String(note).trim() : "";
+    const subject = meta.siteName + " — Deposit Credited ($" + Number(amount).toFixed(2) + ")";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "A deposit of $" + Number(amount).toFixed(2) + " has been credited to your account by " +
+        meta.siteName + ".\n\n" +
+        (noteText ? "Note: " + noteText + "\n" : "") +
+        "Amount credited: $" + Number(amount).toFixed(2) + "\n" +
+        "Updated cash balance: $" + Number(account.cash || 0).toFixed(2) + "\n" +
+        "Date: " + new Date().toLocaleString() + "\n\n" +
+        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
+        "If you have questions, contact us at " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "admin-credit");
+}
+
+function sendAdminDebitEmail(account, userEmail, amount, note) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const noteText = note ? String(note).trim() : "";
+    const subject = meta.siteName + " — Account Debited ($" + Number(amount).toFixed(2) + ")";
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        "Your account was debited $" + Number(amount).toFixed(2) + " by " + meta.siteName + ".\n\n" +
+        (noteText ? "Note: " + noteText + "\n" : "") +
+        "Amount debited: $" + Number(amount).toFixed(2) + "\n" +
+        "Updated cash balance: $" + Number(account.cash || 0).toFixed(2) + "\n" +
+        "Date: " + new Date().toLocaleString() + "\n\n" +
+        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
+        "If you did not expect this change, contact us immediately at " + meta.supportEmail + ".\n\n" +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(account, userEmail, subject, body, "admin-debit");
+}
+
 function sendWithdrawalSubmittedEmail(account, userEmail, amount, destination, method) {
     const meta = getTransactionEmailMeta(account, userEmail);
     const methodLabel = formatWithdrawalMethod(method);
@@ -3462,9 +3495,17 @@ function applyAdminBalanceAdjustment(key, account, action, amount, note) {
 
     ensureNotifications(account);
     pushAccountNotification(account, action === "credit"
-        ? "Your account was credited $" + amount.toFixed(2)
+        ? "Deposit of $" + amount.toFixed(2) + " was credited to your balance"
         : "Your account was debited $" + amount.toFixed(2),
-        { type: "admin", fromAdmin: true, title: "From Admin" }
+        {
+            type: action === "credit" ? "deposit" : "admin",
+            category: action === "credit" ? "deposit" : "admin",
+            fromAdmin: true,
+            title: action === "credit" ? "Deposit credited" : "From Admin",
+            amount: amount,
+            currency: "USD",
+            status: "completed"
+        }
     );
 
     account.serverSyncedAt = new Date().toISOString();
@@ -3504,37 +3545,49 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
     const userName = account.profile ? account.profile.fullName : key;
     applyAdminBalanceAdjustment(key, account, action, amount, note);
 
+    const notifyEmail = action === "credit"
+        ? sendAdminCreditEmail(account, key, amount, note)
+        : sendAdminDebitEmail(account, key, amount, note);
+
     const admin = getAdminData();
-    return syncAccountToServer(key, account, "admin-adjust")
-        .then(function(accountResult) {
-            if (!accountResult || (!accountResult.ok && !accountResult.offline)) {
-                throw new Error((accountResult && accountResult.error) || "Failed to save balance on server.");
-            }
-            return syncAdminToServer(admin);
+    return Promise.resolve(notifyEmail)
+        .catch(function(err) {
+            return { ok: false, error: err && err.message ? err.message : String(err) };
         })
-        .then(function(adminResult) {
-            if (adminResult && adminResult.ok === false && !adminResult.offline) {
-                throw new Error((adminResult && adminResult.error) || "Failed to save admin registry.");
-            }
+        .then(function(emailResult) {
+            return syncAccountToServer(key, account, "admin-adjust")
+                .then(function(accountResult) {
+                    if (!accountResult || (!accountResult.ok && !accountResult.offline)) {
+                        throw new Error((accountResult && accountResult.error) || "Failed to save balance on server.");
+                    }
+                    return syncAdminToServer(admin);
+                })
+                .then(function(adminResult) {
+                    if (adminResult && adminResult.ok === false && !adminResult.offline) {
+                        throw new Error((adminResult && adminResult.error) || "Failed to save admin registry.");
+                    }
 
-            const cache = Object.assign({}, getServerAccountsCache());
-            cache[key] = account;
-            setServerAccountsCache(cache);
+                    const cache = Object.assign({}, getServerAccountsCache());
+                    cache[key] = account;
+                    setServerAccountsCache(cache);
 
-            const accounts = getAllAccounts();
-            accounts[key] = account;
-            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-            notifyAccountsChanged();
-            syncAdminRegisteredUsers(getAdminData());
+                    const accounts = getAllAccounts();
+                    accounts[key] = account;
+                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+                    notifyAccountsChanged();
+                    syncAdminRegisteredUsers(getAdminData());
 
-            return {
-                ok: true,
-                email: key,
-                userName: userName,
-                action: action,
-                amount: amount,
-                newBalance: account.cash
-            };
+                    return {
+                        ok: true,
+                        email: key,
+                        userName: userName,
+                        action: action,
+                        amount: amount,
+                        newBalance: account.cash,
+                        emailSent: !!(emailResult && emailResult.ok),
+                        emailError: emailResult && emailResult.error ? emailResult.error : null
+                    };
+                });
         })
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };

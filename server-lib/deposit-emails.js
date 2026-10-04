@@ -178,6 +178,62 @@ function buildDepositCreditedContent(deposit, account, admin) {
     };
 }
 
+function buildAdminCreditContent(payload, account, admin) {
+    const userEmail = payload && payload.userEmail;
+    const siteName = getSiteName(admin);
+    const fullName = getUserDisplayName(account, userEmail);
+    const supportEmail = getSupportEmail();
+    const amount = Number(payload && payload.amount);
+    const balance = Number(account && account.cash != null ? account.cash : 0);
+    const creditedAt = formatDateTime(payload && payload.resolvedAt ? payload.resolvedAt : new Date().toISOString());
+    const noteText = String(payload && payload.note || "").trim();
+
+    const subject = siteName + " — Deposit Credited ($" + amount.toFixed(2) + ")";
+    const body = "Hi " + fullName + ",\n\n" +
+        "A deposit of $" + amount.toFixed(2) + " has been credited to your account by " + siteName + ".\n\n" +
+        (noteText ? "Note: " + noteText + "\n" : "") +
+        "Amount credited: $" + amount.toFixed(2) + "\n" +
+        "Updated cash balance: $" + balance.toFixed(2) + "\n" +
+        "Date: " + creditedAt + "\n\n" +
+        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
+        "If you have questions, contact us at " + supportEmail + ".\n\n" +
+        "Thank you,\n" + siteName;
+
+    return {
+        subject: subject,
+        body: body,
+        headline: "Deposit Credited"
+    };
+}
+
+function buildAdminDebitContent(payload, account, admin) {
+    const userEmail = payload && payload.userEmail;
+    const siteName = getSiteName(admin);
+    const fullName = getUserDisplayName(account, userEmail);
+    const supportEmail = getSupportEmail();
+    const amount = Number(payload && payload.amount);
+    const balance = Number(account && account.cash != null ? account.cash : 0);
+    const debitedAt = formatDateTime(payload && payload.resolvedAt ? payload.resolvedAt : new Date().toISOString());
+    const noteText = String(payload && payload.note || "").trim();
+
+    const subject = siteName + " — Account Debited ($" + amount.toFixed(2) + ")";
+    const body = "Hi " + fullName + ",\n\n" +
+        "Your account was debited $" + amount.toFixed(2) + " by " + siteName + ".\n\n" +
+        (noteText ? "Note: " + noteText + "\n" : "") +
+        "Amount debited: $" + amount.toFixed(2) + "\n" +
+        "Updated cash balance: $" + balance.toFixed(2) + "\n" +
+        "Date: " + debitedAt + "\n\n" +
+        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
+        "If you did not expect this change, contact us immediately at " + supportEmail + ".\n\n" +
+        "Thank you,\n" + siteName;
+
+    return {
+        subject: subject,
+        body: body,
+        headline: "Account Debited"
+    };
+}
+
 function buildDepositDeclinedContent(deposit, account, admin, reason) {
     const userEmail = deposit.userEmail;
     const siteName = getSiteName(admin);
@@ -363,6 +419,68 @@ async function sendDepositDeclinedEmailSafely(deposit, account, admin, reason) {
     );
 }
 
+async function sendAdminAdjustmentEmailSafely(action, payload, account, admin) {
+    const type = action === "debit" ? "admin-debit" : "admin-credit";
+    const to = String(payload && payload.userEmail || "").trim().toLowerCase();
+    const context = { depositId: payload && payload.id ? payload.id : null };
+
+    if (!to || to.indexOf("@") === -1) {
+        logEmailFailure(type, to || "(missing)", new Error("Missing recipient email."), context);
+        return { sent: false, skipped: true, error: "Missing recipient email." };
+    }
+
+    if (payload && payload.emailSentAt) {
+        console.log(LOG_PREFIX, "skipped-duplicate", {
+            type: type,
+            to: to,
+            depositId: context.depositId,
+            sentAt: payload.emailSentAt
+        });
+        return { sent: false, skipped: true, duplicate: true };
+    }
+
+    const content = action === "debit"
+        ? buildAdminDebitContent(payload, account, admin)
+        : buildAdminCreditContent(payload, account, admin);
+
+    logEmailAttempt(type, to, context);
+
+    try {
+        const emailContent = buildTransactionalEmailContent(
+            content.subject,
+            content.body,
+            to,
+            {
+                category: type,
+                headline: content.headline
+            }
+        );
+
+        const data = await sendTransactionalEmail({
+            to: to,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html,
+            headers: emailContent.headers,
+            tags: emailContent.tags
+        });
+
+        logEmailSuccess(type, to, data, context);
+        return { sent: true, id: data && data.id ? data.id : null };
+    } catch (err) {
+        logEmailFailure(type, to, err, context);
+        return { sent: false, error: err && err.message ? err.message : String(err) };
+    }
+}
+
+async function sendAdminCreditEmailSafely(payload, account, admin) {
+    return sendAdminAdjustmentEmailSafely("credit", payload, account, admin);
+}
+
+async function sendAdminDebitEmailSafely(payload, account, admin) {
+    return sendAdminAdjustmentEmailSafely("debit", payload, account, admin);
+}
+
 module.exports = {
     LOG_PREFIX,
     formatDepositMethod,
@@ -371,8 +489,12 @@ module.exports = {
     buildDepositAdminNotificationContent,
     buildDepositCreditedContent,
     buildDepositDeclinedContent,
+    buildAdminCreditContent,
+    buildAdminDebitContent,
     sendDepositReceivedEmailSafely,
     sendDepositAdminNotificationSafely,
     sendDepositCreditedEmailSafely,
-    sendDepositDeclinedEmailSafely
+    sendDepositDeclinedEmailSafely,
+    sendAdminCreditEmailSafely,
+    sendAdminDebitEmailSafely
 };

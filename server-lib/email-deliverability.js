@@ -268,11 +268,11 @@ function getDeliverabilityWarnings() {
         warnings.push(
             "RESEND_FROM_EMAIL is not set. Set it to " + DEFAULT_FROM + " in Vercel after domain verification."
         );
-    } else if (envFrom && !envFrom.includes("<")) {
+    } else if (envFrom && !from.includes("<")) {
+        // Only warn when the *effective* From still lacks a display name.
+        // Bare support@ / noreply@ values are already normalized above.
         warnings.push(
-            "RESEND_FROM_EMAIL should include a display name: GlobalVest Bank <" +
-                extractEmailAddress(envFrom) +
-                ">."
+            "RESEND_FROM_EMAIL should include a display name: " + DEFAULT_FROM + "."
         );
     }
 

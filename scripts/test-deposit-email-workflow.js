@@ -87,6 +87,29 @@ function testDeclinedContent() {
     assert.ok(content.body.indexOf("Date:") !== -1, "declined date");
 }
 
+function testAdminCreditContent() {
+    const payload = {
+        userEmail: "customer@example.com",
+        amount: 500,
+        note: "Bonus deposit",
+        resolvedAt: "2026-07-08T04:00:00.000Z"
+    };
+    const content = depositEmails.buildAdminCreditContent(
+        payload,
+        sampleAccount,
+        sampleAdmin
+    );
+
+    assert.strictEqual(
+        content.subject,
+        "GlobalVest — Deposit Credited ($500.00)",
+        "admin credit subject"
+    );
+    assert.ok(content.body.indexOf("credited to your account by GlobalVest") !== -1, "admin credit body");
+    assert.ok(content.body.indexOf("Note: Bonus deposit") !== -1, "admin credit note");
+    assert.ok(content.body.indexOf("Updated cash balance: $1250.75") !== -1, "admin credit balance");
+}
+
 async function testDuplicateSkipped() {
     const sentDeposit = Object.assign({}, sampleDeposit, {
         submittedEmailSentAt: "2026-07-08T03:00:00.000Z"
@@ -145,14 +168,33 @@ async function testNonPendingSkipped() {
     assert.strictEqual(result.skipped, true, "approved deposit skipped");
 }
 
+async function testAdminCreditDuplicateSkipped() {
+    const payload = {
+        userEmail: "customer@example.com",
+        amount: 100,
+        emailSentAt: "2026-07-08T04:00:00.000Z"
+    };
+
+    const result = await depositEmails.sendAdminCreditEmailSafely(
+        payload,
+        sampleAccount,
+        sampleAdmin
+    );
+
+    assert.strictEqual(result.sent, false, "admin credit duplicate should not send");
+    assert.strictEqual(result.duplicate, true, "admin credit duplicate flag");
+}
+
 async function run() {
     testReceivedContent();
     testCreditedContent();
     testDeclinedContent();
+    testAdminCreditContent();
     await testDuplicateSkipped();
     await testNonPendingSkipped();
     await testFailureDoesNotThrow();
-    console.log("deposit email workflow tests: 6 passed");
+    await testAdminCreditDuplicateSkipped();
+    console.log("deposit email workflow tests: 8 passed");
 }
 
 run().catch(function(err) {

@@ -24,16 +24,19 @@ elif grep -q "your-project.supabase.co" .env.local 2>/dev/null; then
   echo ""
 fi
 
-if [ ! -f email.config.json ]; then
+if grep -q '^RESEND_API_KEY=re_' .env.local 2>/dev/null; then
+  echo "  Email: Resend connected via .env.local (deposit, admin credit, and withdrawal emails)."
+  echo ""
+elif [ ! -f email.config.json ]; then
   cp email.config.example.json email.config.json
-  echo "  Email: created email.config.json — edit it with your SMTP credentials."
+  echo "  Email: created email.config.json — edit SMTP credentials, or set RESEND_API_KEY in .env.local."
   echo "        (Gmail: use an App Password at https://myaccount.google.com/apppasswords)"
   echo ""
 elif grep -q "your-email@gmail.com" email.config.json 2>/dev/null; then
-  echo "  Email: email.config.json still has placeholder values — edit before real emails send."
+  echo "  Email: email.config.json still has placeholder values — edit SMTP or set RESEND_API_KEY."
   echo ""
 else
-  echo "  Email: configured (deposit & withdrawal notifications enabled)."
+  echo "  Email: SMTP configured (deposit, admin credit, and withdrawal notifications enabled)."
   echo ""
 fi
 

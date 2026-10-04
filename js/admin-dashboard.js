@@ -1091,10 +1091,14 @@ function runAdjustment(email, action, amount, note) {
         }
 
         const label = action === "credit" ? "credited" : "debited";
-        alert(
-            (result.userName || email) + " was " + label + " $" +
-            parseFloat(amount).toFixed(2) + ". New balance: " + formatMoney(result.newBalance)
-        );
+        let msg = (result.userName || email) + " was " + label + " $" +
+            parseFloat(amount).toFixed(2) + ". New balance: " + formatMoney(result.newBalance);
+        if (result.emailSent) {
+            msg += "\n\nEmail notification sent to the user.";
+        } else if (result.emailError) {
+            msg += "\n\nBalance updated, but email could not be sent: " + result.emailError;
+        }
+        alert(msg);
 
         if (monitorEmail === normalizeEmail(email)) {
             openMonitorModal(email);
