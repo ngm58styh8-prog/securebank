@@ -53,6 +53,18 @@ module EmailDeliverability
 
   def from_address
     raw = clean_env("RESEND_FROM_EMAIL")
+    parsed = parse_from(raw.empty? ? DEFAULT_FROM : raw)
+    expected = CONFIG["fromEmail"].to_s.downcase
+    support = DEFAULT_SUPPORT.to_s.downcase
+
+    # Always send transactional mail from noreply@, even if Vercel still has support@.
+    if parsed[:email].empty? ||
+       parsed[:email] == expected ||
+       parsed[:email] == support ||
+       parsed[:email].start_with?("support@")
+      return DEFAULT_FROM
+    end
+
     raw.empty? ? DEFAULT_FROM : raw
   end
 
@@ -92,20 +104,21 @@ module EmailDeliverability
     warnings = []
     from = from_address
     parsed = parse_from(from)
+    env_from = clean_env("RESEND_FROM_EMAIL")
     expected_domain = CONFIG["fromEmail"].split("@").last
 
     if sandbox_from?(from)
       warnings << "RESEND_FROM_EMAIL uses a Resend sandbox address (#{parsed[:email]}). Verify #{expected_domain} in Resend."
     end
 
-    if parsed[:email] == CONFIG["replyToEmail"]
-      warnings << "RESEND_FROM_EMAIL is support@#{expected_domain}. Use #{DEFAULT_FROM} with Reply-To #{DEFAULT_SUPPORT}."
-    elsif !sandbox_from?(from) && parsed[:email] != CONFIG["fromEmail"]
+    if !sandbox_from?(from) && parsed[:email] != CONFIG["fromEmail"]
       warnings << "RESEND_FROM_EMAIL is #{parsed[:email]}. Recommended: #{CONFIG['fromEmail']}."
     end
 
-    if clean_env("RESEND_FROM_EMAIL").empty?
+    if env_from.empty?
       warnings << "RESEND_FROM_EMAIL is not set. Set it to #{DEFAULT_FROM}."
+    elsif !from.include?("<")
+      warnings << "RESEND_FROM_EMAIL should include a display name: #{DEFAULT_FROM}."
     end
 
     if clean_env("RESEND_REPLY_TO").empty?

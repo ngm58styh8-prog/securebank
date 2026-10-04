@@ -18,7 +18,11 @@ const {
     sendDepositReceivedEmailSafely,
     sendDepositCreditedEmailSafely,
     sendDepositDeclinedEmailSafely,
-    sendDepositAdminNotificationSafely
+    sendDepositAdminNotificationSafely,
+    sendAdminCreditEmailSafely,
+    sendAdminDebitEmailSafely,
+    buildAdminCreditContent,
+    buildAdminDebitContent
 } = require("./deposit-emails");
 const {
     normalizeDepositCurrencyFields,
@@ -1490,6 +1494,203 @@ async function rejectPendingTransfer(transferId, reason) {
     };
 }
 
+async function adjustUserBalance(email, action, amount, note) {
+    const key = normalizeRegistryEmail(email);
+    if (!key || key.indexOf("@") === -1) {
+        throw new Error("Missing or invalid user email.");
+    }
+
+    const normalizedAction = action === "debit" ? "debit" : "credit";
+    const depositAmount = Number(amount);
+    if (!depositAmount || depositAmount <= 0 || !isFinite(depositAmount)) {
+        throw new Error("Enter a valid amount.");
+    }
+
+    const noteText = String(note || "").trim();
+    const admin = await ensureAdminRegistry();
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) {
+        throw new Error("User account not found.");
+    }
+
+    const balanceBefore = Number(account.cash || 0);
+    if (normalizedAction === "debit" && balanceBefore < depositAmount) {
+        throw new Error("User has insufficient cash for this debit.");
+    }
+
+    const balanceAfter = normalizedAction === "credit"
+        ? balanceBefore + depositAmount
+        : balanceBefore - depositAmount;
+
+    const label = normalizedAction === "credit" ? "Admin Credit" : "Admin Debit";
+    const description = noteText ? label + " — " + noteText : label;
+    const resolvedAt = new Date().toISOString();
+    const userName = account.profile && account.profile.fullName
+        ? account.profile.fullName
+        : key;
+
+    const updatedAccount = Object.assign({}, account);
+    updatedAccount.cash = balanceAfter;
+    updatedAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
+    updatedAccount.transactions.unshift({
+        date: new Date().toLocaleString(),
+        description: description,
+        amount: normalizedAction === "credit" ? depositAmount : -depositAmount
+    });
+
+    updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    updatedAccount.notifications.unshift({
+        id: Date.now() + Math.random(),
+        message: normalizedAction === "credit"
+            ? "Deposit of $" + depositAmount.toFixed(2) + " was credited to your balance"
+            : "Your account was debited $" + depositAmount.toFixed(2),
+        title: normalizedAction === "credit" ? "Deposit credited" : "From Admin",
+        time: resolvedAt,
+        read: false,
+        type: normalizedAction === "credit" ? "deposit" : "admin",
+        category: normalizedAction === "credit" ? "deposit" : "admin",
+        amount: depositAmount,
+        currency: "USD",
+        status: "completed",
+        fromAdmin: true
+    });
+    if (updatedAccount.notifications.length > 30) {
+        updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
+    }
+
+    const emailPayload = {
+        id: "admin-" + normalizedAction + "-" + Date.now(),
+        userEmail: key,
+        amount: depositAmount,
+        note: noteText,
+        resolvedAt: resolvedAt
+    };
+    const emailContent = normalizedAction === "credit"
+        ? buildAdminCreditContent(emailPayload, updatedAccount, admin)
+        : buildAdminDebitContent(emailPayload, updatedAccount, admin);
+
+    updatedAccount.emails = Array.isArray(account.emails) ? account.emails.slice() : [];
+    updatedAccount.emails.unshift({
+        id: Date.now() + Math.random(),
+        to: key,
+        subject: emailContent.subject,
+        body: emailContent.body,
+        time: resolvedAt,
+        read: false,
+        type: normalizedAction === "credit" ? "admin-credit" : "admin-debit"
+    });
+    if (updatedAccount.emails.length > 50) {
+        updatedAccount.emails = updatedAccount.emails.slice(0, 50);
+    }
+
+    if (normalizedAction === "credit") {
+        admin.balance = (admin.balance || 0) - depositAmount;
+    } else {
+        admin.balance = (admin.balance || 0) + depositAmount;
+    }
+
+    admin.payments = Array.isArray(admin.payments) ? admin.payments : [];
+    admin.payments.unshift({
+        id: Date.now() + Math.random(),
+        userEmail: key,
+        userName: userName,
+        type: normalizedAction === "credit" ? "admin-credit" : "admin-debit",
+        amount: depositAmount,
+        method: noteText || "Admin adjustment",
+        date: new Date().toLocaleString()
+    });
+    if (admin.payments.length > 200) {
+        admin.payments = admin.payments.slice(0, 200);
+    }
+
+    admin.userActivityLog = Array.isArray(admin.userActivityLog) ? admin.userActivityLog : [];
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: resolvedAt,
+        userEmail: key,
+        userName: userName,
+        type: normalizedAction === "credit" ? "admin-credit" : "admin-debit",
+        description: description,
+        amount: normalizedAction === "credit" ? depositAmount : -depositAmount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
+    console.log("[registry] admin adjust started", {
+        userEmail: key,
+        action: normalizedAction,
+        amount: depositAmount,
+        balanceBefore: balanceBefore,
+        balanceAfter: balanceAfter
+    });
+
+    let saved;
+    try {
+        saved = await upsertAccount(key, updatedAccount, {
+            cashAuthoritative: true,
+            eventType: "admin-adjust",
+            source: "adjustUserBalance"
+        });
+    } catch (err) {
+        console.error("[registry] admin adjust balance update failed", {
+            userEmail: key,
+            action: normalizedAction,
+            amount: depositAmount,
+            error: err && err.message ? err.message : String(err)
+        });
+        throw err;
+    }
+
+    try {
+        await saveAdminRegistry(admin);
+    } catch (err) {
+        console.error("[registry] admin adjust admin save failed — rolling back balance", {
+            userEmail: key,
+            balanceBefore: balanceBefore,
+            error: err && err.message ? err.message : String(err)
+        });
+        const rollbackAccount = Object.assign({}, account);
+        rollbackAccount.cash = balanceBefore;
+        await upsertAccount(key, rollbackAccount, {
+            cashAuthoritative: true,
+            eventType: "admin-adjust-rollback",
+            source: "adjustUserBalance"
+        });
+        throw err;
+    }
+
+    const emailResult = normalizedAction === "credit"
+        ? await sendAdminCreditEmailSafely(emailPayload, saved.account, admin)
+        : await sendAdminDebitEmailSafely(emailPayload, saved.account, admin);
+
+    console.log("[registry] admin adjust complete", {
+        userEmail: key,
+        action: normalizedAction,
+        amount: depositAmount,
+        balanceAfter: saved.account.cash,
+        emailSent: !!emailResult.sent,
+        emailError: emailResult.error || null
+    });
+
+    return {
+        ok: true,
+        email: key,
+        userName: userName,
+        action: normalizedAction,
+        amount: depositAmount,
+        note: noteText,
+        account: saved.account,
+        balanceBefore: balanceBefore,
+        balanceAfter: saved.account.cash,
+        newBalance: saved.account.cash,
+        emailSent: !!emailResult.sent,
+        emailSkipped: !!emailResult.skipped,
+        emailError: emailResult.error || null
+    };
+}
+
 module.exports = {
     normalizeRegistryEmail,
     isRegistryConfigured,
@@ -1508,5 +1709,6 @@ module.exports = {
     rejectPendingDeposit,
     appendPendingTransfer,
     approvePendingTransfer,
-    rejectPendingTransfer
+    rejectPendingTransfer,
+    adjustUserBalance
 };

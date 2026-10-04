@@ -10,7 +10,8 @@ const {
     rejectPendingDeposit,
     appendPendingTransfer,
     approvePendingTransfer,
-    rejectPendingTransfer
+    rejectPendingTransfer,
+    adjustUserBalance
 } = require("../server-lib/registry");
 
 module.exports = async function handler(req, res) {
@@ -89,6 +90,17 @@ module.exports = async function handler(req, res) {
 
             if (body.action === "reject-transfer" && body.transferId) {
                 const result = await rejectPendingTransfer(body.transferId, body.reason);
+                res.status(200).json(result);
+                return;
+            }
+
+            if (body.action === "admin-adjust") {
+                const result = await adjustUserBalance(
+                    body.email,
+                    body.adjustAction || body.adjustment || body.mode,
+                    body.amount,
+                    body.note
+                );
                 res.status(200).json(result);
                 return;
             }

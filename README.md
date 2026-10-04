@@ -161,19 +161,22 @@ Users receive real emails (and in-app Profile inbox copies) when:
 | Event | Trigger |
 |--------|---------|
 | Deposit submitted | User submits a deposit |
-| Deposit approved | Admin approves |
+| Deposit approved | Admin approves a pending deposit |
+| Deposit credited by admin | Admin credits/deposits funds into a user account |
+| Account debited by admin | Admin debits a user account |
 | Deposit rejected | Admin rejects |
 | Withdrawal submitted | User requests a transfer |
 | Withdrawal approved | Admin approves |
 | Withdrawal rejected | Admin rejects |
 
-SMTP must be configured and the app must run via `./start.sh`.
+On **Vercel / production**, emails send through **Resend** (`RESEND_API_KEY`). Locally, `./start.sh` uses Resend when `.env.local` has `RESEND_API_KEY`, otherwise SMTP.
 
-1. Copy the example config:
+1. Prefer Resend (same as production): set `RESEND_API_KEY` and `RESEND_FROM_EMAIL=GlobalVest Bank <noreply@globalvestbank.com>` in `.env.local`.
+2. Or use SMTP:
    ```bash
    cp email.config.example.json email.config.json
    ```
-2. Edit `email.config.json` with your SMTP credentials (Gmail app password, SendGrid SMTP, etc.).
+   Edit with your SMTP credentials (Gmail app password, SendGrid SMTP, etc.).
 3. Restart `./start.sh`.
 
-Deposit and withdrawal emails are also saved to the user's Profile inbox in the app.
+Deposit, admin credit, and withdrawal emails are also saved to the user's Profile inbox in the app.

@@ -58,6 +58,7 @@ console.log("  DMARC value:", report.dns.dmarc.recommended);
 
 console.log("\nEmail triggers:");
 console.log("  Deposits: server-lib/deposit-emails.js (received, credited, declined)");
+console.log("  Admin credit/debit: server-lib/deposit-emails.js + js/storage.js adminAdjustUserBalanceAsync");
 console.log("  Withdrawals: server-lib/withdrawal-emails.js (received, processed, declined)");
 console.log("  Funds received: server-lib/send-money-emails.js (sender + recipient)");
 console.log("  Verification: server-lib/resend.js sendVerificationEmail()");
