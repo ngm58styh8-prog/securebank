@@ -3528,7 +3528,39 @@ function applyAdminBalanceAdjustment(key, account, action, amount, note) {
     saveAccount(key, account, { skipServerSync: true });
 }
 
-function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
+function adjustUserBalanceOnServer(userEmail, action, amount, note) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            action: "admin-adjust",
+            email: normalizeEmail(userEmail),
+            adjustAction: action,
+            amount: amount,
+            note: note || ""
+        })
+    })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (!response.ok || !data.ok) {
+                    return {
+                        ok: false,
+                        error: (data && data.error) || "Could not adjust balance on server."
+                    };
+                }
+                return data;
+            });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function adminAdjustUserBalanceOfflineAsync(userEmail, action, amount, note) {
     const key = normalizeEmail(userEmail);
     const account = getRegistryAccount(key);
     if (!account) {
@@ -3588,6 +3620,51 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
                         emailError: emailResult && emailResult.error ? emailResult.error : null
                     };
                 });
+        })
+        .catch(function(err) {
+            return { ok: false, error: err.message || String(err) };
+        });
+}
+
+function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
+    const key = normalizeEmail(userEmail);
+    amount = parseFloat(amount);
+    if (!amount || amount <= 0) {
+        return Promise.resolve({ ok: false, error: "Enter a valid amount." });
+    }
+
+    return adjustUserBalanceOnServer(key, action, amount, note)
+        .then(function(serverResult) {
+            if (serverResult && serverResult.offline) {
+                return adminAdjustUserBalanceOfflineAsync(key, action, amount, note);
+            }
+            if (!serverResult || !serverResult.ok) {
+                return {
+                    ok: false,
+                    error: (serverResult && serverResult.error) || "Could not update account balance."
+                };
+            }
+
+            if (serverResult.account) {
+                applyServerAccountLocally(key, serverResult.account);
+            }
+
+            return pullAdminFromServer().then(function() {
+                syncAdminRegisteredUsers(getAdminData());
+                notifyAccountsChanged();
+                return {
+                    ok: true,
+                    email: key,
+                    userName: serverResult.userName || key,
+                    action: serverResult.action || action,
+                    amount: serverResult.amount != null ? serverResult.amount : amount,
+                    newBalance: serverResult.newBalance != null
+                        ? serverResult.newBalance
+                        : (serverResult.account && serverResult.account.cash),
+                    emailSent: !!serverResult.emailSent,
+                    emailError: serverResult.emailError || null
+                };
+            });
         })
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };
