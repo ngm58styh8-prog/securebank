@@ -1,140 +1,75 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#050807">
-<title>GlobalVest — Welcome</title>
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/brand.css?v=logo-emerald">
-<link rel="stylesheet" href="css/landing.css?v=logo-emerald">
-<link rel="stylesheet" href="css/luxury.css?v=emerald">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#070707">
+    <meta name="description" content="AutoLink Customs — quality parts and better rides. Our new website is launching soon.">
+    <title>AutoLink Customs — Website Launching Soon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Montserrat:ital,wght@0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/autolink-flyer.css">
 </head>
-<body class="landing-body luxury-landing" data-theme="dark">
-<div class="landing-bg" aria-hidden="true"></div>
-<canvas id="particleCanvas" aria-hidden="true"></canvas>
+<body>
+    <main class="flyer">
+        <div class="flyer__photo" aria-hidden="true"></div>
+        <div class="flyer__shade" aria-hidden="true"></div>
+        <div class="flyer__speed-lines" aria-hidden="true"></div>
 
-<header class="landing-nav">
-    <a href="index.html" class="landing-logo brand-logo">
-        <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest" class="brand-logo-img">
-    </a>
-    <nav class="landing-nav-links">
-        <a href="#about">About</a>
-        <a href="#features">Features</a>
-        <a href="#security">Security</a>
-        <a href="#contact">Contact</a>
-    </nav>
-    <div class="landing-nav-actions">
-        <a href="#" class="landing-btn landing-btn-secondary" data-go-login="signin">Login</a>
-        <a href="#" class="landing-btn landing-btn-primary" data-go-login="signup">Open Account</a>
-    </div>
-</header>
-
-<main class="landing-main">
-    <section class="landing-hero" id="about">
-        <div class="landing-hero-copy">
-            <h1>Welcome to GlobalVest</h1>
-            <p class="landing-hero-sub">The future of secure banking and digital asset management.</p>
-            <p class="landing-hero-desc">Manage your banking, cryptocurrency investments, international transfers and wealth portfolio from one secure platform.</p>
-            <div class="landing-hero-actions">
-                <a href="#" class="landing-btn landing-btn-primary" data-go-login="signup">Open Account</a>
-                <a href="#" class="landing-btn landing-btn-secondary" data-go-login="signin">Login</a>
+        <header class="brand">
+            <div class="brand__mark">
+                <img src="assets/autolink-logo.jpg" alt="AutoLink Customs">
             </div>
-        </div>
-        <div class="landing-illustration" aria-hidden="true">
-            <div class="landing-scene">
-                <div class="landing-scene-core"></div>
-                <img src="assets/globalvest-logo-emerald.png" alt="" class="landing-scene-logo" aria-hidden="true">
-                <div class="landing-scene-shield">🛡️</div>
-                <div class="landing-scene-coin c1">₿</div>
-                <div class="landing-scene-coin c2">Ξ</div>
-                <div class="landing-scene-coin c3">◎</div>
-                <div class="landing-scene-card card1"></div>
-                <div class="landing-scene-card card2"></div>
+            <p>Quality Parts <span></span> Better Rides</p>
+        </header>
+
+        <section class="announcement" aria-labelledby="launch-title">
+            <p class="eyebrow"><span></span> Something powerful is coming</p>
+            <h1 id="launch-title">
+                <span>OUR NEW WEBSITE</span>
+                IS LAUNCHING
+                <strong>SOON.</strong>
+            </h1>
+            <p class="announcement__copy">Your one-stop destination for quality car parts, premium accessories and custom upgrades—now with a faster way to shop.</p>
+        </section>
+
+        <section class="services" aria-label="Products and services">
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5-5l2.1 2.1-2.4 2.4-2.1-2.1a4 4 0 0 0 5 5l-7.9 7.9a2 2 0 1 0 2.8 2.8l7.9-7.9a4 4 0 0 0 5-5L17 9.6 14.6 7.2l2.1-2.1z"/></svg><span>Car Parts</span></div>
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h4v4H7zM13 2h4v4h-4zM7 8h4v4H7zM13 8h4v4h-4z"/></svg><span>Accessories</span></div>
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-7 12h6l-1 8 7-12h-6z"/></svg><span>Performance</span></div>
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16c4-1 8-5 9-9l4 4c-4 1-8 5-9 9zM15 5l2-2 4 4-2 2z"/></svg><span>Custom Wraps</span></div>
+        </section>
+
+        <section class="social-proof" aria-labelledby="reviews-title">
+            <div class="social-proof__heading">
+                <p id="reviews-title">Built for car people</p>
+                <div><b>5.0</b><span aria-label="5 out of 5 stars">★★★★★</span></div>
             </div>
-        </div>
-    </section>
-
-    <section class="landing-feature-cards" id="features">
-        <article class="landing-feature-card">
-            <div class="landing-feature-icon">🔐</div>
-            <h3>Bank-Grade Security</h3>
-            <p>256-bit encryption protecting every transaction and account detail.</p>
-        </article>
-        <article class="landing-feature-card">
-            <div class="landing-feature-icon">₿</div>
-            <h3>Secure Crypto Investing</h3>
-            <p>Buy, hold and manage digital assets alongside traditional banking.</p>
-        </article>
-        <article class="landing-feature-card">
-            <div class="landing-feature-icon">🌍</div>
-            <h3>Trusted Worldwide</h3>
-            <p>50,000+ global investors rely on GlobalVest every day.</p>
-        </article>
-    </section>
-
-    <section class="landing-section" id="security">
-        <h2 class="landing-section-title">Built for trust</h2>
-        <div class="landing-trust-row">
-            <span class="landing-trust-pill">🏛 FDIC Insured</span>
-            <span class="landing-trust-pill">🔒 SSL Encrypted</span>
-            <span class="landing-trust-pill">📞 24/7 Support</span>
-            <span class="landing-trust-pill">🛡 Real-Time Fraud Monitoring</span>
-        </div>
-    </section>
-
-    <section class="landing-section">
-        <div class="landing-stats">
-            <div>
-                <div class="landing-stat-value">$2.5B+</div>
-                <div class="landing-stat-label">Assets Managed</div>
+            <div class="reviews">
+                <figure>
+                    <div class="stars" aria-hidden="true">★★★★★</div>
+                    <blockquote>“The quality was excellent and the fit was perfect. AutoLink made the whole process easy.”</blockquote>
+                    <figcaption><b>Marcus T.</b><span>Verified customer</span></figcaption>
+                </figure>
+                <figure>
+                    <div class="stars" aria-hidden="true">★★★★★</div>
+                    <blockquote>“Great service, quick answers and exactly the parts I needed for my build.”</blockquote>
+                    <figcaption><b>Jalen R.</b><span>Verified customer</span></figcaption>
+                </figure>
+                <figure>
+                    <div class="stars" aria-hidden="true">★★★★★</div>
+                    <blockquote>“My car looks completely different. Clean work, premium finish and worth every penny.”</blockquote>
+                    <figcaption><b>Ashley D.</b><span>Verified customer</span></figcaption>
+                </figure>
             </div>
-            <div>
-                <div class="landing-stat-value">50,000+</div>
-                <div class="landing-stat-label">Investors</div>
-            </div>
-            <div>
-                <div class="landing-stat-value">99.99%</div>
-                <div class="landing-stat-label">Uptime</div>
-            </div>
-            <div>
-                <div class="landing-stat-value">150+</div>
-                <div class="landing-stat-label">Countries</div>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="landing-section">
-        <h2 class="landing-section-title">What investors say</h2>
-        <div class="landing-testimonials">
-            <blockquote class="landing-testimonial">
-                <p>"GlobalVest made managing my portfolio effortless. Transfers are fast and the platform feels truly premium."</p>
-                <cite>— Sarah M., Portfolio Manager</cite>
-            </blockquote>
-            <blockquote class="landing-testimonial">
-                <p>"I trust GlobalVest with my crypto and cash in one place. Security features give me complete peace of mind."</p>
-                <cite>— James K., Crypto Investor</cite>
-            </blockquote>
-            <blockquote class="landing-testimonial">
-                <p>"The best digital banking experience I've used. Clean interface, instant notifications, world-class support."</p>
-                <cite>— Elena R., Entrepreneur</cite>
-            </blockquote>
-        </div>
-    </section>
-
-    <section class="landing-cta-section" id="contact">
-        <h2>Ready to take control of your finances?</h2>
-        <button type="button" class="landing-cta-btn" data-go-login="signin">Access Your GlobalVest Account</button>
-    </section>
-</main>
-
-<footer class="landing-footer">
-    <p>© GlobalVest. All rights reserved.</p>
-</footer>
-
-<script src="js/landing.js?v=emerald"></script>
+        <footer class="launch-bar">
+            <div class="launch-bar__status"><i></i><span>Coming soon</span></div>
+            <a href="https://autolink-app.vercel.app">autolink-app.vercel.app <span aria-hidden="true">↗</span></a>
+            <p>Follow the build. Be first through the door.</p>
+        </footer>
+    </main>
 </body>
 </html>
