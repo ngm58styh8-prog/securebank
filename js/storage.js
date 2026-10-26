@@ -5793,3 +5793,51 @@ function adminSimulationFetch(action, options) {
         cache: "no-store"
     }).then(function(response) { return response.json(); });
 }
+
+function fetchInvestmentPortfolio(userEmail) {
+    const key = normalizeEmail(userEmail);
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, error: "Requires server connection.", offline: true });
+    }
+    return registryFetch("/api/simulation-investments?action=portfolio&email=" + encodeURIComponent(key), {
+        cache: "no-store"
+    }).then(function(response) { return response.json(); });
+}
+
+function fetchAssetSimulationPlans(assetId) {
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true, plans: [] });
+    }
+    return registryFetch("/api/simulation-investments?action=asset-plans&assetId=" + encodeURIComponent(assetId), {
+        cache: "no-store"
+    }).then(function(response) { return response.json(); });
+}
+
+function enrollSimulationPlan(userEmail, planId, amount) {
+    const key = normalizeEmail(userEmail);
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, error: "Requires server connection." });
+    }
+    return registryFetch("/api/simulation-investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "enroll", email: key, planId: planId, amount: amount })
+    }).then(function(response) { return response.json(); }).then(function(result) {
+        if (result && result.ok && result.account) {
+            saveAccount(key, result.account, { skipServerSync: true });
+        }
+        return result;
+    });
+}
+
+function fetchCustomerInvestmentHistory(userEmail, filter) {
+    const key = normalizeEmail(userEmail);
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true, events: [] });
+    }
+    const qs = "&filter=" + encodeURIComponent(filter || "all");
+    return registryFetch("/api/simulation-investments?action=customer-history&email=" +
+        encodeURIComponent(key) + qs, { cache: "no-store" }).then(function(response) {
+        return response.json();
+    });
+}

@@ -12,6 +12,7 @@ const {
     MS_CREDIT_INTERVAL
 } = require("./gold-investments");
 const { appendAdminActivityLog } = require("./admin-auth");
+const { sendSimulationEarningsEmailSafely } = require("./simulation-investment-emails");
 const {
     toCents,
     fromCents,
@@ -20,6 +21,20 @@ const {
 } = require("./decimal-money");
 
 const MS_DAY = MS_CREDIT_INTERVAL;
+
+function generateId(prefix) {
+    return prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
+}
+
+function resolveInvestmentPlan(inv, admin) {
+    if (inv && inv.planSnapshot && typeof inv.planSnapshot === "object") {
+        return inv.planSnapshot;
+    }
+    if (!inv || !admin) return null;
+    return (admin.simulationPlans || []).find(function(p) {
+        return String(p.id) === String(inv.planId);
+    }) || null;
+}
 
 /** Align with js/market-data.js asset ids */
 const SIMULATION_ASSETS = [
@@ -175,7 +190,7 @@ function collectMarketRows(accounts, query, assetFilter, plans) {
             if (q && key.indexOf(q) === -1 && name.toLowerCase().indexOf(q) === -1) return;
 
             const investedCents = toCents(inv.investedAmount);
-            const plan = planById[inv.planId] || null;
+            const plan = inv.planSnapshot || planById[inv.planId] || null;
             rows.push({
                 source: "market-simulation",
                 id: inv.id,
@@ -347,11 +362,261 @@ async function saveSimulationSettings(settings, adminCtx) {
 }
 
 function attachPlanSnapshot(inv, admin) {
-    const plan = (admin.simulationPlans || []).find(function(p) {
-        return String(p.id) === String(inv.planId);
-    });
-    inv._planSnapshot = plan ? Object.assign({}, plan) : null;
+    inv._planSnapshot = resolveInvestmentPlan(inv, admin);
     return inv;
+}
+
+async function enrollInSimulationPlan(email, planId, amount) {
+    const key = normalizeRegistryEmail(email);
+    amount = Number(amount);
+    if (!key) throw new Error("Missing or invalid email.");
+    if (!planId) throw new Error("Missing plan.");
+    if (!amount || amount <= 0 || isNaN(amount)) {
+        throw new Error("Enter a valid investment amount.");
+    }
+
+    const admin = await ensureDefaultSimulationPlans(await loadAdminRegistry());
+    if (admin.simulationSettings.enrollmentsPaused) {
+        throw new Error("New simulation enrollments are temporarily paused.");
+    }
+
+    const plan = (admin.simulationPlans || []).find(function(p) {
+        return String(p.id) === String(planId);
+    });
+    if (!plan) throw new Error("Simulation plan not found.");
+    if (plan.enabled === false) throw new Error("This simulation plan is disabled.");
+    if (plan.paused) throw new Error("This simulation plan is paused.");
+    if (plan.enrollmentsPaused) throw new Error("Enrollments are paused for this plan.");
+
+    if (amount < Number(plan.minInvestment)) {
+        throw new Error("Minimum simulation amount is $" + Number(plan.minInvestment).toFixed(2) + ".");
+    }
+    if (amount > Number(plan.maxInvestment)) {
+        throw new Error("Maximum simulation amount is $" + Number(plan.maxInvestment).toFixed(2) + ".");
+    }
+
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) throw new Error("Account not found.");
+
+    const meta = assetMeta(plan.assetId);
+    const now = new Date().toISOString();
+    const positionId = generateId("simpos");
+
+    const updated = Object.assign({}, account);
+    updated.simulationInvestments = Array.isArray(account.simulationInvestments)
+        ? account.simulationInvestments.slice()
+        : [];
+
+    const existing = updated.simulationInvestments.find(function(inv) {
+        return inv.status === "active" && inv.assetId === plan.assetId;
+    });
+    if (existing) {
+        throw new Error("You already have an active simulation for " + meta.name + ".");
+    }
+
+    const planSnapshot = {
+        id: plan.id,
+        assetId: plan.assetId,
+        name: plan.name,
+        returnType: plan.returnType,
+        dailyReturnPercent: plan.dailyReturnPercent,
+        dailyReturnFixed: plan.dailyReturnFixed,
+        durationDays: plan.durationDays,
+        enabled: true,
+        paused: false
+    };
+
+    updated.simulationInvestments.unshift({
+        id: positionId,
+        assetId: plan.assetId,
+        assetName: meta.name,
+        assetSymbol: meta.symbol,
+        planId: plan.id,
+        planName: plan.name,
+        investedAmount: amount,
+        totalSimulatedEarned: 0,
+        startDate: now,
+        nextCreditAt: now,
+        lastCreditDate: null,
+        status: "active",
+        durationDays: plan.durationDays,
+        planSnapshot: planSnapshot,
+        history: [],
+        emailNotifications: []
+    });
+
+    updated.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    updated.notifications.unshift({
+        id: "sim-enroll-" + positionId,
+        title: "Simulation started",
+        message: "Your " + meta.name + " investment simulation started with $" +
+            amount.toFixed(2) + " (educational simulation only).",
+        time: now,
+        read: false,
+        type: "simulation",
+        category: "simulation",
+        amount: amount,
+        currency: "USD",
+        status: "active"
+    });
+
+    const saved = await upsertAccount(key, updated, {
+        simulationAuthoritative: true,
+        source: "simulation-enroll"
+    });
+
+    return { ok: true, position: updated.simulationInvestments[0], account: saved.account };
+}
+
+async function getCustomerInvestmentPortfolio(email) {
+    const key = normalizeRegistryEmail(email);
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+    if (!account) return { ok: false, error: "Account not found." };
+
+    const admin = await ensureDefaultSimulationPlans(await loadAdminRegistry());
+    const gi = account.goldInvestment || null;
+
+    let investedCents = 0;
+    let earnedCents = 0;
+    const positions = [];
+
+    (account.simulationInvestments || []).forEach(function(inv) {
+        if (!inv) return;
+        const plan = resolveInvestmentPlan(inv, admin);
+        const invCents = toCents(inv.investedAmount);
+        investedCents += invCents;
+        earnedCents += toCents(inv.totalSimulatedEarned);
+        positions.push({
+            id: inv.id,
+            source: "simulation",
+            assetId: inv.assetId,
+            assetName: inv.assetName || assetMeta(inv.assetId).name,
+            assetSymbol: inv.assetSymbol || assetMeta(inv.assetId).symbol,
+            category: categoryOfAsset(inv.assetId),
+            planName: inv.planName,
+            investedAmount: inv.investedAmount,
+            totalSimulatedEarned: inv.totalSimulatedEarned || 0,
+            dailySimulatedReturn: fromCents(planDailyReturnCents(plan, invCents)),
+            nextCreditAt: inv.nextCreditAt,
+            startDate: inv.startDate,
+            status: inv.status
+        });
+    });
+
+    if (gi && gi.active) {
+        investedCents += toCents(gi.investedAmount);
+        earnedCents += toCents(gi.totalEarned);
+        positions.unshift({
+            id: gi.investmentId || "gold",
+            source: "gold",
+            assetId: "gold",
+            assetName: "Gold Investment",
+            assetSymbol: "XAU",
+            category: "commodity",
+            planName: gi.planName,
+            investedAmount: gi.investedAmount,
+            totalSimulatedEarned: gi.totalEarned,
+            dailySimulatedReturn: gi.dailyReturn,
+            nextCreditAt: gi.nextCreditAt,
+            startDate: gi.startDate,
+            status: gi.status,
+            href: "gold-investment.html"
+        });
+    }
+
+    const active = positions.filter(function(p) { return p.status === "active"; });
+    const completed = positions.filter(function(p) { return p.status !== "active"; });
+
+    let nextCredit = null;
+    active.forEach(function(p) {
+        if (!p.nextCreditAt) return;
+        const t = new Date(p.nextCreditAt).getTime();
+        if (!nextCredit || t < new Date(nextCredit).getTime()) nextCredit = p.nextCreditAt;
+    });
+
+    return {
+        ok: true,
+        summary: {
+            totalSimulatedInvestmentUsd: fromCents(investedCents),
+            totalSimulatedEarningsUsd: fromCents(earnedCents),
+            activeCount: active.length,
+            completedCount: completed.length,
+            nextSimulationCreditAt: nextCredit,
+            educationalLabel: admin.simulationSettings.educationalLabel
+        },
+        positions: positions,
+        plans: admin.simulationPlans.filter(function(p) { return p.enabled !== false; }),
+        assets: SIMULATION_ASSETS
+    };
+}
+
+async function getCustomerInvestmentHistory(email, filter) {
+    const key = normalizeRegistryEmail(email);
+    const portfolio = await getCustomerInvestmentPortfolio(key);
+    if (!portfolio.ok) return portfolio;
+
+    const events = [];
+    const accounts = await loadAllAccounts();
+    const account = accounts[key];
+
+    (account.simulationInvestments || []).forEach(function(inv) {
+        (inv.history || []).forEach(function(h) {
+            events.push({
+                date: h.date,
+                source: "simulation",
+                assetId: inv.assetId,
+                assetName: inv.assetName,
+                amount: h.amount,
+                reference: h.reference,
+                type: h.type,
+                category: categoryOfAsset(inv.assetId),
+                status: inv.status
+            });
+        });
+    });
+
+    const gi = account.goldInvestment;
+    if (gi && Array.isArray(gi.history)) {
+        gi.history.forEach(function(h) {
+            events.push({
+                date: h.date || h.createdAt,
+                source: "gold",
+                assetId: "gold",
+                assetName: "Gold Investment",
+                amount: h.amount,
+                reference: h.reference,
+                type: "gold-credit",
+                category: "commodity",
+                status: gi.status || "completed"
+            });
+        });
+    }
+
+    events.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+
+    const f = String(filter || "all").toLowerCase();
+    const filtered = events.filter(function(ev) {
+        if (f === "all") return true;
+        if (f === "gold") return ev.source === "gold";
+        if (f === "crypto") return ev.category === "crypto";
+        if (f === "stocks") return ev.category === "stock";
+        if (f === "commodities") return ev.category === "commodity";
+        if (f === "active") return ev.status === "active";
+        if (f === "completed") return ev.status === "completed";
+        return true;
+    });
+
+    return { ok: true, events: filtered };
+}
+
+async function listPublicPlansForAsset(assetId) {
+    const admin = await ensureDefaultSimulationPlans(await loadAdminRegistry());
+    const plans = (admin.simulationPlans || []).filter(function(p) {
+        return p.assetId === assetId && p.enabled !== false && !p.paused && !p.enrollmentsPaused;
+    });
+    return { ok: true, asset: assetMeta(assetId), plans: plans };
 }
 
 async function processSimulationCreditForUser(email, options) {
@@ -366,18 +631,15 @@ async function processSimulationCreditForUser(email, options) {
     let account = accounts[key] ? Object.assign({}, accounts[key]) : null;
     if (!account) return { ok: false, error: "Account not found." };
     account = ensureAccountSimulations(Object.assign({}, account));
-    account.simulationInvestments = account.simulationInvestments.map(function(inv) {
-        return attachPlanSnapshot(Object.assign({}, inv), admin);
-    });
-
     let creditedCount = 0;
     const results = [];
     const now = Date.now();
+    const creditIso = new Date(now).toISOString();
 
     for (let i = 0; i < account.simulationInvestments.length; i++) {
-        const inv = account.simulationInvestments[i];
+        const inv = Object.assign({}, account.simulationInvestments[i]);
         if (!inv || inv.status !== "active") continue;
-        const plan = inv._planSnapshot;
+        const plan = resolveInvestmentPlan(inv, admin);
         if (!plan || plan.enabled === false || plan.paused) {
             results.push({ id: inv.id, skipped: true, reason: "Plan inactive." });
             continue;
@@ -394,10 +656,11 @@ async function processSimulationCreditForUser(email, options) {
             continue;
         }
 
-        const reference = "sim-" + inv.id + "-" + now;
+        const creditDay = creditIso.slice(0, 10);
+        const reference = "sim-" + inv.id + "-" + creditDay;
         const duplicate = (admin.simulationCreditLog || []).some(function(row) {
             return row.reference === reference;
-        });
+        }) || (inv.history || []).some(function(h) { return h.reference === reference; });
         if (duplicate) {
             results.push({ id: inv.id, skipped: true, duplicate: true });
             continue;
@@ -408,7 +671,7 @@ async function processSimulationCreditForUser(email, options) {
         inv.nextCreditAt = new Date(now + MS_DAY).toISOString();
         if (!Array.isArray(inv.history)) inv.history = [];
         inv.history.unshift({
-            date: new Date().toISOString(),
+            date: creditIso,
             amount: fromCents(creditCents),
             reference: reference,
             type: "simulated-credit"
@@ -423,7 +686,7 @@ async function processSimulationCreditForUser(email, options) {
             planId: inv.planId,
             amount: fromCents(creditCents),
             status: "completed",
-            createdAt: new Date().toISOString(),
+            createdAt: creditIso,
             notificationStatus: admin.simulationSettings.notifyOnCredit ? "queued-in-app" : "disabled"
         });
         if (admin.simulationCreditLog.length > 1000) {
@@ -449,12 +712,48 @@ async function processSimulationCreditForUser(email, options) {
 
         creditedCount += 1;
         results.push({ id: inv.id, credited: true, amount: fromCents(creditCents) });
-        delete inv._planSnapshot;
         account.simulationInvestments[i] = inv;
     }
 
     await upsertAccount(key, account, { source: "simulation-credit", simulationAuthoritative: true });
     await saveAdminRegistry(admin);
+
+    if (creditedCount > 0 && admin.simulationSettings.notifyOnCredit) {
+        const refreshed = (await loadAllAccounts())[key];
+        const profileName = refreshed && refreshed.profile ? refreshed.profile.fullName : key;
+        for (let j = 0; j < results.length; j++) {
+            if (!results[j].credited) continue;
+            const inv = (refreshed.simulationInvestments || []).find(function(x) {
+                return x.id === results[j].id;
+            });
+            if (!inv) continue;
+            const lastRef = inv.lastEarningsEmailReference;
+            const histRef = (inv.history && inv.history[0]) ? inv.history[0].reference : null;
+            if (lastRef === histRef) continue;
+
+            const emailResult = await sendSimulationEarningsEmailSafely({
+                to: key,
+                customerName: profileName,
+                assetName: inv.assetName || inv.assetId,
+                investedAmount: inv.investedAmount,
+                creditAmount: results[j].amount,
+                totalSimulatedEarned: inv.totalSimulatedEarned,
+                calculationDate: new Date().toLocaleString("en-US", { timeZone: "UTC" }) + " UTC"
+            });
+
+            inv.lastEarningsEmailReference = histRef;
+            if (!Array.isArray(inv.emailNotifications)) inv.emailNotifications = [];
+            inv.emailNotifications.unshift({
+                reference: histRef,
+                sentAt: new Date().toISOString(),
+                sent: !!emailResult.sent,
+                error: emailResult.error || null
+            });
+            const idx = refreshed.simulationInvestments.findIndex(function(x) { return x.id === inv.id; });
+            if (idx >= 0) refreshed.simulationInvestments[idx] = inv;
+            await upsertAccount(key, refreshed, { simulationAuthoritative: true, source: "simulation-email" });
+        }
+    }
 
     return { ok: true, credited: creditedCount > 0, creditedCount: creditedCount, results: results };
 }
@@ -587,5 +886,9 @@ module.exports = {
     exportInvestmentsReport,
     planDailyReturnCents,
     toCents,
-    fromCents
+    fromCents,
+    enrollInSimulationPlan,
+    getCustomerInvestmentPortfolio,
+    getCustomerInvestmentHistory,
+    listPublicPlansForAsset
 };

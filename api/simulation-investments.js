@@ -1,5 +1,5 @@
 const { setRegistryCors, handleRegistryOptions } = require("../server-lib/registry-cors");
-const { isRegistryConfigured, registryConfigError } = require("../server-lib/registry");
+const { isRegistryConfigured, registryConfigError, normalizeRegistryEmail } = require("../server-lib/registry");
 const { assertAdminAuthorized, appendAdminActivityLog } = require("../server-lib/admin-auth");
 const {
     getAdminInvestmentOverview,
@@ -12,7 +12,11 @@ const {
     getSimulationHistory,
     getMonitoringDashboard,
     exportInvestmentsReport,
-    ensureDefaultSimulationPlans
+    ensureDefaultSimulationPlans,
+    enrollInSimulationPlan,
+    getCustomerInvestmentPortfolio,
+    getCustomerInvestmentHistory,
+    listPublicPlansForAsset
 } = require("../server-lib/simulation-investments");
 
 module.exports = async function handler(req, res) {
@@ -32,6 +36,26 @@ module.exports = async function handler(req, res) {
                 adminEmail: query.adminEmail,
                 adminPassword: query.adminPassword
             };
+
+            if (action === "portfolio") {
+                const email = normalizeRegistryEmail(query.email);
+                const result = await getCustomerInvestmentPortfolio(email);
+                res.status(result.ok ? 200 : 404).json(result);
+                return;
+            }
+
+            if (action === "asset-plans") {
+                const result = await listPublicPlansForAsset(String(query.assetId || "").toLowerCase());
+                res.status(200).json(result);
+                return;
+            }
+
+            if (action === "customer-history") {
+                const email = normalizeRegistryEmail(query.email);
+                const result = await getCustomerInvestmentHistory(email, query.filter || "all");
+                res.status(result.ok ? 200 : 404).json(result);
+                return;
+            }
 
             if (action === "overview") {
                 await assertAdminAuthorized(req, creds);
@@ -82,6 +106,12 @@ module.exports = async function handler(req, res) {
 
         if (req.method === "POST") {
             const body = typeof req.body === "string" ? JSON.parse(req.body) : (req.body || {});
+            if (body.action === "enroll") {
+                const result = await enrollInSimulationPlan(body.email, body.planId, body.amount);
+                res.status(200).json(result);
+                return;
+            }
+
             let admin = await assertAdminAuthorized(req, body);
 
             if (body.action === "upsert-plan" && body.plan) {

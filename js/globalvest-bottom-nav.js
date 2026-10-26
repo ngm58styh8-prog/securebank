@@ -14,7 +14,7 @@
         { key: "home", label: "Home", href: "dashboard.html", pages: ["dashboard.html"] },
         { key: "markets", label: "Markets", href: "exchange.html", pages: ["exchange.html"] },
         { key: "transfer", label: "Transfer", href: "send-money.html", pages: ["send-money.html", "transfer-history.html"] },
-        { key: "portfolio", label: "Portfolio", href: "wallet.html", pages: ["wallet.html", "gold-investment.html"] },
+        { key: "portfolio", label: "Investments", href: "investments.html", pages: ["investments.html", "investment-history.html", "wallet.html", "gold-investment.html"] },
         { key: "account", label: "Account", href: "settings.html", pages: ["settings.html", "profile.html", "support.html"] }
     ];
 

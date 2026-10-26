@@ -1,0 +1,94 @@
+body.investments-page .inv-sim-note {
+    color: #f5b700;
+    font-size: 0.88rem;
+    margin: 0 0 16px;
+    line-height: 1.45;
+}
+
+body.investments-page .inv-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+body.investments-page .inv-card {
+    padding: 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(35, 230, 163, 0.22);
+    background: rgba(8, 16, 12, 0.72);
+    box-shadow: 0 0 24px rgba(35, 230, 163, 0.06);
+}
+
+body.investments-page .inv-card .label {
+    font-size: 0.75rem;
+    color: #9caaa5;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+body.investments-page .inv-card .value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-top: 6px;
+}
+
+body.investments-page .inv-asset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+body.investments-page .inv-position-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+body.investments-page .inv-asset-card h4 {
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.investments-page .inv-asset-card .price {
+    color: #8bffd0;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+body.investments-page .inv-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.65);
+}
+
+body.investments-page .inv-dialog.hidden {
+    display: none;
+}
+
+body.investments-page .inv-dialog-panel {
+    width: min(480px, 100%);
+    max-height: 90vh;
+    overflow: auto;
+    border-radius: 18px 18px 0 0;
+    padding: 20px;
+    border: 1px solid rgba(35, 230, 163, 0.3);
+    background: #0a1210;
+}
+
+@media (min-width: 768px) {
+    body.investments-page .inv-dialog {
+        align-items: center;
+    }
+    body.investments-page .inv-dialog-panel {
+        border-radius: 18px;
+    }
+}

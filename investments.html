@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#050807">
+<title>GlobalVest — Investments</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/brand.css?v=logo-emerald">
+<link rel="stylesheet" href="css/dashboard.css?v=bell-fix">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=bell-fix">
+<link rel="stylesheet" href="css/luxury.css?v=mk1">
+<link rel="stylesheet" href="css/globalvest-bottom-nav.css?v=2">
+<link rel="stylesheet" href="css/gold-investment.css?v=emerald">
+<link rel="stylesheet" href="css/investments.css?v=1">
+<link rel="stylesheet" href="css/notifications.css?v=notif-premium2">
+</head>
+<body class="dashboard-premium luxury-app investments-page" data-theme="dark">
+
+<div class="gv-shell">
+<aside class="gv-sidebar" id="gvSidebar">
+    <div class="gv-sidebar-logo"><img src="assets/globalvest-logo-emerald.png" alt="GlobalVest"></div>
+    <div class="gv-nav-section">Menu</div>
+    <a href="dashboard.html" class="gv-nav-link">🏠 Dashboard</a>
+    <a href="investments.html" class="gv-nav-link active" aria-current="page">📈 Investments</a>
+    <a href="wallet.html" class="gv-nav-link">💼 Wallet</a>
+    <a href="gold-investment.html" class="gv-nav-link">🟨 Gold Investment</a>
+    <a href="exchange.html" class="gv-nav-link"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
+    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+    <button type="button" class="gv-nav-link gv-nav-logout" id="gvSidebarLogout">⎋ Logout</button>
+</aside>
+
+<div class="gv-app">
+<header class="gv-header">
+    <div class="gv-header-left">
+        <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Menu">☰</button>
+        <div class="gv-welcome">
+            <h1>📈 Investments</h1>
+            <p>Educational simulation &amp; portfolio tracking</p>
+        </div>
+    </div>
+    <div class="gv-header-actions profile-wrap">
+        <div class="notif-bell-wrap">
+            <button type="button" class="gv-icon-btn icon-btn notif-bell-btn" id="notifBtn" aria-label="Notifications" aria-expanded="false">
+                <svg class="notif-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span id="notifCount" class="badge notif-badge" style="display:none">0</span>
+            </button>
+            <div id="notifPanel" class="notif-panel hidden" role="dialog" aria-label="Notifications"></div>
+        </div>
+        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle">🌙</button>
+        <a href="investment-history.html" class="gv-nav-link">History</a>
+        <button type="button" class="gv-icon-btn icon-btn" id="logoutBtn">🚪</button>
+    </div>
+</header>
+
+<main class="gv-main container">
+    <p class="inv-sim-note" id="invEducationalLabel">Simulated figures — educational only. Not guaranteed real-world earnings.</p>
+
+    <section class="inv-summary-grid" id="invSummaryGrid"></section>
+
+    <h2 class="section-heading">Active Simulations</h2>
+    <div class="inv-position-grid" id="invPositionGrid"></div>
+
+    <h2 class="section-heading">Invest Now</h2>
+    <div class="inv-asset-grid" id="invAssetGrid"></div>
+</main>
+</div>
+</div>
+
+<div id="invDialog" class="inv-dialog hidden" role="dialog" aria-modal="true">
+    <div class="inv-dialog-panel gv-glass">
+        <h3 id="invDialogTitle">Invest Now</h3>
+        <p id="invDialogPrice" class="price"></p>
+        <form id="invEnrollForm">
+            <input type="hidden" id="invDialogAssetId">
+            <label class="form-label" for="invPlanSelect">Simulation plan</label>
+            <select id="invPlanSelect" required></select>
+            <label class="form-label" for="invAmount">Investment amount (USD)</label>
+            <input id="invAmount" type="number" min="1" step="0.01" required>
+            <p class="form-hint" id="invProjectedDaily"></p>
+            <p class="form-hint" id="invProjectedTotal"></p>
+            <p class="form-hint" id="invNextCredit"></p>
+            <div class="modal-actions">
+                <button type="button" class="modal-cancel" id="invDialogClose">Cancel</button>
+                <button type="submit" class="modal-confirm">Start simulation</button>
+            </div>
+        </form>
+        <p id="invEnrollError" class="form-error hidden"></p>
+    </div>
+</div>
+
+<script src="js/market-data.js?v=mk2"></script>
+<script src="js/storage.js?v=inv1"></script>
+<script src="js/common.js"></script>
+<script src="js/notifications.js?v=notif-demo"></script>
+<script src="js/globalvest-bottom-nav.js?v=2"></script>
+<script src="js/investments.js?v=1"></script>
+</body>
+</html>
