@@ -5727,3 +5727,69 @@ function adminProcessAllGoldCredits() {
         body: JSON.stringify({ action: "process-all-credits" })
     }).then(function(response) { return response.json(); });
 }
+
+const ADMIN_API_PASSWORD_KEY = "securebank_admin_api_password";
+
+function setAdminApiPassword(password) {
+    try {
+        if (password) sessionStorage.setItem(ADMIN_API_PASSWORD_KEY, String(password));
+        else sessionStorage.removeItem(ADMIN_API_PASSWORD_KEY);
+    } catch (e) { /* ignore */ }
+}
+
+function getAdminApiCredentials() {
+    const admin = getAdminData();
+    let password = "";
+    try {
+        password = sessionStorage.getItem(ADMIN_API_PASSWORD_KEY) || "";
+    } catch (e) { /* ignore */ }
+    return {
+        adminEmail: normalizeEmail(admin.email),
+        adminPassword: password
+    };
+}
+
+function adminSimulationFetch(action, options) {
+    options = options || {};
+    const creds = getAdminApiCredentials();
+    if (!creds.adminPassword) {
+        return Promise.resolve({
+            ok: false,
+            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+        });
+    }
+
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, error: "Requires server connection.", offline: true });
+    }
+
+    if (options.method === "POST") {
+        const body = Object.assign({}, creds, {
+            action: action,
+            plan: options.plan,
+            settings: options.settings,
+            email: options.email,
+            force: options.force,
+            delete: options.delete,
+            planId: options.planId
+        });
+        return registryFetch("/api/simulation-investments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        }).then(function(response) { return response.json(); });
+    }
+
+    const params = [
+        "action=" + encodeURIComponent(action),
+        "adminEmail=" + encodeURIComponent(creds.adminEmail),
+        "adminPassword=" + encodeURIComponent(creds.adminPassword)
+    ];
+    if (options.q != null) params.push("q=" + encodeURIComponent(options.q));
+    if (options.asset != null) params.push("asset=" + encodeURIComponent(options.asset));
+    if (options.limit != null) params.push("limit=" + encodeURIComponent(options.limit));
+
+    return registryFetch("/api/simulation-investments?" + params.join("&"), {
+        cache: "no-store"
+    }).then(function(response) { return response.json(); });
+}

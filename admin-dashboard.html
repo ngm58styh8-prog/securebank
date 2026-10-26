@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="css/luxury.css">
 <link rel="stylesheet" href="css/admin-luxury.css">
 <link rel="stylesheet" href="css/gold-investment.css">
+<link rel="stylesheet" href="css/admin-investments.css?v=1">
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
@@ -437,6 +438,137 @@
 </div>
 </section>
 
+<section id="section-investment-management" class="admin-panel-section">
+<h2 class="section-title">📈 Investment Management</h2>
+<p class="section-desc admin-inv-disclaimer">Unified simulation monitoring for all assets. Figures are educational simulations — not guaranteed real-world earnings. Gold legacy plans continue on their existing schedule.</p>
+
+<nav class="admin-inv-tabs" id="adminInvTabs" aria-label="Investment management sections">
+    <button type="button" class="admin-inv-tab active" data-inv-panel="inv-overview">Overview</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-all">All Investments</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-gold">Gold</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-crypto">Crypto</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-stock">Stocks</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-commodity">Commodities</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-plans">Plans</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-earnings">Simulated Earnings</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-history">History</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-settings">Settings</button>
+    <button type="button" class="admin-inv-tab" data-inv-panel="inv-monitor">Monitoring</button>
+</nav>
+
+<div id="inv-overview" class="admin-inv-panel active">
+    <div class="admin-overview-grid" id="adminInvOverviewStats"></div>
+    <div class="toolbar-row">
+        <button type="button" class="deposit-btn" id="adminInvRefreshBtn">Refresh</button>
+        <button type="button" class="withdraw-btn" id="adminInvRunCreditsBtn">Run All Simulation Credits</button>
+        <button type="button" class="deposit-btn" id="adminInvExportBtn">Export CSV</button>
+        <button type="button" class="deposit-btn" id="adminInvJumpGoldBtn">Open Gold Management</button>
+    </div>
+</div>
+
+<div id="inv-all" class="admin-inv-panel">
+    <div class="toolbar-row">
+        <input type="search" id="adminInvSearch" class="wallet-search" placeholder="Search customer email or name…" style="flex:1;">
+        <select id="adminInvAssetFilter">
+            <option value="all">All assets</option>
+        </select>
+        <button type="button" class="deposit-btn" id="adminInvSearchBtn">Search</button>
+    </div>
+    <div class="table-scroll">
+        <table><thead><tr>
+            <th>Customer</th><th>Source</th><th>Asset</th><th>Plan</th><th>Invested</th><th>Simulated earned</th><th>Daily sim.</th><th>Status</th>
+        </tr></thead><tbody id="adminInvAllBody"></tbody></table>
+    </div>
+</div>
+
+<div id="inv-gold" class="admin-inv-panel">
+    <p class="section-desc">Gold legacy simulations — full controls remain in <strong>Gold Investment</strong> below.</p>
+    <div class="table-scroll">
+        <table><thead><tr>
+            <th>Customer</th><th>Plan</th><th>Invested</th><th>Simulated earned</th><th>Daily sim.</th><th>Status</th>
+        </tr></thead><tbody id="adminInvGoldBody"></tbody></table>
+    </div>
+</div>
+
+<div id="inv-crypto" class="admin-inv-panel"><div class="table-scroll"><table><thead><tr>
+    <th>Customer</th><th>Asset</th><th>Plan</th><th>Invested</th><th>Simulated earned</th><th>Status</th>
+</tr></thead><tbody id="adminInvCryptoBody"></tbody></table></div></div>
+
+<div id="inv-stock" class="admin-inv-panel"><div class="table-scroll"><table><thead><tr>
+    <th>Customer</th><th>Asset</th><th>Plan</th><th>Invested</th><th>Simulated earned</th><th>Status</th>
+</tr></thead><tbody id="adminInvStockBody"></tbody></table></div></div>
+
+<div id="inv-commodity" class="admin-inv-panel"><div class="table-scroll"><table><thead><tr>
+    <th>Customer</th><th>Asset</th><th>Plan</th><th>Invested</th><th>Simulated earned</th><th>Status</th>
+</tr></thead><tbody id="adminInvCommodityBody"></tbody></table></div></div>
+
+<div id="inv-plans" class="admin-inv-panel">
+    <div id="adminInvPlansList" class="admin-gold-plans-grid"></div>
+    <button type="button" class="deposit-btn" id="adminInvNewPlanBtn">+ Create Simulation Plan</button>
+    <div class="card admin-adjust-card" id="adminInvPlanFormCard" style="display:none;">
+        <h3 class="section-heading" id="adminInvPlanFormTitle">Create Simulation Plan</h3>
+        <form id="adminInvPlanForm">
+            <input type="hidden" id="adminInvPlanId">
+            <label class="form-label" for="adminInvPlanAsset">Asset</label>
+            <select id="adminInvPlanAsset" required></select>
+            <label class="form-label" for="adminInvPlanName">Plan name</label>
+            <input id="adminInvPlanName" type="text" required>
+            <label class="form-label" for="adminInvReturnType">Return calculation</label>
+            <select id="adminInvReturnType"><option value="percent">Percent of invested (per 24h)</option><option value="fixed">Fixed USD per 24h</option></select>
+            <label class="form-label" for="adminInvDailyPercent">Daily percent (%)</label>
+            <input id="adminInvDailyPercent" type="number" min="0" step="0.01" value="1">
+            <label class="form-label" for="adminInvDailyFixed">Daily fixed (USD)</label>
+            <input id="adminInvDailyFixed" type="number" min="0" step="0.01" value="0">
+            <label class="form-label" for="adminInvMin">Minimum</label>
+            <input id="adminInvMin" type="number" min="0" step="0.01" value="100">
+            <label class="form-label" for="adminInvMax">Maximum</label>
+            <input id="adminInvMax" type="number" min="0" step="0.01" value="500000">
+            <label class="form-label" for="adminInvDuration">Duration (days)</label>
+            <input id="adminInvDuration" type="number" min="1" value="365">
+            <label class="radio-option"><input type="checkbox" id="adminInvPlanEnabled" checked> Plan enabled</label>
+            <label class="radio-option"><input type="checkbox" id="adminInvPlanPaused"> Pause plan</label>
+            <div class="modal-actions">
+                <button type="button" class="modal-cancel" id="adminInvPlanCancelBtn">Cancel</button>
+                <button type="submit" class="modal-confirm">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="inv-earnings" class="admin-inv-panel">
+    <div class="table-scroll"><table><thead><tr>
+        <th>Date</th><th>Source</th><th>Customer</th><th>Asset</th><th>Amount</th><th>Status</th><th>Notification</th>
+    </tr></thead><tbody id="adminInvEarningsBody"></tbody></table></div>
+</div>
+
+<div id="inv-history" class="admin-inv-panel">
+    <div class="table-scroll"><table><thead><tr>
+        <th>Date</th><th>Source</th><th>Reference</th><th>Customer</th><th>Asset</th><th>Amount</th>
+    </tr></thead><tbody id="adminInvHistoryBody"></tbody></table></div>
+</div>
+
+<div id="inv-settings" class="admin-inv-panel">
+    <form id="adminInvSettingsForm" class="card admin-adjust-card">
+        <label class="radio-option"><input type="checkbox" id="adminInvEnrollmentsPaused"> Pause new simulation enrollments (global)</label>
+        <label class="form-label" for="adminInvCreditHours">Calculation schedule (hours)</label>
+        <input id="adminInvCreditHours" type="number" min="1" max="168" value="24">
+        <label class="radio-option"><input type="checkbox" id="adminInvNotifyOnCredit" checked> In-app notification on simulated credit</label>
+        <label class="form-label" for="adminInvEducationalLabel">Educational label (shown to admins)</label>
+        <textarea id="adminInvEducationalLabel" rows="3"></textarea>
+        <button type="submit" class="deposit-btn">Save investment settings</button>
+    </form>
+</div>
+
+<div id="inv-monitor" class="admin-inv-panel">
+    <div id="adminInvMonitorStats" class="admin-overview-grid"></div>
+    <h3 class="section-heading">Recent calculation jobs</h3>
+    <div class="table-scroll"><table><thead><tr>
+        <th>Started</th><th>Status</th><th>Market credits</th><th>Gold credits</th><th>Errors</th>
+    </tr></thead><tbody id="adminInvJobsBody"></tbody></table></div>
+    <button type="button" class="deposit-btn" id="adminInvRetryCreditsBtn">Retry all credits</button>
+</div>
+</section>
+
 <section id="section-support" class="admin-panel-section">
 <h2 class="section-title">💬 Support & Reports</h2>
 <div class="card admin-filter-card">
@@ -701,6 +833,7 @@
 </script>
 <script src="js/admin-dashboard.js?v=demo1"></script>
 <script src="js/admin-gold.js"></script>
+<script src="js/admin-investments.js?v=1"></script>
 <script src="js/admin-premium.js"></script>
 </body>
 </html>

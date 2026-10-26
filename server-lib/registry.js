@@ -236,6 +236,15 @@ async function upsertAccount(email, account, options) {
             { goldAuthoritative: !!options.goldAuthoritative }
         );
 
+        if (options.simulationAuthoritative && Array.isArray(account.simulationInvestments)) {
+            merged.simulationInvestments = account.simulationInvestments.slice();
+        } else if (Array.isArray(existing.account.simulationInvestments) &&
+            !Array.isArray(account.simulationInvestments)) {
+            merged.simulationInvestments = existing.account.simulationInvestments.slice();
+        } else if (Array.isArray(account.simulationInvestments)) {
+            merged.simulationInvestments = account.simulationInvestments.slice();
+        }
+
         const incomingCash = typeof account.cash === "number" && !isNaN(account.cash) ? account.cash : null;
         const existingCash = typeof existing.account.cash === "number" && !isNaN(existing.account.cash)
             ? existing.account.cash
@@ -329,6 +338,18 @@ function ensureAdminRegistryShape(admin) {
     if (!Array.isArray(admin.goldPlans)) admin.goldPlans = [];
     if (!Array.isArray(admin.goldPayoutLog)) admin.goldPayoutLog = [];
     if (!Array.isArray(admin.goldInvestors)) admin.goldInvestors = [];
+    if (!admin.simulationSettings || typeof admin.simulationSettings !== "object") {
+        admin.simulationSettings = {
+            enrollmentsPaused: false,
+            creditIntervalHours: 24,
+            notifyOnCredit: true,
+            educationalLabel: "Simulated — educational only. Not guaranteed real-world earnings.",
+            eligibleAssetIds: []
+        };
+    }
+    if (!Array.isArray(admin.simulationPlans)) admin.simulationPlans = [];
+    if (!Array.isArray(admin.simulationCreditLog)) admin.simulationCreditLog = [];
+    if (!Array.isArray(admin.simulationJobRuns)) admin.simulationJobRuns = [];
     admin.cryptoDepositWallets = normalizeCryptoDepositWallets(admin);
     if (admin.cryptoDepositWallets[0] && admin.cryptoDepositWallets[0].address) {
         admin.walletAddress = admin.cryptoDepositWallets[0].address;

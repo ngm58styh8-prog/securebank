@@ -1,0 +1,36 @@
+.admin-inv-disclaimer {
+    color: #f5b700;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.admin-inv-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 16px;
+}
+
+.admin-inv-tab {
+    border: 1px solid rgba(35, 230, 163, 0.25);
+    background: rgba(0, 0, 0, 0.25);
+    color: #c8e6d9;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    cursor: pointer;
+}
+
+.admin-inv-tab.active {
+    background: rgba(35, 230, 163, 0.18);
+    border-color: rgba(35, 230, 163, 0.55);
+    color: #8bffd0;
+}
+
+.admin-inv-panel {
+    display: none;
+}
+
+.admin-inv-panel.active {
+    display: block;
+}

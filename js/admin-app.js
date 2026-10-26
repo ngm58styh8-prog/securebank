@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
 
         setAdminSession();
+        if (typeof setAdminApiPassword === "function") setAdminApiPassword(password);
         goToDashboard();
     });
 });

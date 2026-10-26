@@ -15,6 +15,7 @@
     "test:email-flow": "node scripts/test-transactional-email-flow.mjs",
     "test:notifications": "node scripts/test-notifications.js",
     "test:gold": "node scripts/test-gold-investments.js",
+    "test:simulation-investments": "node scripts/test-simulation-investments.js",
     "test:deposit-balance": "node scripts/test-deposit-balance-sync.js",
     "test:password-reset": "node scripts/test-password-reset.js",
     "check:registry": "node scripts/check-registry.js"
