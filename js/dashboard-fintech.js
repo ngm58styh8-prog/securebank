@@ -248,10 +248,13 @@
         });
         (ctx.pendingDeposits || []).forEach(function(d) {
             var cur = (d.currency || "BTC").toUpperCase();
+            var crypto = d.cryptoAmount || (cur === "BTC" ? d.btcAmount : cur === "ETH" ? d.ethAmount : null);
+            var cryptoText = crypto && typeof formatDepositCryptoAmount === "function"
+                ? "≈ " + formatDepositCryptoAmount(crypto, cur) + ". " : "";
             rows.push({
                 type: "deposit", title: cur + " Deposit", party: d.payTo || "",
                 amount: Math.abs(Number(d.amount) || 0), status: "pending", date: d.date || "",
-                note: "Awaiting blockchain confirmation and admin approval. Not credited yet.", live: true
+                note: cryptoText + "Awaiting blockchain confirmation and admin approval. Not credited yet.", live: true
             });
         });
 

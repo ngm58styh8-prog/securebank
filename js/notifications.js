@@ -599,12 +599,26 @@
         renderNotificationBell(getSessionEmail());
     }
 
+    /* On mobile the panel is a fixed sheet; headers differ in height per page, so start it just below the bell
+       (never over it) and stop it above the bottom navigation. */
+    function placePanel(panel, btn) {
+        panel.style.removeProperty("top");
+        panel.style.removeProperty("max-height");
+        if (!btn || getComputedStyle(panel).position !== "fixed") return;
+        const top = Math.round(btn.getBoundingClientRect().bottom + 8);
+        const nav = document.querySelector(".gv-bottom-nav");
+        const limit = nav && getComputedStyle(nav).display !== "none" ? nav.getBoundingClientRect().top : window.innerHeight;
+        panel.style.setProperty("top", top + "px", "important");
+        panel.style.setProperty("max-height", Math.max(220, Math.round(limit - top - 12)) + "px", "important");
+    }
+
     function openPanel() {
         const panel = document.getElementById("notifPanel");
         const btn = document.getElementById("notifBtn");
         if (!panel) return;
         panel.classList.remove("hidden");
         panel.classList.add("is-open");
+        placePanel(panel, btn);
         if (btn) btn.setAttribute("aria-expanded", "true");
         refreshNotificationsForUser(getSessionEmail());
     }
@@ -664,6 +678,10 @@
 
         if (!document.body.dataset.notifDismissBound) {
             document.body.dataset.notifDismissBound = "1";
+            window.addEventListener("resize", function() {
+                const panel = document.getElementById("notifPanel");
+                if (panel && !panel.classList.contains("hidden")) placePanel(panel, document.getElementById("notifBtn"));
+            });
             document.addEventListener("click", function(e) {
                 const panel = document.getElementById("notifPanel");
                 if (!panel || panel.classList.contains("hidden")) return;

@@ -75,8 +75,7 @@ body.gv-fintech-dashboard .gv-ft-hero .gv-hero-chart canvas {
     max-height: 76px !important;
 }
 
-body.gv-fintech-dashboard #depositPanel,
-body.gv-fintech-dashboard #pendingTransfersCard {
+body.gv-fintech-dashboard #depositPanel {
     margin-bottom: 18px;
 }
 
@@ -902,16 +901,17 @@ body.gv-fintech-dashboard { overflow-x: hidden; }
     max-width: calc(100vw - 48px);
 }
 
-/* ---- Mobile: notification center as a bottom sheet so the bell stays tappable ---- */
+/* ---- Mobile: notification center drops down from the bell, which sits at the left of the header's second row.
+   Not position: fixed — the header's backdrop-filter would make the header its containing block. ---- */
 @media (max-width: 720px) {
     body.gv-fintech-dashboard.dashboard-premium .gv-header-actions .notif-panel {
-        position: fixed !important;
-        top: auto !important;
-        left: 12px !important;
-        right: 12px !important;
-        bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
-        width: auto !important;
-        max-height: min(62vh, 520px) !important;
-        z-index: 450;
+        position: absolute !important;
+        top: calc(100% + 10px) !important;
+        left: 0 !important;
+        right: auto !important;
+        bottom: auto !important;
+        width: calc(100vw - 32px) !important;
+        max-height: min(58vh, 520px) !important;
+        z-index: 600;
     }
 }

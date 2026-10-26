@@ -462,7 +462,6 @@ function updateUI() {
         }
     }
 
-    renderPendingTransfers();
     const displayName = account.profile ? account.profile.fullName : username;
     const userNameEl = document.getElementById("userName");
     const profileNameEl = document.getElementById("profileName");
@@ -953,46 +952,6 @@ function submitDepositFromPanel() {
         if (submitBtn) submitBtn.disabled = false;
         alert(err.message || "Could not submit deposit.");
     });
-}
-
-function renderPendingTransfers() {
-    const transfers = getUserPendingTransfers(username);
-    const deposits = getUserPendingDeposits(username);
-    const card = document.getElementById("pendingTransfersCard");
-    const list = document.getElementById("pendingTransfersList");
-    if (!card || !list) return;
-
-    const items = transfers.map(function(t) {
-        return `<li class="pending-item">
-            <span>Transfer ${formatPrice(t.amount)} → ${t.destination}</span>
-            <span class="pending-badge">Awaiting approval</span>
-        </li>`;
-    }).concat(deposits.map(function(d) {
-        const currency = (d.currency || "BTC").toUpperCase();
-        let cryptoLine = "";
-        if (d.cryptoAmount) {
-            cryptoLine = " · ≈ " + formatDepositCryptoAmount(d.cryptoAmount, currency);
-        } else if (d.btcAmount) {
-            cryptoLine = " · ≈ " + d.btcAmount.toFixed(8) + " BTC";
-        } else if (d.ethAmount) {
-            cryptoLine = " · ≈ " + d.ethAmount.toFixed(6) + " ETH";
-        }
-        const dest = d.payTo
-            ? "<br><span class=\"admin-email\">" + d.payTo + "</span>" : "";
-        return "<li class=\"pending-item\">" +
-            "<span>Deposit " + formatPrice(d.amount) + " via " + currency + cryptoLine + dest +
-            "<br><em>Pending — awaiting blockchain confirmation</em></span>" +
-            "<span class=\"pending-badge\">Pending</span>" +
-            "</li>";
-    }));
-
-    if (!items.length) {
-        card.classList.add("hidden");
-        return;
-    }
-
-    card.classList.remove("hidden");
-    list.innerHTML = items.join("");
 }
 
 function openModal(type) {
