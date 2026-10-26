@@ -1,7 +1,8 @@
 document.addEventListener("DOMContentLoaded", function() {
-    initParticles();
-    initNavScroll();
     initPageLinks();
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        initParticles();
+    }
 });
 
 function initParticles() {
@@ -11,6 +12,7 @@ function initParticles() {
     let particles = [];
     let w = 0;
     let h = 0;
+    let rafId = 0;
 
     function resize() {
         w = canvas.width = window.innerWidth;
@@ -19,15 +21,15 @@ function initParticles() {
 
     function createParticles() {
         particles = [];
-        const count = Math.min(80, Math.floor(w / 14));
+        const count = Math.min(55, Math.floor(w / 18));
         for (let i = 0; i < count; i++) {
             particles.push({
                 x: Math.random() * w,
                 y: Math.random() * h,
-                r: Math.random() * 2 + 0.5,
-                vx: (Math.random() - 0.5) * 0.4,
-                vy: (Math.random() - 0.5) * 0.4,
-                a: Math.random() * 0.5 + 0.2
+                r: Math.random() * 1.8 + 0.4,
+                vx: (Math.random() - 0.5) * 0.25,
+                vy: (Math.random() - 0.5) * 0.25,
+                a: Math.random() * 0.35 + 0.15
             });
         }
     }
@@ -43,31 +45,27 @@ function initParticles() {
             if (p.y > h) p.y = 0;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(62, 224, 160, " + p.a + ")";
+            ctx.fillStyle = "rgba(0, 232, 149, " + p.a + ")";
             ctx.fill();
         });
-        requestAnimationFrame(draw);
+        rafId = requestAnimationFrame(draw);
     }
 
     resize();
     createParticles();
     draw();
+
     window.addEventListener("resize", function() {
         resize();
         createParticles();
     });
-}
 
-function initNavScroll() {
-    document.querySelectorAll('a[href^="#"]').forEach(function(link) {
-        link.addEventListener("click", function(e) {
-            const id = link.getAttribute("href");
-            if (!id || id === "#") return;
-            const target = document.querySelector(id);
-            if (!target) return;
-            e.preventDefault();
-            target.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
+    document.addEventListener("visibilitychange", function() {
+        if (document.hidden) {
+            cancelAnimationFrame(rafId);
+        } else if (!rafId) {
+            draw();
+        }
     });
 }
 
@@ -80,7 +78,7 @@ function navigateToLogin(tab) {
     sessionStorage.setItem("securebank_page_transition", "1");
     setTimeout(function() {
         window.location.href = "login.html";
-    }, 420);
+    }, 380);
 }
 
 function initPageLinks() {
