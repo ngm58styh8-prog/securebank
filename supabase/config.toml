@@ -1,0 +1,23 @@
+# Supabase CLI — link with: npm run supabase:push
+# Requires SUPABASE_URL and SUPABASE_DB_PASSWORD in .env.local
+
+project_id = ""
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.migrations]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323

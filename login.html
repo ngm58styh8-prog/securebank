@@ -90,12 +90,11 @@
 
             <div class="auth-forms-wrap">
                 <form id="signInForm" class="auth-form auth-panel-visible" autocomplete="on">
-                    <p class="last-login-banner hidden" id="lastLoginBanner"></p>
                     <p class="auth-alert hidden" id="newDeviceAlert"></p>
 
                     <div class="float-field" data-field="signInEmail">
                         <span class="field-icon" aria-hidden="true">✉</span>
-                        <input id="signInEmail" type="email" required autocomplete="email" placeholder=" ">
+                        <input id="signInEmail" type="email" required autocomplete="off" autocapitalize="none" spellcheck="false" placeholder=" ">
                         <label for="signInEmail">Email address</label>
                     </div>
 
@@ -108,7 +107,7 @@
 
                     <div class="options">
                         <label class="remember-label">
-                            <input type="checkbox" id="rememberMe" checked>
+                            <input type="checkbox" id="rememberMe">
                             Remember me
                         </label>
                         <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot password?</button>

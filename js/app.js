@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     initPasswordToggles();
     initFieldValidation();
-    loadRememberedEmail();
+    clearSignInEmailField();
 
     const ws = getWebsiteSettings();
     if (ws.maintenanceMode) {
@@ -38,17 +38,6 @@ document.addEventListener("DOMContentLoaded", function() {
         clearSession();
     }
     if (sessionEmail) clearSession();
-
-    try {
-        const reason = new URLSearchParams(window.location.search).get("reason");
-        if (reason === "device-removed") {
-            const banner = document.getElementById("lastLoginBanner");
-            if (banner) {
-                banner.textContent = "This device was removed from your account. Please sign in again.";
-                banner.classList.remove("hidden");
-            }
-        }
-    } catch (e) { /* ignore */ }
 
     function disableAuthForms(disabled) {
         signInForm.querySelectorAll("input, button, select").forEach(function(el) { el.disabled = disabled; });
@@ -75,7 +64,6 @@ document.addEventListener("DOMContentLoaded", function() {
         signInTab.setAttribute("aria-selected", "true");
         signUpTab.setAttribute("aria-selected", "false");
         showPanel(signInForm);
-        updateLastLoginBanner();
     }
 
     function showSignUp() {
@@ -110,6 +98,17 @@ document.addEventListener("DOMContentLoaded", function() {
         if (el) el.classList.add("hidden");
     }
 
+    try {
+        const reason = new URLSearchParams(window.location.search).get("reason");
+        if (reason === "device-removed") {
+            showMessage(
+                document.getElementById("signInMessage"),
+                "This device was removed from your account. Please sign in again.",
+                "error"
+            );
+        }
+    } catch (e) { /* ignore */ }
+
     function startResendCooldown(seconds) {
         resendCooldownSeconds = seconds;
         if (!emailVerifyResendBtn || !emailVerifyResendCooldown) return;
@@ -136,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function() {
         pendingSignupEmail = email;
         pendingLoginEmail = email;
         document.getElementById("emailVerifyDesc").textContent = message ||
-            ("We sent a 6-digit code to " + email + ". Check your inbox to continue.");
+            "We sent a 6-digit code to your email. Check your inbox to continue.";
         document.getElementById("emailVerifyCode").value = "";
         hideMessage(document.getElementById("emailVerifyMessage"));
         showPanel(emailVerifyStep);
@@ -212,25 +211,6 @@ document.addEventListener("DOMContentLoaded", function() {
         finalizeLogin(email);
     }
 
-    function updateLastLoginBanner() {
-        const banner = document.getElementById("lastLoginBanner");
-        const email = normalizeEmail(document.getElementById("signInEmail").value);
-        if (!email || !isValidEmail(email)) {
-            banner.classList.add("hidden");
-            return;
-        }
-        const account = getAccount(email);
-        if (!account || !account.profile || !account.profile.lastLoginAt) {
-            banner.classList.add("hidden");
-            return;
-        }
-        banner.textContent = "Last login: " + formatAuthDateTime(account.profile.lastLoginAt) +
-            (account.profile.lastLoginDevice ? " from " + account.profile.lastLoginDevice : "");
-        banner.classList.remove("hidden");
-    }
-
-    document.getElementById("signInEmail").addEventListener("blur", updateLastLoginBanner);
-
     signInForm.addEventListener("submit", function(e) {
         e.preventDefault();
         hideMessage(document.getElementById("signInMessage"));
@@ -258,7 +238,7 @@ document.addEventListener("DOMContentLoaded", function() {
         if (account.emailVerified === false) {
             setAuthSubmitLoading(submitBtn, false);
             showEmailVerifyPanel(email,
-                "Your email is not verified yet. Enter the 6-digit code we sent to " + email + ".");
+                "Your email is not verified yet. Enter the 6-digit code we sent to your inbox.");
             sendVerificationForEmail(email);
             return;
         }
@@ -347,7 +327,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             handler.then(function(result) {
                 if (result.ok) {
-                    showMessage(verifyMsg, "A new verification code was sent to " + email + ".", "success");
+                    showMessage(verifyMsg, "A new verification code was sent to your email.", "success");
                     startResendCooldown(60);
                     return;
                 }
@@ -421,7 +401,7 @@ document.addEventListener("DOMContentLoaded", function() {
             const finishSignup = function() {
                 setAuthSubmitLoading(signUpSubmit, false);
                 showEmailVerifyPanel(email,
-                    "We sent a 6-digit code to " + email + ". Check your inbox to continue.");
+                    "We sent a 6-digit code to your email. Check your inbox to continue.");
                 sendVerificationForEmail(email);
             };
 
@@ -610,13 +590,11 @@ document.addEventListener("DOMContentLoaded", function() {
         hideMessage(document.getElementById("forgotMessage"));
     }
 
-    function loadRememberedEmail() {
-        const saved = localStorage.getItem("securebank_remember_email");
-        if (saved) {
-            document.getElementById("signInEmail").value = saved;
-            document.getElementById("signInEmail").dispatchEvent(new Event("input"));
-            updateLastLoginBanner();
-        }
+    function clearSignInEmailField() {
+        const emailInput = document.getElementById("signInEmail");
+        if (!emailInput) return;
+        emailInput.value = "";
+        emailInput.dispatchEvent(new Event("input"));
     }
 });
 

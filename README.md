@@ -142,7 +142,7 @@ Open admin on **globalvestbank.com** so it reads the same Supabase registry as u
 
 On Vercel, user accounts and admin data sync to **Supabase** (not browser-only storage). One-time setup:
 
-1. Run [supabase/migrations/002_app_registry.sql](supabase/migrations/002_app_registry.sql) in the Supabase SQL Editor (creates `user_accounts` and `admin_registry` tables).
+1. Apply migrations: set `SUPABASE_URL` and `SUPABASE_DB_PASSWORD` in `.env.local`, then run `npm run supabase:push` (links the CLI and runs `supabase db push`). Or run each file under [supabase/migrations/](supabase/migrations/) in the Supabase SQL Editor (start with `002_app_registry.sql` for `user_accounts` and `admin_registry`).
 2. Ensure Vercel has `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (same vars as email verification).
 3. Redeploy, then verify:
 
