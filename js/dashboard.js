@@ -1,3 +1,4 @@
+const PAGE_START = Date.now();
 const username = requireAuth();
 if (!username) {
     /* requireAuth redirects to login; stop before touching account data */
@@ -132,6 +133,8 @@ function categoryValue(category) {
 
 function ensureBaseline() {
     if (account.baselineValue !== null) return;
+    /* Never record a baseline before live prices are known, or later market data would look like profit. */
+    if (!pricesReadyForHoldings()) return;
     account.baselineValue = portfolioValue() || account.cash;
     saveState();
 }
@@ -208,17 +211,34 @@ function renderTransactions() {
     syncFintechDashboard();
 }
 
+function pricesReadyForHoldings() {
+    return ALL_ASSETS.every(function(a) {
+        return !(getHoldings(a.key) > 0) || prices[a.key] > 0;
+    });
+}
+
 function syncFintechDashboard() {
     if (typeof window.updateFintechDashboard !== "function") return;
     window.updateFintechDashboard({
+        username: username,
         account: account,
         settings: settings,
         prices: prices,
         changes: changes,
+        pricesReady: pricesReadyForHoldings(),
         formatPrice: formatPrice,
         portfolioValue: portfolioValue,
         assetValue: assetValue,
         ALL_ASSETS: ALL_ASSETS,
+        pendingTransfers: typeof getUserPendingTransfers === "function" ? getUserPendingTransfers(username) : [],
+        pendingDeposits: typeof getUserPendingDeposits === "function" ? getUserPendingDeposits(username) : [],
+        setPortfolioSeries: function(labels, values) {
+            if (!lineChart) return;
+            lineChart.data.labels = labels;
+            lineChart.data.datasets[0].data = values;
+            lineChart.update();
+        },
+        pendingTotal: typeof getUserPendingTransferTotal === "function" ? getUserPendingTransferTotal(username) : 0,
         getGoldInvestmentBalance: typeof getGoldInvestmentBalance === "function"
             ? getGoldInvestmentBalance
             : function() { return 0; }
@@ -252,11 +272,18 @@ function addTransaction(description, amount, options) {
 function updatePL() {
     ensureBaseline();
     const current = portfolioValue();
-    const pl = current - account.baselineValue;
-    const pct = account.baselineValue ? (pl / account.baselineValue) * 100 : 0;
     const plEl = document.getElementById("plValue");
     const pctEl = document.getElementById("plPercent");
     if (!plEl || !pctEl) return;
+    if (account.baselineValue === null || account.baselineValue === undefined) {
+        plEl.textContent = "—";
+        plEl.className = "balance";
+        pctEl.textContent = "Waiting for live prices";
+        pctEl.className = "pl-sub";
+        return;
+    }
+    const pl = current - account.baselineValue;
+    const pct = account.baselineValue ? (pl / account.baselineValue) * 100 : 0;
 
     plEl.textContent = (pl >= 0 ? "+" : "") + formatPrice(pl);
     plEl.className = "balance " + (pl >= 0 ? "pl-positive" : "pl-negative");
@@ -283,17 +310,23 @@ function updateAnalytics() {
     const today = new Date().toDateString();
     const month = new Date().getFullYear() + "-" + (new Date().getMonth() + 1);
 
-    if (analytics.dayStartDate !== today) {
-        analytics.dayStartValue = total;
-        analytics.dayStartDate = today;
+    /* Baselines are only captured once live prices are known; otherwise holdings count as $0
+       and the later price load would be reported as a fake gain. */
+    const pricesReady = pricesReadyForHoldings();
+    if (pricesReady) {
+        if (analytics.dayStartDate !== today) {
+            analytics.dayStartValue = total;
+            analytics.dayStartDate = today;
+        }
+        if (analytics.monthStartMonth !== month) {
+            analytics.monthStartValue = total;
+            analytics.monthStartMonth = month;
+        }
+        saveState();
     }
-    if (analytics.monthStartMonth !== month) {
-        analytics.monthStartValue = total;
-        analytics.monthStartMonth = month;
-    }
-    saveState();
+    const hasDayBaseline = analytics.dayStartDate === today && analytics.dayStartValue != null;
 
-    const todayProfit = total - (analytics.dayStartValue || total);
+    const todayProfit = hasDayBaseline ? total - (analytics.dayStartValue || total) : 0;
     const monthProfit = total - (analytics.monthStartValue || total);
     const monthPct = analytics.monthStartValue ? (monthProfit / analytics.monthStartValue) * 100 : 0;
 
@@ -306,11 +339,14 @@ function updateAnalytics() {
         todayEl.className = "balance " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
     }
 
-    const dayPct = analytics.dayStartValue ? (todayProfit / analytics.dayStartValue) * 100 : 0;
+    const dayPct = hasDayBaseline && analytics.dayStartValue ? (todayProfit / analytics.dayStartValue) * 100 : 0;
     const heroVal = document.getElementById("heroPortfolioValue");
     const heroGain = document.getElementById("heroTodayGain");
     if (heroVal) {
-        if (typeof window.animateHeroPortfolio === "function") {
+        if (!pricesReady && (Date.now() - PAGE_START) < 8000) {
+            heroVal.removeAttribute("data-balance-value");
+            heroVal.textContent = "Loading…";
+        } else if (typeof window.animateHeroPortfolio === "function") {
             window.animateHeroPortfolio(total, formatPrice(total));
         } else {
             heroVal.textContent = formatPrice(total);
@@ -320,13 +356,11 @@ function updateAnalytics() {
         const arrow = todayProfit >= 0 ? "▲" : "▼";
         const gainText = arrow + " " + (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit) +
             " (" + (dayPct >= 0 ? "+" : "") + dayPct.toFixed(2) + "%)";
-        heroGain.setAttribute("data-gain-value", gainText);
-        if (document.body.classList.contains("balances-hidden")) {
-            heroGain.textContent = "Today's change hidden";
-        } else {
-            heroGain.textContent = gainText;
-        }
-        heroGain.className = "gv-hero-gain " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
+        const shownGain = hasDayBaseline ? gainText : "Today's change unavailable";
+        heroGain.setAttribute("data-gain-value", shownGain);
+        heroGain.textContent = document.body.classList.contains("balances-hidden")
+            ? "Today's change hidden" : shownGain;
+        heroGain.className = "gv-hero-gain " + (!hasDayBaseline ? "" : (todayProfit >= 0 ? "pl-positive" : "pl-negative"));
     }
 
     const monthEl = document.getElementById("monthlyReturn");
@@ -447,6 +481,7 @@ function updateUI() {
 }
 
 function checkPriceAlerts() {
+    if (!account.lastAlerts || typeof account.lastAlerts !== "object") account.lastAlerts = {};
     ALL_ASSETS.forEach(function(asset) {
         const change = changes[asset.key];
         if (change == null || !prices[asset.key]) return;
@@ -974,16 +1009,24 @@ function openModal(type) {
     document.getElementById("modalOverlay").classList.remove("hidden");
     document.getElementById("modalOverlay").dataset.type = type;
     document.getElementById("modalInput").value = "";
-    document.getElementById("modalTitle").textContent = "💸 Request Transfer";
+    document.getElementById("modalTitle").textContent = "💸 Withdraw Funds";
     document.getElementById("transferDetailsGroup").classList.remove("hidden");
     document.getElementById("transferDestination").value = "";
-    document.getElementById("confirmModalBtn").textContent = "Submit Transfer for Approval";
+    document.getElementById("confirmModalBtn").textContent = "Submit Withdrawal for Approval";
+    const availEl = document.getElementById("withdrawAvailable");
+    if (availEl) {
+        const pendingTotal = getUserPendingTransferTotal(username);
+        availEl.textContent = "Available to withdraw: " + formatPrice(Math.max(account.cash - pendingTotal, 0)) +
+            (pendingTotal > 0 ? " (" + formatPrice(pendingTotal) + " already pending)" : "");
+    }
     document.getElementById("modalInput").focus();
 }
 
 function closeModal() {
     document.getElementById("modalOverlay").classList.add("hidden");
 }
+
+let withdrawSubmitting = false;
 
 function confirmModal(e) {
     if (e) e.preventDefault();
@@ -999,15 +1042,24 @@ function confirmModal(e) {
     const method = document.querySelector('input[name="transferMethod"]:checked').value;
 
     if (!destination) {
-        alert("Please enter where to send the transfer.");
+        alert("Please enter the withdrawal destination.");
         return;
     }
+
+    if (withdrawSubmitting) return;
+    withdrawSubmitting = true;
+    const confirmBtn = document.getElementById("confirmModalBtn");
+    if (confirmBtn) confirmBtn.disabled = true;
 
     const submitHandler = typeof submitTransferRequestAsync === "function"
         ? submitTransferRequestAsync(username, amount, destination, method)
         : Promise.resolve(submitTransferRequest(username, amount, destination, method));
 
-    submitHandler.then(function(result) {
+    submitHandler.catch(function() {
+        return { ok: false, error: "Could not reach the server. Please try again." };
+    }).then(function(result) {
+        withdrawSubmitting = false;
+        if (confirmBtn) confirmBtn.disabled = false;
         if (!result.ok) {
             alert(result.error);
             return;
@@ -1023,7 +1075,18 @@ function confirmModal(e) {
     });
 }
 
+const DASH_THEME_KEY = "securebank_dashboard_theme";
+
+function preferredDashboardTheme() {
+    try {
+        const saved = localStorage.getItem(DASH_THEME_KEY);
+        if (saved === "light" || saved === "dark") return saved;
+    } catch (e) { /* ignore */ }
+    return "dark";
+}
+
 function applyTheme(theme) {
+    try { localStorage.setItem(DASH_THEME_KEY, theme); } catch (e) { /* ignore */ }
     account.theme = theme;
     account.settings.theme = theme;
     applyThemeToDocument(theme);
@@ -1031,7 +1094,8 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-    applyTheme(account.theme === "dark" ? "light" : "dark");
+    /* Base the switch on what is actually displayed, not on a possibly stale account value. */
+    applyTheme(document.body.dataset.theme === "dark" ? "light" : "dark");
 }
 
 function toggleDropdown(id) {
@@ -1054,10 +1118,10 @@ function initCharts() {
     lineChart = new Chart(lineCtx, {
         type: "line",
         data: {
-            labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"],
+            labels: [],
             datasets: [{
                 label: "Portfolio Value",
-                data: [12000, 14500, 17000, 19000, 21000, 24000, 25480],
+                data: [],
                 borderColor: "#3EE0A0",
                 borderWidth: 3,
                 fill: true,
@@ -1115,7 +1179,7 @@ function bindClick(id, handler) {
 }
 
 function initUI() {
-    applyTheme(settings.theme || "dark");
+    applyTheme(preferredDashboardTheme());
     renderTransactions();
     initCharts();
     updateUI();
@@ -1306,4 +1370,17 @@ function bootstrapDashboard() {
     }
 }
 
+function handleDashboardDeepLink() {
+    let action = "";
+    try {
+        action = new URLSearchParams(window.location.search).get("action") || "";
+    } catch (e) { return; }
+    if (action === "deposit") openDepositPanel();
+    else if (action === "withdraw") openModal("withdraw");
+    if (action && window.history && window.history.replaceState) {
+        window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    }
+}
+
 bootstrapDashboard();
+handleDashboardDeepLink();

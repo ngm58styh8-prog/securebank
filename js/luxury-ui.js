@@ -11,7 +11,8 @@
 
     function initLuxuryApp() {
         document.body.classList.add("lv-page-enter");
-        if (!document.body.dataset.theme) {
+        /* An empty data-theme means light mode (see applyThemeToDocument); only default when the attribute is absent. */
+        if (!document.body.hasAttribute("data-theme")) {
             document.body.dataset.theme = "dark";
         }
         initWorldMap();
@@ -126,7 +127,8 @@
 
     function initCounters() {
         var hero = document.getElementById("heroPortfolioValue");
-        if (hero && hero.textContent) {
+        /* The fintech dashboard drives the hero balance itself; animating the static placeholder would overwrite it. */
+        if (hero && hero.textContent && !document.querySelector(".gv-ft-hero")) {
             animateCounter(hero, parseMoney(hero.textContent));
         }
         var balance = document.getElementById("accountBalance");
@@ -264,7 +266,7 @@
 
     function initPortfolioHero() {
         var hero = document.getElementById("lvPortfolioHero");
-        if (!hero || typeof getCurrentAccount !== "function") return;
+        if (!hero || typeof getCurrentAccount !== "function") return; /* wallet.js renders real account panels */
 
         try {
             var acct = getCurrentAccount();

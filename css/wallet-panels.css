@@ -1,0 +1,11 @@
+/* Real account panels on wallet.html */
+.lv-account-panel { margin-bottom: 18px; padding: 18px; scroll-margin-top: 16px; }
+.lv-account-panel h3 { margin: 0 0 12px; }
+.lv-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 18px; margin: 0 0 14px; }
+.lv-detail-grid > div { padding: 10px 12px; border-radius: 12px; background: rgba(0, 232, 155, 0.05); border: 1px solid rgba(0, 232, 155, 0.14); }
+.lv-detail-grid dt { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gv-muted, #9BAFA8); }
+.lv-detail-grid dd { margin: 4px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.lv-detail-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.lv-detail-actions a { text-decoration: none; text-align: center; flex: 1 1 140px; }
+.lv-muted { color: var(--gv-muted, #9BAFA8); margin: 0 0 12px; }
+#transactions { scroll-margin-top: 16px; }

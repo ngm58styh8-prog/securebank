@@ -537,6 +537,10 @@ body.gv-fintech-dashboard .gv-ft-grow > div {
 }
 
 .gv-ft-tx-item {
+    width: 100%;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -569,6 +573,11 @@ body.gv-fintech-dashboard .gv-ft-grow > div {
     min-width: 0;
 }
 
+.gv-ft-tx-title,
+.gv-ft-tx-sub {
+    display: block;
+}
+
 .gv-ft-tx-title {
     font-weight: 700;
     font-size: 0.92rem;
@@ -592,6 +601,8 @@ body.gv-fintech-dashboard .gv-ft-grow > div {
 .gv-ft-tx-amt.in { color: var(--ft-green); }
 .gv-ft-tx-amt.out { color: #f87171; }
 .gv-ft-tx-amt.pending { color: var(--ft-gold); }
+.gv-ft-tx-amt.failed { color: var(--ft-muted); text-decoration: line-through; }
+.gv-ft-tx-amt.neutral { color: var(--ft-muted); }
 
 .gv-ft-tx-empty {
     padding: 24px;
@@ -678,11 +689,21 @@ body.gv-fintech-dashboard .gv-ft-grow > div {
     margin-top: 8px;
 }
 
-@media (max-width: 1023px) {
-    .gv-dash-legacy {
-        display: none;
-    }
+/* Grid items default to min-width:auto, which lets Chart.js canvases push the page wider than the viewport. */
+body.gv-fintech-dashboard .grid-2 > *,
+body.gv-fintech-dashboard .gv-stats-grid > *,
+body.gv-fintech-dashboard .cards > * {
+    min-width: 0;
 }
+
+body.gv-fintech-dashboard .chart-wrap canvas {
+    max-width: 100%;
+}
+
+body.gv-fintech-dashboard .gv-chart-tabs {
+    flex-wrap: wrap;
+}
+
 
 /* Hide old standalone quick-action row if re-added outside the hero */
 body.gv-fintech-dashboard .gv-main > .gv-quick-actions {
@@ -712,4 +733,262 @@ body.gv-fintech-dashboard .gv-main > .gv-quick-actions {
 
 body.balances-hidden [data-balance-mask] {
     filter: none;
+}
+
+
+/* ---- Currency chip, chart note, card meta ---- */
+.gv-ft-hero-head {
+    gap: 8px;
+}
+
+.gv-ft-hero-head .gv-ft-hero-label {
+    flex: 1;
+}
+
+.gv-ft-currency {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--ft-green-light);
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 232, 155, 0.35);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.gv-ft-chart-note {
+    font-size: 0.72rem;
+    color: var(--ft-muted);
+    margin: -6px 0 14px;
+    min-height: 1.1em;
+}
+
+.gv-ft-acct-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 0.78rem;
+    color: var(--ft-muted);
+    margin-bottom: 8px;
+}
+
+.gv-ft-chip {
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(155, 175, 168, 0.35);
+    color: var(--ft-muted);
+}
+
+.gv-ft-chip.ok { color: var(--ft-green); border-color: rgba(0, 232, 155, 0.4); }
+.gv-ft-chip.warn { color: var(--ft-gold); border-color: rgba(255, 190, 69, 0.45); }
+
+.gv-ft-acct-spark {
+    width: 84px;
+    height: 34px;
+}
+
+.gv-ft-acct-amt {
+    overflow-wrap: anywhere;
+}
+
+/* ---- Transaction status + right column ---- */
+.gv-ft-tx-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.gv-ft-status {
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid currentColor;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.gv-ft-status.completed { color: var(--ft-green); }
+.gv-ft-status.pending,
+.gv-ft-status.processing { color: var(--ft-gold); }
+.gv-ft-status.failed { color: #f87171; }
+.gv-ft-status.reversed { color: var(--ft-blue); }
+
+/* ---- Details modal ---- */
+.gv-ft-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(6px);
+}
+
+.gv-ft-modal.hidden { display: none; }
+
+.gv-ft-modal-card {
+    position: relative;
+    width: min(440px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 22px 20px;
+    border-radius: 20px;
+    background: var(--ft-card);
+    border: 1px solid rgba(0, 232, 155, 0.35);
+    box-shadow: 0 0 40px rgba(0, 232, 155, 0.12);
+    color: var(--ft-text);
+}
+
+.gv-ft-modal-card h3 { margin: 0 0 14px; }
+
+.gv-ft-modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: var(--ft-text);
+    cursor: pointer;
+}
+
+.gv-ft-detail { margin: 0 0 16px; }
+
+.gv-ft-detail > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.88rem;
+}
+
+.gv-ft-detail dt { color: var(--ft-muted); }
+.gv-ft-detail dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+/* ---- Sidebar scrim ---- */
+.gv-ft-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 190;
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.gv-ft-scrim[hidden] { display: none; }
+
+@media (min-width: 901px) {
+    .gv-ft-scrim { display: none; }
+}
+
+/* ---- Light theme (app convention: data-theme="dark" = dark, anything else = light) ---- */
+body.gv-fintech-dashboard:not([data-theme="dark"]) {
+    --ft-bg: #F3F8F5;
+    --ft-bg-2: #E4EFE9;
+    --ft-card: #FFFFFF;
+    --ft-text: #0B110E;
+    --ft-muted: #4F625A;
+    --gv-bg: #F3F8F5;
+    --gv-text: #0B110E;
+    --gv-muted: #4F625A;
+    --gv-glass: rgba(255, 255, 255, 0.85);
+    --gv-glass-border: rgba(11, 17, 14, 0.12);
+    background: #F3F8F5;
+    background-image: none;
+    color: #0B110E;
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-header,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-sidebar {
+    background: rgba(255, 255, 255, 0.92);
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-nav-link:hover,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-nav-link.active {
+    color: #0B110E;
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .balance,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-stat-card .balance {
+    color: #0B110E;
+    -webkit-text-fill-color: #0B110E;
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-acct,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-tx-item,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-tx-empty {
+    border-color: rgba(11, 17, 14, 0.12);
+    box-shadow: 0 4px 16px rgba(11, 17, 14, 0.06);
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-acct-amt,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-tx-title { color: #0B110E; }
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-bottom-nav {
+    background: rgba(255, 255, 255, 0.95);
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-tx-icon {
+    background: rgba(0, 232, 155, 0.12);
+    color: #0B110E;
+}
+
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-more-menu button,
+body.gv-fintech-dashboard:not([data-theme="dark"]) .gv-ft-modal-card { color: #0B110E; }
+
+/* Hero + Grow banner stay dark in both themes (brand look) */
+body.gv-fintech-dashboard .gv-ft-hero,
+body.gv-fintech-dashboard .gv-ft-grow {
+    --ft-text: #FFFFFF;
+    --ft-muted: #A6B5AF;
+    color: #FFFFFF;
+}
+
+/* ---- Narrow screens (320px+) ---- */
+body.gv-fintech-dashboard { overflow-x: hidden; }
+
+@media (max-width: 380px) {
+    body.gv-fintech-dashboard .gv-main { padding-left: 12px; padding-right: 12px; }
+    .gv-ft-quick { gap: 4px; }
+    .gv-ft-quick-icon { width: 46px; height: 46px; }
+    .gv-ft-quick-btn { font-size: 0.62rem; }
+    .gv-ft-hero .gv-hero-value,
+    .gv-ft-hero #heroPortfolioValue { font-size: 1.6rem; }
+    .gv-ft-nav-item { font-size: 0.56rem; letter-spacing: 0.02em; }
+    .gv-ft-tx-amt { font-size: 0.85rem; }
+}
+
+.gv-ft-hero .gv-hero-value,
+.gv-ft-hero #heroPortfolioValue { overflow-wrap: anywhere; }
+
+.gv-ft-more-menu {
+    left: auto;
+    right: 0;
+    transform: none;
+    min-width: 210px;
+    max-width: calc(100vw - 48px);
+}
+
+/* ---- Mobile: notification center as a bottom sheet so the bell stays tappable ---- */
+@media (max-width: 720px) {
+    body.gv-fintech-dashboard.dashboard-premium .gv-header-actions .notif-panel {
+        position: fixed !important;
+        top: auto !important;
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(92px + env(safe-area-inset-bottom, 0px)) !important;
+        width: auto !important;
+        max-height: min(62vh, 520px) !important;
+        z-index: 450;
+    }
 }

@@ -1522,9 +1522,10 @@ function getRegisteredAccountCount() {
 function ensureHoldings(account) {
     if (!account.holdings) account.holdings = {};
     let changed = false;
+    /* Missing positions are zero: filling them from DEFAULT_HOLDINGS would credit the customer with assets they never bought. */
     Object.keys(DEFAULT_HOLDINGS).forEach(function(key) {
         if (account.holdings[key] == null) {
-            account.holdings[key] = DEFAULT_HOLDINGS[key];
+            account.holdings[key] = 0;
             changed = true;
         }
     });

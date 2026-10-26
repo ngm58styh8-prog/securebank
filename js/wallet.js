@@ -9,6 +9,45 @@ const PAGE_SIZE = 10;
 let currentPage = 1;
 let filtered = [];
 
+function renderAccountPanels() {
+    const setText = function(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+    const fresh = (typeof getRegistryAccount === "function" ? getRegistryAccount(username) : null) || account;
+    const pendingTransfers = typeof getUserPendingTransfers === "function" ? getUserPendingTransfers(username) : [];
+    const pendingDeposits = typeof getUserPendingDeposits === "function" ? getUserPendingDeposits(username) : [];
+    const pendingTotal = typeof getUserPendingTransferTotal === "function" ? getUserPendingTransferTotal(username) : 0;
+    const cash = Number(fresh.cash) || 0;
+
+    setText("bdHolder", (fresh.profile && fresh.profile.fullName) || username);
+    setText("lvCheckingBalance", formatMoney(cash, settings.currency));
+    setText("bdAvailable", formatMoney(Math.max(cash - pendingTotal, 0), settings.currency));
+    setText("bdPending", pendingTransfers.length + pendingDeposits.length
+        ? pendingTransfers.length + " withdrawal(s), " + pendingDeposits.length + " deposit(s)"
+        : "None");
+    setText("bdCurrency", settings.currency || "USD");
+    setText("bdStatus", fresh.withdrawalsFrozen ? "Withdrawals frozen" : "Active");
+
+    const labels = { btc: "BTC", eth: "ETH", sol: "SOL", xrp: "XRP", gold: "Gold (oz)", aapl: "AAPL", googl: "GOOGL", msft: "MSFT", nvda: "NVDA", spy: "SPY", qqq: "QQQ", vti: "VTI" };
+    const holdings = fresh.holdings || {};
+    const held = Object.keys(labels).filter(function(k) { return Number(holdings[k]) > 0; });
+    const list = document.getElementById("portfolioHoldings");
+    if (list) {
+        list.innerHTML = held.length
+            ? '<dl class="lv-detail-grid">' + held.map(function(k) {
+                return "<div><dt>" + labels[k] + "</dt><dd>" + Number(holdings[k]).toLocaleString(undefined, { maximumFractionDigits: 8 }) + "</dd></div>";
+            }).join("") + "</dl>"
+            : '<p class="lv-muted">No investment positions yet.</p>';
+    }
+
+    const gi = fresh.goldInvestment || {};
+    const goldBal = typeof getGoldInvestmentBalance === "function" ? getGoldInvestmentBalance(fresh) : 0;
+    setText("pfGold", formatMoney(goldBal, settings.currency));
+    setText("pfGoldPlan", gi.active ? (gi.planName || "Active") : "No active plan");
+    setText("pfGoldEarned", formatMoney(Number(gi.totalEarned) || 0, settings.currency));
+}
+
 function classifyTransaction(t) {
     const d = t.description.toLowerCase();
     if (d.includes("deposit")) return "deposit";
@@ -98,6 +137,7 @@ function exportPdf() {
 
 initPageNav("wallet");
 applyFilters();
+renderAccountPanels();
 
 document.getElementById("searchInput").addEventListener("input", applyFilters);
 document.getElementById("filterSelect").addEventListener("change", applyFilters);

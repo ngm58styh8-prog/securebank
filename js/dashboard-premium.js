@@ -127,43 +127,19 @@
         });
     }
 
-    function initHeroSparkChart() {
-        const ctx = document.getElementById("heroSparkChart");
-        if (!ctx || typeof Chart === "undefined") return;
+    var heroAnimToken = 0;
+    var heroLastValue = null;
 
-        new Chart(ctx, {
-            type: "line",
-            data: {
-                labels: ["", "", "", "", "", "", ""],
-                datasets: [{
-                    data: [9200000, 9450000, 9380000, 9620000, 9780000, 9910000, 10071996],
-                    borderColor: "#9AF5C8",
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: true,
-                    backgroundColor: "rgba(62, 224, 160, 0.12)",
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: { display: false },
-                    y: { display: false }
-                }
-            }
-        });
-    }
-
-    function animateCounter(el, targetValue, prefix, suffix) {
+    function animateCounter(el, targetValue, prefix, suffix, from) {
         if (!el || isNaN(targetValue)) return;
-        const duration = 900;
+        const token = ++heroAnimToken;
+        const duration = 700;
         const start = performance.now();
-        const from = 0;
+        from = from == null || isNaN(from) ? 0 : from;
 
         function frame(now) {
+            /* Stop if a newer update started or the user hid balances. */
+            if (token !== heroAnimToken || document.body.classList.contains("balances-hidden")) return;
             const p = Math.min((now - start) / duration, 1);
             const eased = 1 - Math.pow(1 - p, 3);
             const val = from + (targetValue - from) * eased;
@@ -180,9 +156,18 @@
         const el = document.getElementById("heroPortfolioValue");
         if (!el) return;
         if (typeof formatted === "string" && formatted.indexOf("$") === 0) {
-            animateCounter(el, amount, "$", "");
+            const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            /* Unchanged value: just keep the text; changed value: count from the previous value, not from 0. */
+            if (reduce || heroLastValue === amount) {
+                heroAnimToken++;
+                el.textContent = formatted;
+            } else {
+                animateCounter(el, amount, "$", "", heroLastValue);
+            }
+            heroLastValue = amount;
             return;
         }
+        heroAnimToken++;
         el.textContent = formatted;
     };
 
@@ -199,6 +184,5 @@
         initFab();
         initSearch();
         initRipple();
-        initHeroSparkChart();
     });
 })();

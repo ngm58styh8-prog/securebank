@@ -292,7 +292,13 @@
     }
 
     function initUI() {
-        document.getElementById("logoutBtn").addEventListener("click", logout);
+        var logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", function() {
+                clearSession();
+                window.location.href = "login.html";
+            });
+        }
         if (typeof initNotificationBell === "function") initNotificationBell();
         if (typeof initThemeToggle === "function") initThemeToggle();
         var toggle = document.getElementById("sidebarToggle");
