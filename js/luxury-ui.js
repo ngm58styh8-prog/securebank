@@ -19,7 +19,6 @@
         initCounters();
         syncHeroMetrics();
         initBottomNav();
-        initTransferFab();
         initMarketCards();
         initPortfolioHero();
         initCardHovers();
@@ -161,55 +160,10 @@
         }
     }
 
-    function getCurrentPage() {
-        var path = window.location.pathname.split("/").pop() || "dashboard.html";
-        if (path === "dashboard.html" || path === "") return "home";
-        if (path === "exchange.html") return "markets";
-        if (path === "wallet.html") return "portfolio";
-        if (path === "settings.html" || path === "profile.html") return "account";
-        if (path === "support.html") return "support";
-        return "";
-    }
-
-    function bottomNavHtml(active) {
-        return (
-            '<nav class="lv-bottom-nav gv-mobile-nav" aria-label="Main navigation">' +
-            '<a href="dashboard.html" class="lv-nav-item' + (active === "home" ? " active" : "") + '">' +
-            '<span class="lv-nav-icon">🏠</span><span>Home</span></a>' +
-            '<a href="exchange.html" class="lv-nav-item' + (active === "markets" ? " active" : "") + '">' +
-            '<span class="lv-nav-icon">📈</span><span>Markets</span></a>' +
-            '<div class="lv-nav-fab-wrap">' +
-            '<button type="button" class="lv-nav-fab" id="lvTransferFab" aria-label="Transfer">⇄</button>' +
-            '<span class="lv-nav-fab-label">Transfer</span></div>' +
-            '<a href="wallet.html" class="lv-nav-item' + (active === "portfolio" ? " active" : "") + '">' +
-            '<span class="lv-nav-icon">💼</span><span>Portfolio</span></a>' +
-            '<a href="settings.html" class="lv-nav-item' + (active === "account" ? " active" : "") + '">' +
-            '<span class="lv-nav-icon">👤</span><span>Account</span></a>' +
-            '</nav>'
-        );
-    }
-
     function initBottomNav() {
-        if (document.querySelector(".gv-ft-bottom-nav")) {
-            return;
+        if (window.GlobalVestBottomNavigation) {
+            window.GlobalVestBottomNavigation.mount();
         }
-        var existing = document.querySelector(".gv-mobile-nav, .lv-bottom-nav");
-        var active = getCurrentPage();
-
-        if (existing) {
-            existing.outerHTML = bottomNavHtml(active);
-        } else if (document.body.classList.contains("luxury-app")) {
-            document.body.insertAdjacentHTML("beforeend", bottomNavHtml(active));
-        }
-    }
-
-    function initTransferFab() {
-        document.addEventListener("click", function(e) {
-            var fab = e.target.closest("#lvTransferFab");
-            if (!fab) return;
-            e.preventDefault();
-            window.location.href = "send-money.html";
-        });
     }
 
     function miniChartSvg(up) {

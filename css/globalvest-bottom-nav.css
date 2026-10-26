@@ -1,0 +1,131 @@
+/* GlobalVestBottomNavigation — the single bottom nav for every authenticated customer page.
+   Shown at the same breakpoint where the desktop sidebar collapses into a drawer (≤900px). */
+
+.gv-bottom-nav {
+    --gvbn-bg: rgba(6, 24, 17, 0.94);
+    --gvbn-green: #00E89B;
+    --gvbn-green-light: #8BFFD0;
+    --gvbn-muted: #9CAAA5;
+
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 500;
+    display: none;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--gvbn-bg);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(0, 232, 155, 0.2);
+    box-shadow: 0 -6px 24px rgba(0, 232, 155, 0.08);
+}
+
+@media (max-width: 900px) {
+    .gv-bottom-nav {
+        display: flex;
+    }
+
+    /* Reserve room so the fixed nav never covers the end of the page. */
+    body.gv-has-bottom-nav {
+        padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    }
+
+    body.gv-has-bottom-nav .gv-app,
+    body.gv-has-bottom-nav.gv-fintech-dashboard .gv-main {
+        padding-bottom: 24px;
+    }
+}
+
+.gv-bottom-nav-item {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    text-decoration: none;
+    color: var(--gvbn-muted);
+    font-family: inherit;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding: 6px 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.gv-bottom-nav-item:hover,
+.gv-bottom-nav-item:focus-visible {
+    color: var(--gvbn-green-light);
+}
+
+.gv-bottom-nav-item.active {
+    color: var(--gvbn-green);
+}
+
+.gv-bottom-nav-item svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.gv-bottom-nav-transfer {
+    flex: 0 0 auto;
+    margin-top: -22px;
+}
+
+.gv-bottom-nav-fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #00E89B, #00b87a);
+    color: #020B09;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 24px rgba(0, 232, 155, 0.45);
+    border: 2px solid rgba(139, 255, 208, 0.5);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gv-bottom-nav-transfer:hover .gv-bottom-nav-fab,
+.gv-bottom-nav-transfer.active .gv-bottom-nav-fab {
+    box-shadow: 0 0 32px rgba(0, 232, 155, 0.65);
+}
+
+.gv-bottom-nav-transfer .gv-bottom-nav-label {
+    margin-top: 6px;
+    color: var(--gvbn-green);
+}
+
+body:not([data-theme="dark"]) .gv-bottom-nav {
+    --gvbn-bg: rgba(255, 255, 255, 0.95);
+}
+
+@media (max-width: 380px) {
+    .gv-bottom-nav {
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+
+    .gv-bottom-nav-item {
+        font-size: 0.56rem;
+        letter-spacing: 0.02em;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gv-bottom-nav-item,
+    .gv-bottom-nav-fab {
+        transition: none;
+    }
+}
