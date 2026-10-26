@@ -188,6 +188,9 @@
     }
 
     function initBottomNav() {
+        if (document.querySelector(".gv-ft-bottom-nav")) {
+            return;
+        }
         var existing = document.querySelector(".gv-mobile-nav, .lv-bottom-nav");
         var active = getCurrentPage();
 

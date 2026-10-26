@@ -1,5 +1,8 @@
 const username = requireAuth();
-if (!username) throw new Error("Not authenticated");
+if (!username) {
+    /* requireAuth redirects to login; stop before touching account data */
+    throw new Error("Not authenticated");
+}
 
 const account = getAccount(username);
 ensureProfile(username, account);
@@ -253,6 +256,7 @@ function updatePL() {
     const pct = account.baselineValue ? (pl / account.baselineValue) * 100 : 0;
     const plEl = document.getElementById("plValue");
     const pctEl = document.getElementById("plPercent");
+    if (!plEl || !pctEl) return;
 
     plEl.textContent = (pl >= 0 ? "+" : "") + formatPrice(pl);
     plEl.className = "balance " + (pl >= 0 ? "pl-positive" : "pl-negative");
@@ -293,11 +297,14 @@ function updateAnalytics() {
     const monthProfit = total - (analytics.monthStartValue || total);
     const monthPct = analytics.monthStartValue ? (monthProfit / analytics.monthStartValue) * 100 : 0;
 
-    document.getElementById("totalAssets").textContent = formatPrice(total);
+    const totalAssetsEl = document.getElementById("totalAssets");
+    if (totalAssetsEl) totalAssetsEl.textContent = formatPrice(total);
 
     const todayEl = document.getElementById("todayProfit");
-    todayEl.textContent = (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit);
-    todayEl.className = "balance " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
+    if (todayEl) {
+        todayEl.textContent = (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit);
+        todayEl.className = "balance " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
+    }
 
     const dayPct = analytics.dayStartValue ? (todayProfit / analytics.dayStartValue) * 100 : 0;
     const heroVal = document.getElementById("heroPortfolioValue");
@@ -323,8 +330,10 @@ function updateAnalytics() {
     }
 
     const monthEl = document.getElementById("monthlyReturn");
-    monthEl.textContent = (monthPct >= 0 ? "+" : "") + monthPct.toFixed(2) + "%";
-    monthEl.className = "balance " + (monthPct >= 0 ? "pl-positive" : "pl-negative");
+    if (monthEl) {
+        monthEl.textContent = (monthPct >= 0 ? "+" : "") + monthPct.toFixed(2) + "%";
+        monthEl.className = "balance " + (monthPct >= 0 ? "pl-positive" : "pl-negative");
+    }
 
     let best = { label: "—", change: -Infinity };
     let worst = { label: "—", change: Infinity };
@@ -335,10 +344,16 @@ function updateAnalytics() {
         if (ch < worst.change) worst = { label: asset.label, change: ch };
     });
 
-    document.getElementById("bestCoin").innerHTML = best.label !== "—"
-        ? `${best.label} ${formatChange(best.change)}` : "—";
-    document.getElementById("worstCoin").innerHTML = worst.label !== "—"
-        ? `${worst.label} ${formatChange(worst.change)}` : "—";
+    const bestEl = document.getElementById("bestCoin");
+    const worstEl = document.getElementById("worstCoin");
+    if (bestEl) {
+        bestEl.innerHTML = best.label !== "—"
+            ? `${best.label} ${formatChange(best.change)}` : "—";
+    }
+    if (worstEl) {
+        worstEl.innerHTML = worst.label !== "—"
+            ? `${worst.label} ${formatChange(worst.change)}` : "—";
+    }
 }
 
 function renderAssetCard(asset) {
@@ -350,10 +365,14 @@ function renderAssetCard(asset) {
     if (!holdingsEl) return;
 
     holdingsEl.textContent = formatHoldingsDisplay(asset, h);
-    priceEl.innerHTML = prices[asset.key]
-        ? `<span class="live-dot"></span>${asset.symbol} ${formatPrice(prices[asset.key])}`
-        : "Loading...";
-    changeEl.innerHTML = prices[asset.key] ? formatChange(changes[asset.key]) : "—";
+    if (priceEl) {
+        priceEl.innerHTML = prices[asset.key]
+            ? `<span class="live-dot"></span>${asset.symbol} ${formatPrice(prices[asset.key])}`
+            : "Loading...";
+    }
+    if (changeEl) {
+        changeEl.innerHTML = prices[asset.key] ? formatChange(changes[asset.key]) : "—";
+    }
 
     document.querySelectorAll('[data-asset="' + asset.key + '"], [data-coin="' + asset.key + '"]').forEach(function(btn) {
         btn.disabled = !(prices[asset.key] > 0);
@@ -401,16 +420,20 @@ function updateUI() {
     const pendingTotal = getUserPendingTransferTotal(username);
     const available = account.cash - pendingTotal;
 
-    document.getElementById("accountBalance").textContent = formatPrice(account.cash);
-    const balanceCard = document.getElementById("accountBalance");
-    if (balanceCard && pendingTotal > 0) {
-        balanceCard.title = "Available: " + formatPrice(available) + " (" + formatPrice(pendingTotal) + " pending approval)";
+    const accountBalanceEl = document.getElementById("accountBalance");
+    if (accountBalanceEl) {
+        accountBalanceEl.textContent = formatPrice(account.cash);
+        if (pendingTotal > 0) {
+            accountBalanceEl.title = "Available: " + formatPrice(available) + " (" + formatPrice(pendingTotal) + " pending approval)";
+        }
     }
 
     renderPendingTransfers();
     const displayName = account.profile ? account.profile.fullName : username;
-    document.getElementById("userName").textContent = displayName;
-    document.getElementById("profileName").textContent = displayName;
+    const userNameEl = document.getElementById("userName");
+    const profileNameEl = document.getElementById("profileName");
+    if (userNameEl) userNameEl.textContent = displayName;
+    if (profileNameEl) profileNameEl.textContent = displayName;
 
     ALL_ASSETS.forEach(renderAssetCard);
     ALL_ASSETS.forEach(updateMarketRow);
@@ -1024,7 +1047,10 @@ function logout() {
 }
 
 function initCharts() {
+    if (typeof Chart === "undefined") return;
+
     const lineCtx = document.getElementById("portfolioChart");
+    if (lineCtx) {
     lineChart = new Chart(lineCtx, {
         type: "line",
         data: {
@@ -1056,8 +1082,10 @@ function initCharts() {
             }
         }
     });
+    }
 
     const pieCtx = document.getElementById("allocationChart");
+    if (pieCtx) {
     pieChart = new Chart(pieCtx, {
         type: "doughnut",
         data: {
@@ -1078,6 +1106,12 @@ function initCharts() {
             }
         }
     });
+    }
+}
+
+function bindClick(id, handler) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", handler);
 }
 
 function initUI() {
@@ -1088,12 +1122,12 @@ function initUI() {
     loadMarketPrices();
     setInterval(loadMarketPrices, 30000);
 
-    document.getElementById("depositBtn").addEventListener("click", openDepositPanel);
-    document.getElementById("depositContinueBtn").addEventListener("click", continueDepositFlow);
-    document.getElementById("depositSubmitBtn").addEventListener("click", submitDepositFromPanel);
-    document.getElementById("depositBackBtn").addEventListener("click", hideDepositConfirmSection);
-    document.getElementById("depositPanelCloseBtn").addEventListener("click", closeDepositPanel);
-    document.getElementById("copyDepositPageBtn").addEventListener("click", function() {
+    bindClick("depositBtn", openDepositPanel);
+    bindClick("depositContinueBtn", continueDepositFlow);
+    bindClick("depositSubmitBtn", submitDepositFromPanel);
+    bindClick("depositBackBtn", hideDepositConfirmSection);
+    bindClick("depositPanelCloseBtn", closeDepositPanel);
+    bindClick("copyDepositPageBtn", function() {
         const wallet = getSelectedDepositWallet();
         copyText(wallet && wallet.address ? wallet.address : "", "Deposit address copied to clipboard.");
     });
@@ -1107,54 +1141,60 @@ function initUI() {
             }
         });
     }
-    document.getElementById("depositAmountInput").addEventListener("input", function() {
-        const section = document.getElementById("depositConfirmSection");
-        if (section && !section.classList.contains("hidden")) {
-            updateDepositPagePreview();
-        } else {
-            document.getElementById("depositAmountError").classList.add("hidden");
-        }
-    });
-    document.getElementById("depositAmountInput").addEventListener("keydown", function(e) {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            continueDepositFlow();
-        }
-    });
+    const depositAmountInput = document.getElementById("depositAmountInput");
+    if (depositAmountInput) {
+        depositAmountInput.addEventListener("input", function() {
+            const section = document.getElementById("depositConfirmSection");
+            if (section && !section.classList.contains("hidden")) {
+                updateDepositPagePreview();
+            } else {
+                const errEl = document.getElementById("depositAmountError");
+                if (errEl) errEl.classList.add("hidden");
+            }
+        });
+        depositAmountInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                continueDepositFlow();
+            }
+        });
+    }
 
-    document.getElementById("withdrawBtn").addEventListener("click", function() {
+    bindClick("withdrawBtn", function() {
         openModal("withdraw");
     });
 
-    document.getElementById("cashForm").addEventListener("submit", confirmModal);
-    document.getElementById("cancelModalBtn").addEventListener("click", closeModal);
+    const cashForm = document.getElementById("cashForm");
+    if (cashForm) cashForm.addEventListener("submit", confirmModal);
+    bindClick("cancelModalBtn", closeModal);
 
-    document.getElementById("modalOverlay").addEventListener("click", function(e) {
-        if (e.target === document.getElementById("modalOverlay")) {
-            closeModal();
-        }
-    });
+    const modalOverlay = document.getElementById("modalOverlay");
+    if (modalOverlay) {
+        modalOverlay.addEventListener("click", function(e) {
+            if (e.target === modalOverlay) closeModal();
+        });
+    }
 
-    document.getElementById("profileBtn").addEventListener("click", function(e) {
+    bindClick("profileBtn", function(e) {
         e.stopPropagation();
         toggleDropdown("profileMenu");
     });
 
-    document.getElementById("themeToggle").addEventListener("click", toggleTheme);
-    document.getElementById("logoutBtn").addEventListener("click", logout);
-    document.getElementById("viewProfileBtn").addEventListener("click", function() {
+    bindClick("themeToggle", toggleTheme);
+    bindClick("logoutBtn", logout);
+    bindClick("viewProfileBtn", function() {
         window.location.href = "profile.html";
     });
-    document.getElementById("exchangeBtn").addEventListener("click", function() {
+    bindClick("exchangeBtn", function() {
         window.location.href = "exchange.html";
     });
-    document.getElementById("supportBtn").addEventListener("click", function() {
+    bindClick("supportBtn", function() {
         window.location.href = "support.html";
     });
-    document.getElementById("settingsBtn").addEventListener("click", function() {
+    bindClick("settingsBtn", function() {
         window.location.href = "settings.html";
     });
-    document.getElementById("walletBtn").addEventListener("click", function() {
+    bindClick("walletBtn", function() {
         window.location.href = "wallet.html";
     });
 
@@ -1227,18 +1267,43 @@ function initUI() {
     }
 }
 
+function showDashboardBootError(err) {
+    const main = document.querySelector(".gv-main");
+    if (!main || document.getElementById("gvBootError")) return;
+    const box = document.createElement("div");
+    box.id = "gvBootError";
+    box.className = "card gv-glass";
+    box.style.marginBottom = "16px";
+    box.style.borderColor = "rgba(248, 113, 113, 0.45)";
+    box.innerHTML = "<strong>Dashboard could not fully load.</strong> " +
+        "<p style=\"margin:8px 0 0;font-size:0.9rem;color:#9BAFA8\">Refresh the page or sign in again. " +
+        (err && err.message ? "(" + String(err.message).replace(/</g, "&lt;") + ")" : "") + "</p>";
+    main.prepend(box);
+}
+
 function bootstrapDashboard() {
     function startDashboard() {
-        reloadAccountFromRegistry();
-        initUI();
-    }
-
-    if (typeof pullAccountsFromServer === "function") {
-        pullAccountsFromServer().then(startDashboard).catch(startDashboard);
-        return;
+        try {
+            reloadAccountFromRegistry();
+            initUI();
+        } catch (err) {
+            console.error("Dashboard init failed:", err);
+            showDashboardBootError(err);
+        }
     }
 
     startDashboard();
+
+    if (typeof pullAccountsFromServer === "function") {
+        pullAccountsFromServer()
+            .then(function() {
+                reloadAccountFromRegistry();
+                if (typeof refreshNotificationsFromStorage === "function") {
+                    refreshNotificationsFromStorage();
+                }
+            })
+            .catch(function() { /* offline / API unavailable */ });
+    }
 }
 
 bootstrapDashboard();
