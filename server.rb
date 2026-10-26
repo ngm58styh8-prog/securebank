@@ -444,6 +444,30 @@ server.mount_proc "/api/reset-password" do |req, res|
   invoke_node_api("api/reset-password.js", req, res)
 end
 
+server.mount_proc "/api/oauth-config" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/oauth-config.js", req, res)
+end
+
+server.mount_proc "/api/oauth-complete" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    res["Access-Control-Allow-Headers"] = "Content-Type"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/oauth-complete.js", req, res)
+end
+
 trap("INT") { server.shutdown }
 
 puts ""

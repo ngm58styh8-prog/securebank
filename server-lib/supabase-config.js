@@ -68,6 +68,18 @@ function getSupabaseUrl() {
     return cleanEnvValue(process.env.SUPABASE_URL);
 }
 
+function getSupabaseAnonKey() {
+    return firstNonEmpty([
+        process.env.SUPABASE_ANON_KEY,
+        process.env.SUPABASE_PUBLISHABLE_KEY,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ]);
+}
+
+function isOAuthConfigured() {
+    return !!(getSupabaseUrl() && getSupabaseAnonKey());
+}
+
 function isSupabaseJwtKey(key) {
     return cleanEnvValue(key).startsWith("eyJ");
 }
@@ -251,6 +263,8 @@ function buildServiceRoleHeaders(key) {
 module.exports = {
     cleanEnvValue,
     getSupabaseUrl,
+    getSupabaseAnonKey,
+    isOAuthConfigured,
     getSupabaseServiceRoleKey,
     getValidatedServiceRoleKey,
     validateServiceRoleKey,

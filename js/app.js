@@ -18,10 +18,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     applyWebsiteSettings();
 
-    initAuthTheme();
     initPasswordToggles();
     initFieldValidation();
-    initLivePrices();
     loadRememberedEmail();
 
     const ws = getWebsiteSettings();
@@ -237,27 +235,35 @@ document.addEventListener("DOMContentLoaded", function() {
         e.preventDefault();
         hideMessage(document.getElementById("signInMessage"));
 
+        const submitBtn = document.getElementById("signInSubmit") ||
+            signInForm.querySelector(".auth-submit");
+        setAuthSubmitLoading(submitBtn, true);
+
         const email = normalizeEmail(document.getElementById("signInEmail").value);
         const password = document.getElementById("signInPassword").value;
 
         if (!isValidEmail(email)) {
+            setAuthSubmitLoading(submitBtn, false);
             showMessage(document.getElementById("signInMessage"), "Please enter a valid email address.", "error");
             return;
         }
 
         if (!authenticate(email, password)) {
+            setAuthSubmitLoading(submitBtn, false);
             showMessage(document.getElementById("signInMessage"), "Invalid email or password.", "error");
             return;
         }
 
         const account = getAccount(email);
         if (account.emailVerified === false) {
+            setAuthSubmitLoading(submitBtn, false);
             showEmailVerifyPanel(email,
                 "Your email is not verified yet. Enter the 6-digit code we sent to " + email + ".");
             sendVerificationForEmail(email);
             return;
         }
 
+        setAuthSubmitLoading(submitBtn, false);
         beginLoginFlow(email);
     });
 
@@ -362,6 +368,10 @@ document.addEventListener("DOMContentLoaded", function() {
         e.preventDefault();
         hideMessage(document.getElementById("signUpMessage"));
 
+        const signUpSubmit = document.getElementById("signUpSubmit") ||
+            signUpForm.querySelector(".auth-submit");
+        setAuthSubmitLoading(signUpSubmit, true);
+
         const fullName = document.getElementById("signUpName").value.trim();
         const email = normalizeEmail(document.getElementById("signUpEmail").value);
         const phone = document.getElementById("signUpPhone").value.trim();
@@ -371,16 +381,19 @@ document.addEventListener("DOMContentLoaded", function() {
         const agreedToTerms = document.getElementById("signUpTerms").checked;
 
         if (!fullName) {
+            setAuthSubmitLoading(signUpSubmit, false);
             showMessage(document.getElementById("signUpMessage"), "Please enter your full name.", "error");
             return;
         }
 
         if (!country) {
+            setAuthSubmitLoading(signUpSubmit, false);
             showMessage(document.getElementById("signUpMessage"), "Please select your country.", "error");
             return;
         }
 
         if (password !== confirm) {
+            setAuthSubmitLoading(signUpSubmit, false);
             showMessage(document.getElementById("signUpMessage"), "Passwords do not match.", "error");
             return;
         }
@@ -395,6 +408,7 @@ document.addEventListener("DOMContentLoaded", function() {
             });
 
             if (!result.ok) {
+                setAuthSubmitLoading(signUpSubmit, false);
                 const message = result.existing
                     ? result.error + " Use the Sign In tab if you already registered."
                     : result.error;
@@ -405,6 +419,7 @@ document.addEventListener("DOMContentLoaded", function() {
             pendingSignupEmail = email;
 
             const finishSignup = function() {
+                setAuthSubmitLoading(signUpSubmit, false);
                 showEmailVerifyPanel(email,
                     "We sent a 6-digit code to " + email + ". Check your inbox to continue.");
                 sendVerificationForEmail(email);
@@ -605,26 +620,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 });
 
-function initAuthTheme() {
-    const toggle = document.getElementById("authThemeToggle");
-    const saved = localStorage.getItem("securebank_auth_theme") || "light";
-    applyAuthTheme(saved);
-
-    if (toggle) {
-        toggle.addEventListener("click", function() {
-            const next = document.body.dataset.theme === "dark" ? "light" : "dark";
-            applyAuthTheme(next);
-            localStorage.setItem("securebank_auth_theme", next);
-        });
-    }
-}
-
-function applyAuthTheme(theme) {
-    document.body.dataset.theme = theme === "dark" ? "dark" : "";
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.content = theme === "dark" ? "#0a0e17" : "#0059b3";
-    const toggle = document.getElementById("authThemeToggle");
-    if (toggle) toggle.textContent = theme === "dark" ? "☀️" : "🌙";
+function setAuthSubmitLoading(button, loading) {
+    if (!button) return;
+    button.disabled = !!loading;
+    button.classList.toggle("is-loading", !!loading);
 }
 
 function initPasswordToggles() {

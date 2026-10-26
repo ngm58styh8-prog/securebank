@@ -3,55 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#050807">
+<meta name="theme-color" content="#020B09">
+<meta name="description" content="Sign in or create your GlobalVest account — secure banking and digital assets.">
 <title>GlobalVest — Sign In</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/brand.css?v=logo-emerald">
-<link rel="stylesheet" href="css/style.css?v=emerald">
-<link rel="stylesheet" href="css/luxury.css?v=emerald">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/auth-premium.css?v=premium-fintech">
 </head>
-<body class="auth-body auth-page-enter luxury-auth" data-theme="dark">
+<body class="gv-auth auth-page-enter" data-theme="dark">
 
-<button type="button" class="auth-theme-toggle" id="authThemeToggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+<div class="gv-auth-ambient" aria-hidden="true"></div>
+<canvas id="authParticleCanvas" class="gv-auth-particles" aria-hidden="true"></canvas>
 
-<div class="auth-page">
-    <aside class="auth-promo" aria-label="Platform highlights">
-        <div class="promo-inner">
-            <a href="index.html" class="auth-home-link">← Back to home</a>
-            <p class="promo-eyebrow">Invest with confidence</p>
-            <h2 class="promo-title">Bank-grade security.<br>Crypto &amp; stocks in one place.</h2>
+<div class="gv-auth-shell">
+    <aside class="gv-auth-promo" aria-label="GlobalVest platform overview">
+        <a href="index.html" class="gv-auth-back">← Back to home</a>
 
-            <div class="live-prices" id="livePrices">
-                <div class="live-price-row">
-                    <span class="live-coin">₿ Bitcoin</span>
-                    <span class="live-val" id="liveBtc">—</span>
-                </div>
-                <div class="live-price-row">
-                    <span class="live-coin">Ξ Ethereum</span>
-                    <span class="live-val" id="liveEth">—</span>
-                </div>
+        <a href="index.html" class="gv-auth-logo">
+            <svg class="gv-auth-logo-globe" viewBox="0 0 32 32" aria-hidden="true">
+                <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                <ellipse cx="16" cy="16" rx="6" ry="13" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                <path d="M3 16h26M5 10h22M5 22h22" fill="none" stroke="currentColor" stroke-width="1" opacity="0.7"/>
+            </svg>
+            <span class="gv-auth-logo-text"><span class="gv-auth-logo-global">Global</span><span class="gv-auth-logo-vest">Vest</span></span>
+        </a>
+
+        <h2 class="gv-auth-promo-title">WELCOME TO GLOBALVEST</h2>
+        <p class="gv-auth-promo-sub">The future of secure banking and digital asset management.</p>
+        <p class="gv-auth-promo-desc">Manage your banking, cryptocurrency investments, international transfers and wealth portfolio from one secure platform.</p>
+
+        <div class="gv-auth-feature-grid">
+            <div class="gv-auth-feature">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+                <span>Secure Banking</span>
             </div>
-
-            <div class="trust-badges">
-                <span class="trust-badge">🔒 SSL Encrypted</span>
-                <span class="trust-badge">🛡 Bank Grade Security</span>
-                <span class="trust-badge">💎 Secure Crypto Wallet</span>
+            <div class="gv-auth-feature">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5M4 19h16M8 15l3-3 3 2 4-5"/></svg>
+                <span>Invest &amp; Grow</span>
             </div>
-            <p class="promo-footnote">Protected by Bank Grade Encryption</p>
+            <div class="gv-auth-feature">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M9 12h1.5v4.5H9M13.5 7.5v9H15"/></svg>
+                <span>Crypto Assets</span>
+            </div>
+            <div class="gv-auth-feature">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>
+                <span>Global Transfers</span>
+            </div>
+        </div>
+
+        <div class="gv-auth-promo-scene" aria-hidden="true">
+            <picture>
+                <source media="(max-width: 960px)" srcset="public/images/globalvest-login-mobile.jpg">
+                <img src="public/images/globalvest-login-desktop.jpg" alt="" loading="lazy" decoding="async">
+            </picture>
+            <div class="gv-auth-promo-scene-fade"></div>
         </div>
     </aside>
 
-    <div class="auth-container">
-        <div id="siteAnnouncement" class="site-announcement hidden"></div>
+    <div class="gv-auth-panel-wrap">
+        <div class="gv-auth-card auth-card">
+            <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
-        <div class="login-box auth-card auth-card-slide">
-            <h1 class="logo brand-logo-header" id="siteName">
-                <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest" class="brand-logo-img lg">
-            </h1>
-            <p class="subtitle" id="siteTagline">Global Investing &amp; Digital Banking</p>
+            <div class="gv-auth-card-logo">
+                <a href="index.html" class="gv-auth-logo">
+                    <svg class="gv-auth-logo-globe" viewBox="0 0 32 32" aria-hidden="true">
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="1.5"/>
+                        <ellipse cx="16" cy="16" rx="6" ry="13" fill="none" stroke="currentColor" stroke-width="1.2"/>
+                    </svg>
+                    <span class="gv-auth-logo-text"><span class="gv-auth-logo-global">Global</span><span class="gv-auth-logo-vest">Vest</span></span>
+                </a>
+                <p class="gv-auth-card-tagline" id="siteTagline"><span id="siteName" class="visually-hidden">GlobalVest</span>Global Investing &amp; Digital Banking</p>
+            </div>
+
+            <div class="gv-auth-mobile-trust" aria-label="Security highlights">
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"/></svg>SSL</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/></svg>Global</span>
+                <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L4 14h7l-1 8 10-14h-7l0-6z"/></svg>Fast</span>
+            </div>
 
             <div class="auth-tabs" role="tablist">
                 <button type="button" class="auth-tab active" id="signInTab" role="tab" aria-selected="true">Sign In</button>
@@ -67,7 +97,6 @@
                         <span class="field-icon" aria-hidden="true">✉</span>
                         <input id="signInEmail" type="email" required autocomplete="email" placeholder=" ">
                         <label for="signInEmail">Email address</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="float-field password-field" data-field="signInPassword">
@@ -75,7 +104,6 @@
                         <input id="signInPassword" type="password" required autocomplete="current-password" placeholder=" ">
                         <label for="signInPassword">Password</label>
                         <button type="button" class="pwd-toggle" data-target="signInPassword" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="options">
@@ -86,7 +114,7 @@
                         <button type="button" class="link-btn" id="forgotPasswordBtn">Forgot password?</button>
                     </div>
 
-                    <button type="submit" class="auth-submit">Login</button>
+                    <button type="submit" class="auth-submit" id="signInSubmit">Login</button>
                     <p class="auth-message hidden" id="signInMessage"></p>
                 </form>
 
@@ -100,21 +128,18 @@
                         <span class="field-icon" aria-hidden="true">👤</span>
                         <input id="signUpName" type="text" required autocomplete="name" placeholder=" ">
                         <label for="signUpName">Full name</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="float-field" data-field="signUpEmail">
                         <span class="field-icon" aria-hidden="true">✉</span>
                         <input id="signUpEmail" type="email" required autocomplete="email" placeholder=" ">
                         <label for="signUpEmail">Email address</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="float-field" data-field="signUpPhone">
                         <span class="field-icon" aria-hidden="true">📱</span>
                         <input id="signUpPhone" type="tel" required autocomplete="tel" placeholder=" ">
                         <label for="signUpPhone">Phone number</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="float-field" data-field="signUpCountry">
@@ -132,7 +157,6 @@
                             <option value="OTHER">Other</option>
                         </select>
                         <label for="signUpCountry">Country</label>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="float-field password-field" data-field="signUpPassword">
@@ -140,7 +164,6 @@
                         <input id="signUpPassword" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
                         <label for="signUpPassword">Password</label>
                         <button type="button" class="pwd-toggle" data-target="signUpPassword" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <div class="password-strength" id="passwordStrength" aria-live="polite">
@@ -153,7 +176,6 @@
                         <input id="signUpConfirm" type="password" required autocomplete="new-password" minlength="6" placeholder=" ">
                         <label for="signUpConfirm">Confirm password</label>
                         <button type="button" class="pwd-toggle" data-target="signUpConfirm" aria-label="Show password">👁</button>
-                        <span class="field-check" aria-hidden="true">✓</span>
                     </div>
 
                     <label class="terms-row">
@@ -161,7 +183,7 @@
                         <span>I agree to the <a href="#" id="termsLink">Terms</a> &amp; <a href="#" id="privacyLink">Privacy Policy</a></span>
                     </label>
 
-                    <button type="submit" class="auth-submit">Create Account</button>
+                    <button type="submit" class="auth-submit" id="signUpSubmit">Create Account</button>
                     <p class="auth-message hidden" id="signUpMessage"></p>
                 </form>
 
@@ -195,10 +217,34 @@
                 </div>
             </div>
 
+            <div class="auth-divider" aria-hidden="true">OR CONTINUE WITH</div>
+
+            <div class="gv-oauth-stack">
+                <button type="button" class="gv-oauth-btn" data-oauth-provider="google" aria-label="Continue with Google">
+                    <svg class="gv-oauth-google-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path fill="#4285F4" d="M22 12c0-.68-.06-1.34-.17-1.97H12v3.73h5.76c-.25 1.35-1 2.48-2.13 3.24v2.67h3.45c2.02-1.86 3.18-4.6 3.18-7.67z"/>
+                        <path fill="#34A853" d="M12 23c2.88 0 5.29-.95 7.07-2.58l-3.45-2.67c-.95.64-2.17 1.02-3.62 1.02-2.78 0-5.14-1.87-5.98-4.38H1.07v2.75C2.85 20.53 7.13 23 12 23z"/>
+                        <path fill="#FBBC05" d="M6.02 14.39A6.98 6.98 0 011.07 12c0-1.16.28-2.26.77-3.23v-2.75H1.07A11.99 11.99 0 000 12c0 1.94.46 3.82 1.27 5.48l3.75-2.09z"/>
+                        <path fill="#EA4335" d="M12 4.75c1.57 0 2.98.54 4.09 1.41l3.07-3.07C17.26 1.19 14.87 0 12 0 7.13 0 2.85 2.47 1.07 6.52l3.75 2.09C5.86 6.62 8.22 4.75 12 4.75z"/>
+                    </svg>
+                    Continue with Google
+                </button>
+                <button type="button" class="gv-oauth-btn" data-oauth-provider="apple" aria-label="Continue with Apple">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 12.67c-.02-2.14 1.75-3.16 1.83-3.22-1-.15-2-.6-2.56-1.22-.58-.63-1-1.6-.98-2.54 0-.98.29-1.93 1.2-2.65-.95-1.35-2.42-2.1-4.2-2.12-1.78-.02-3.44 1.06-4.33 1.06-.91 0-2.3-1.03-3.78-.99-1.95.04-3.75 1.13-4.75 2.88-2.03 3.52-.52 8.73 1.46 11.59.97 1.4 2.12 2.97 3.63 2.91 1.46-.06 2.01-.94 3.78-.94 1.76 0 2.27.94 3.81.91 1.57-.03 2.57-1.43 3.52-2.84 1.11-1.62 1.57-3.19 1.59-3.27-.04-.02-3.05-1.17-3.08-4.65zM14.27 3.67c.8-.97 1.34-2.32 1.19-3.67-1.15.05-2.54.77-3.37 1.72-.74.85-1.39 2.21-1.22 3.52 1.29.1 2.61-.66 3.4-1.57z"/></svg>
+                    Continue with Apple
+                </button>
+            </div>
+            <p id="oauthNotice" class="hidden" role="status"></p>
+
             <div class="auth-security-badges">
                 <span>🔒 SSL Encrypted</span>
                 <span>🛡 Bank Grade Security</span>
                 <span>💎 Secure Crypto Wallet</span>
+            </div>
+
+            <div class="gv-auth-mobile-scene" aria-hidden="true">
+                <img src="public/images/globalvest-login-mobile.jpg" alt="" loading="lazy" decoding="async">
+                <div class="gv-auth-mobile-scene-fade"></div>
             </div>
         </div>
     </div>
@@ -250,9 +296,12 @@
     </div>
 </div>
 
-<script src="js/storage.js?v=device-reauth"></script>
-<script src="js/common.js?v=pwreset"></script>
-<script src="js/verification-api.js?v=pwreset"></script>
-<script src="js/app.js?v=device-reauth"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/storage.js?v=oauth-premium"></script>
+<script src="js/common.js?v=oauth-premium"></script>
+<script src="js/verification-api.js?v=oauth-premium"></script>
+<script src="js/auth-ui.js?v=oauth-premium"></script>
+<script src="js/oauth-auth.js?v=oauth-premium"></script>
+<script src="js/app.js?v=oauth-premium"></script>
 </body>
 </html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#020B09">
+<title>GlobalVest — Signing in…</title>
+<link rel="stylesheet" href="../css/auth-premium.css?v=premium-fintech">
+</head>
+<body class="gv-auth gv-auth-callback">
+<div class="gv-auth-callback-card">
+    <div class="gv-auth-spinner" aria-hidden="true"></div>
+    <p id="callbackStatus">Completing secure sign-in…</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/storage.js?v=oauth"></script>
+<script src="../js/common.js?v=oauth"></script>
+<script src="../js/oauth-auth.js?v=oauth"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    if (typeof completeOAuthCallback === "function") {
+        completeOAuthCallback();
+    }
+});
+</script>
+</body>
+</html>
