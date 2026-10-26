@@ -245,6 +245,9 @@
         document.addEventListener("click", function() {
             menu.classList.add("hidden");
         });
+        menu.addEventListener("click", function(e) {
+            e.stopPropagation();
+        });
         menu.querySelectorAll("[data-ft-more-href]").forEach(function(btn) {
             btn.addEventListener("click", function() {
                 window.location.href = btn.getAttribute("data-ft-more-href");

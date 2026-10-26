@@ -801,6 +801,7 @@ function openDepositPanel() {
     populateDepositPageAddress();
     loadMarketPrices().catch(function() { /* preview updates when prices load */ });
     panel.classList.remove("hidden");
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     input.value = "";
     input.focus();
 

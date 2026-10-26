@@ -16,12 +16,124 @@ body.gv-fintech-dashboard {
 }
 
 body.gv-fintech-dashboard .gv-main {
-    padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    padding: 20px 24px;
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+body.gv-fintech-dashboard .gv-sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+body.gv-fintech-dashboard button.gv-nav-link {
+    width: 100%;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+}
+
+body.gv-fintech-dashboard .gv-nav-logout {
+    margin-top: auto;
+}
+
+/* Override premium two-column hero grid — fintech hero is single column */
+body.gv-fintech-dashboard .gv-ft-hero.gv-hero {
+    display: block;
+    padding: 20px 18px 18px;
+    margin-bottom: 16px;
+}
+
+body.gv-fintech-dashboard .gv-ft-hero > .gv-ft-hero-grid,
+body.gv-fintech-dashboard .gv-ft-hero > .gv-ft-hero-earth,
+body.gv-fintech-dashboard .gv-ft-hero > .lv-world-map {
+    position: absolute;
+    pointer-events: none;
+}
+
+body.gv-fintech-dashboard .gv-ft-hero > .lv-world-map {
+    inset: 0;
+    opacity: 0.22;
+    z-index: 0;
+}
+
+body.gv-fintech-dashboard .gv-ft-hero-inner {
+    position: relative;
+    z-index: 2;
+}
+
+body.gv-fintech-dashboard .gv-ft-hero .gv-hero-chart {
+    height: 76px;
+    margin: 4px 0 14px;
+}
+
+body.gv-fintech-dashboard .gv-ft-hero .gv-hero-chart canvas {
+    max-height: 76px !important;
+}
+
+body.gv-fintech-dashboard #depositPanel,
+body.gv-fintech-dashboard #pendingTransfersCard {
+    margin-bottom: 18px;
+}
+
+body.gv-fintech-dashboard .gv-ft-grow > div {
+    position: relative;
+    z-index: 1;
 }
 
 @media (min-width: 1024px) {
     body.gv-fintech-dashboard .gv-main {
         padding-bottom: 32px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 720px) {
+    body.gv-fintech-dashboard .gv-main {
+        padding: 14px 16px calc(96px + env(safe-area-inset-bottom, 0px));
+    }
+
+    body.gv-fintech-dashboard .dashboard-brand-title {
+        display: none;
+    }
+
+    body.gv-fintech-dashboard .gv-header-left {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    body.gv-fintech-dashboard .gv-market-status {
+        width: 100%;
+        margin-left: 44px;
+        margin-top: -4px;
+    }
+
+    body.gv-fintech-dashboard .gv-avatar-btn span:not(.gv-avatar) {
+        display: none;
+    }
+
+    body.gv-fintech-dashboard .gv-header-actions {
+        gap: 6px;
+    }
+
+    body.gv-fintech-dashboard .gv-icon-btn {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    body.gv-fintech-dashboard .gv-market-status {
+        display: none;
+    }
+
+    body.gv-fintech-dashboard .gv-search-btn-hide,
+    body.gv-fintech-dashboard #searchBtn {
+        display: none;
     }
 }
 
@@ -572,7 +684,8 @@ body.gv-fintech-dashboard .gv-main {
     }
 }
 
-body.gv-fintech-dashboard .gv-quick-actions:not(.gv-ft-quick-legacy) {
+/* Hide old standalone quick-action row if re-added outside the hero */
+body.gv-fintech-dashboard .gv-main > .gv-quick-actions {
     display: none;
 }
 
