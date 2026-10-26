@@ -199,7 +199,7 @@
                 if (!opt || !hint) return;
                 hint.textContent = "Min $" + Number(opt.dataset.min).toLocaleString() +
                     " · Max $" + Number(opt.dataset.max).toLocaleString() +
-                    " · Simulated daily return $" + Number(opt.dataset.daily).toFixed(2);
+                    " · Daily return $" + Number(opt.dataset.daily).toFixed(2);
             }
             select.addEventListener("change", updateHint);
             updateHint();
@@ -233,7 +233,7 @@
             var toast = document.getElementById("goldCreditToast");
             var text = document.getElementById("goldCreditToastText");
             if (text) {
-                text.textContent = "Your Gold Investment generated today's simulated return of " +
+                text.textContent = "Your Gold Investment generated today's return of " +
                     formatUsd(result.creditAmount) + ".";
             }
             if (toast) {
