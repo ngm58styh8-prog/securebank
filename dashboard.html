@@ -15,8 +15,9 @@
 <link rel="stylesheet" href="css/luxury.css?v=emerald">
 <link rel="stylesheet" href="css/gold-investment.css?v=emerald">
 <link rel="stylesheet" href="css/notifications.css?v=notif-premium2">
+<link rel="stylesheet" href="css/dashboard-fintech.css?v=1">
 </head>
-<body class="dashboard-premium luxury-app" data-theme="dark">
+<body class="dashboard-premium luxury-app gv-fintech-dashboard" data-theme="dark">
 
 <div class="gv-shell">
 
@@ -24,25 +25,18 @@
     <div class="gv-sidebar-logo">
         <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest">
     </div>
-    <div class="gv-nav-section">Overview</div>
-    <a href="dashboard.html" class="gv-nav-link active">📊 Dashboard</a>
-    <a href="wallet.html" class="gv-nav-link">💼 Portfolio</a>
-    <a href="exchange.html" class="gv-nav-link">📈 Markets</a>
-    <div class="gv-nav-section">Invest</div>
-    <a href="exchange.html" class="gv-nav-link">📈 Stocks</a>
-    <a href="exchange.html" class="gv-nav-link">₿ Crypto</a>
-    <a href="exchange.html" class="gv-nav-link">💼 ETFs</a>
-    <a href="exchange.html" class="gv-nav-link">💱 Forex</a>
-    <a href="gold-investment.html" class="gv-nav-link">🟨 Gold Investment</a>
-    <div class="gv-nav-section">Banking</div>
-    <a href="wallet.html" class="gv-nav-link">💳 Cards</a>
-    <a href="wallet.html" class="gv-nav-link">📋 Transactions</a>
-    <a href="dashboard.html" class="gv-nav-link">📉 Analytics</a>
-    <div class="gv-nav-section">Account</div>
-    <a href="support.html" class="gv-nav-link">🛟 Support</a>
+    <div class="gv-nav-section">Menu</div>
+    <a href="dashboard.html" class="gv-nav-link active">🏠 Dashboard</a>
+    <a href="wallet.html" class="gv-nav-link">🏦 Bank Account</a>
+    <a href="exchange.html" class="gv-nav-link">📈 Investments</a>
+    <a href="gold-investment.html" class="gv-nav-link">🐷 Savings</a>
+    <a href="exchange.html" class="gv-nav-link">📊 Markets</a>
+    <a href="send-money.html" class="gv-nav-link">⇄ Transfers</a>
+    <a href="wallet.html" class="gv-nav-link">🧾 Transactions</a>
+    <a href="wallet.html" class="gv-nav-link">🥧 Portfolio</a>
     <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
-    <a href="settings.html" class="gv-nav-link">🔒 Security</a>
     <a href="admin-dashboard.html" class="gv-nav-link gv-hidden" id="gvAdminLink">🛡️ Admin</a>
+    <button type="button" class="gv-nav-link gv-nav-logout" id="gvSidebarLogout">⎋ Logout</button>
 </aside>
 
 <div class="gv-app">
@@ -55,6 +49,7 @@
                 <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest" class="brand-logo-img lg">
             </h1>
             <p>Welcome back, <span id="userName">User</span> 👋</p>
+            <p class="gv-welcome-sub">Here's your financial overview for today.</p>
         </div>
         <div class="gv-market-status" id="marketStatus"><span class="dot"></span> Markets Open</div>
     </div>
@@ -108,14 +103,14 @@
         </button>
         <div id="profileMenu" class="dropdown hidden">
             <div class="dropdown-header">👤 Account</div>
-            <button class="dropdown-item" type="button" id="viewProfileBtn">Profile</button>
+            <button class="dropdown-item" type="button" id="viewProfileBtn">My Profile</button>
+            <button class="dropdown-item" type="button" id="settingsBtn">Account Settings</button>
+            <button class="dropdown-item" type="button" id="securityProfileBtn">Security Settings</button>
+            <button class="dropdown-item" type="button" id="walletBtn">Transaction History</button>
             <button class="dropdown-item" type="button" id="verificationProfileBtn">Verification</button>
-            <button class="dropdown-item" type="button" id="securityProfileBtn">Security</button>
-            <button class="dropdown-item" type="button" id="settingsBtn">Settings</button>
-            <button class="dropdown-item" type="button" id="exchangeBtn">Exchange</button>
-            <button class="dropdown-item" type="button" id="walletBtn">Wallet & Transactions</button>
+            <button class="dropdown-item" type="button" id="exchangeBtn">Markets</button>
             <button class="dropdown-item" type="button" id="supportBtn">Support</button>
-            <button class="dropdown-item" type="button" id="logoutBtn">Log Out</button>
+            <button class="dropdown-item" type="button" id="logoutBtn">Logout</button>
         </div>
     </div>
 </header>
@@ -134,14 +129,50 @@
     </div>
 </div>
 
-<section class="gv-hero gv-glass gv-animate-in lv-hero-card">
+<section class="gv-ft-hero gv-hero gv-glass gv-animate-in lv-hero-card" aria-label="Total balance">
+    <div class="gv-ft-hero-grid" aria-hidden="true"></div>
+    <img class="gv-ft-hero-earth" src="public/images/globalvest-earth.jpg" alt="" width="400" height="400" loading="lazy" decoding="async">
     <div class="lv-world-map" aria-hidden="true"><canvas id="lvWorldMap"></canvas></div>
-    <div>
-        <div class="gv-hero-label">Total Balance</div>
-        <div class="gv-hero-value" id="heroPortfolioValue">$0.00</div>
-        <div class="gv-hero-label">Today's Gain</div>
-        <div class="gv-hero-gain pl-positive" id="heroTodayGain">▲ +$0.00 (+0.00%)</div>
-        <div class="lv-hero-metrics">
+    <div class="gv-ft-hero-inner">
+        <div class="gv-ft-hero-head">
+            <div class="gv-ft-hero-label">Total Balance</div>
+            <button type="button" class="gv-ft-privacy-btn" id="balancePrivacyToggle" aria-label="Show or hide balances"></button>
+        </div>
+        <div class="gv-hero-value" id="heroPortfolioValue" data-balance-mask="1">$0.00</div>
+        <div class="gv-ft-hero-gain-wrap">
+            <div class="gv-ft-hero-label">Today's Gain</div>
+            <div class="gv-hero-gain pl-positive" id="heroTodayGain">▲ +$0.00 (+0.00%)</div>
+        </div>
+        <div class="gv-ft-hero-chart gv-hero-chart">
+            <canvas id="heroSparkChart"></canvas>
+        </div>
+        <div class="gv-ft-quick gv-quick-actions" role="toolbar" aria-label="Quick actions">
+            <button type="button" class="gv-ft-quick-btn" id="depositBtn">
+                <span class="gv-ft-quick-icon" aria-hidden="true">↓</span>
+                <span>Deposit</span>
+            </button>
+            <button type="button" class="gv-ft-quick-btn" id="withdrawBtn">
+                <span class="gv-ft-quick-icon" aria-hidden="true">↑</span>
+                <span>Withdraw</span>
+            </button>
+            <button type="button" class="gv-ft-quick-btn" id="transferQuickBtn">
+                <span class="gv-ft-quick-icon" aria-hidden="true">⇄</span>
+                <span>Transfer</span>
+            </button>
+            <div class="gv-ft-more-wrap">
+                <button type="button" class="gv-ft-quick-btn" id="moreQuickBtn" aria-expanded="false" aria-haspopup="true">
+                    <span class="gv-ft-quick-icon" aria-hidden="true">⋯</span>
+                    <span>More</span>
+                </button>
+                <div class="gv-ft-more-menu hidden" id="ftMoreMenu" role="menu">
+                    <button type="button" role="menuitem" data-ft-more-href="exchange.html">Invest — Markets</button>
+                    <button type="button" role="menuitem" data-ft-more-href="gold-investment.html">Gold Savings</button>
+                    <button type="button" role="menuitem" data-ft-more-href="wallet.html">Wallet &amp; Statements</button>
+                    <button type="button" role="menuitem" data-ft-more-href="send-money.html">Send Money</button>
+                </div>
+            </div>
+        </div>
+        <div class="lv-hero-metrics" aria-hidden="true" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">
             <div class="lv-metric">
                 <span class="gv-hero-label">Available Balance</span>
                 <div class="lv-balance-sm" id="lvAvailableBalance">$0.00</div>
@@ -152,10 +183,56 @@
             </div>
         </div>
     </div>
-    <div class="gv-hero-chart">
-        <canvas id="heroSparkChart"></canvas>
+</section>
+
+<div class="gv-ft-accounts gv-ft-accounts-scroll">
+    <a href="wallet.html" class="gv-ft-acct gv-ft-acct--bank">
+        <div class="gv-ft-acct-top">
+            <span class="gv-ft-acct-icon" aria-hidden="true">🏦</span>
+            <canvas class="gv-ft-acct-spark" id="ftSparkBank" width="144" height="32" aria-hidden="true"></canvas>
+        </div>
+        <div class="gv-ft-acct-title">Bank Balance</div>
+        <div class="gv-ft-acct-amt" id="ftBankBalance" data-balance-mask="1">—</div>
+        <div class="gv-ft-acct-change neutral" id="ftBankChange">Today's change unavailable</div>
+    </a>
+    <a href="exchange.html" class="gv-ft-acct gv-ft-acct--invest">
+        <div class="gv-ft-acct-top">
+            <span class="gv-ft-acct-icon" aria-hidden="true">📈</span>
+            <canvas class="gv-ft-acct-spark" id="ftSparkInvest" width="144" height="32" aria-hidden="true"></canvas>
+        </div>
+        <div class="gv-ft-acct-title">Investment Balance</div>
+        <div class="gv-ft-acct-amt" id="ftInvestBalance" data-balance-mask="1">—</div>
+        <div class="gv-ft-acct-change neutral" id="ftInvestChange">—</div>
+    </a>
+    <a href="gold-investment.html" class="gv-ft-acct gv-ft-acct--save">
+        <div class="gv-ft-acct-top">
+            <span class="gv-ft-acct-icon" aria-hidden="true">🐷</span>
+            <canvas class="gv-ft-acct-spark" id="ftSparkSave" width="144" height="32" aria-hidden="true"></canvas>
+        </div>
+        <div class="gv-ft-acct-title">Savings Account</div>
+        <div class="gv-ft-acct-amt" id="ftSavingsBalance" data-balance-mask="1">—</div>
+        <div class="gv-ft-acct-change neutral" id="ftSavingsChange">Today's change unavailable</div>
+    </a>
+</div>
+
+<section class="gv-ft-grow gv-animate-in" aria-labelledby="gvFtGrowTitle">
+    <img class="gv-ft-grow-art" src="public/images/globalvest-investment.jpg" alt="" loading="lazy" decoding="async">
+    <div>
+        <h2 id="gvFtGrowTitle">Grow Your Wealth</h2>
+        <p>Discover new investment opportunities and grow your portfolio globally.</p>
+        <a class="gv-ft-grow-btn" href="exchange.html">Explore Markets →</a>
     </div>
 </section>
+
+<section class="gv-ft-recent" aria-labelledby="gvFtRecentTitle">
+    <div class="gv-ft-recent-head">
+        <h2 id="gvFtRecentTitle">Recent Transactions</h2>
+        <a class="gv-ft-recent-all" href="wallet.html">View All →</a>
+    </div>
+    <div class="gv-ft-tx-list" id="recentTxList"></div>
+</section>
+
+<div class="gv-dash-legacy">
 
 <section id="goldInvestmentCard" class="gv-gold-card gv-glass gv-animate-in" aria-labelledby="goldInvestmentTitle">
     <div class="gv-gold-card-header">
@@ -193,25 +270,6 @@
 <div id="goldCreditToast" class="gv-gold-toast hidden" role="status" aria-live="polite">
     <span class="gv-gold-toast-icon">✨</span>
     <span id="goldCreditToastText">Your Gold Investment generated today's return.</span>
-</div>
-
-<div class="gv-quick-actions">
-    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="depositBtn">
-        <div class="gv-action-icon">💰</div>
-        <div class="gv-action-label">Deposit</div>
-    </button>
-    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="withdrawBtn">
-        <div class="gv-action-icon">💸</div>
-        <div class="gv-action-label">Withdraw</div>
-    </button>
-    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="transferQuickBtn">
-        <div class="gv-action-icon">🔄</div>
-        <div class="gv-action-label">Send Money</div>
-    </button>
-    <button type="button" class="gv-action-card gv-glass gv-ripple gv-animate-in" id="investQuickBtn">
-        <div class="gv-action-icon">📈</div>
-        <div class="gv-action-label">Invest</div>
-    </button>
 </div>
 
 <section id="depositPanel" class="deposit-panel card gv-glass hidden" aria-labelledby="depositPanelTitle">
@@ -626,7 +684,35 @@
     </div>
 </div>
 
+</div><!-- /.gv-dash-legacy -->
+
 </main>
+
+<nav class="gv-ft-bottom-nav" aria-label="Primary">
+    <a href="dashboard.html" class="gv-ft-nav-item active" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        Home
+    </a>
+    <a href="exchange.html" class="gv-ft-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 10l5-5 5 5M12 5v12"/></svg>
+        Markets
+    </a>
+    <a href="send-money.html" class="gv-ft-nav-item gv-ft-nav-transfer">
+        <span class="gv-ft-nav-fab" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 8h10M7 12h10M7 16h10M4 8l3-3 3 3M17 16l3 3 3-3"/></svg>
+        </span>
+        <span>Transfer</span>
+    </a>
+    <a href="wallet.html" class="gv-ft-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/></svg>
+        Portfolio
+    </a>
+    <a href="settings.html" class="gv-ft-nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
+        Account
+    </a>
+</nav>
+
 </div>
 </div>
 
@@ -662,6 +748,7 @@
 <script src="js/dashboard.js?v=notif-read"></script>
 <script src="js/dashboard-premium.js?v=emerald"></script>
 <script src="js/dashboard-gold.js"></script>
+<script src="js/dashboard-fintech.js?v=1"></script>
 <script src="js/luxury-ui.js?v=emerald"></script>
 
 </body>

@@ -192,14 +192,34 @@ function markNotificationsRead() {
 function renderTransactions() {
     const tbody = document.getElementById("transactionBody");
     const recent = account.transactions.slice(0, 5);
-    tbody.innerHTML = recent.map(function(t) {
-        const sign = t.amount < 0 ? "-" : "+";
-        return `<tr>
+    if (tbody) {
+        tbody.innerHTML = recent.map(function(t) {
+            const sign = t.amount < 0 ? "-" : "+";
+            return `<tr>
             <td>${t.date}</td>
             <td>${t.description}</td>
             <td>${sign}${formatMoney(Math.abs(t.amount), settings.currency)}</td>
         </tr>`;
-    }).join("");
+        }).join("");
+    }
+    syncFintechDashboard();
+}
+
+function syncFintechDashboard() {
+    if (typeof window.updateFintechDashboard !== "function") return;
+    window.updateFintechDashboard({
+        account: account,
+        settings: settings,
+        prices: prices,
+        changes: changes,
+        formatPrice: formatPrice,
+        portfolioValue: portfolioValue,
+        assetValue: assetValue,
+        ALL_ASSETS: ALL_ASSETS,
+        getGoldInvestmentBalance: typeof getGoldInvestmentBalance === "function"
+            ? getGoldInvestmentBalance
+            : function() { return 0; }
+    });
 }
 
 function addTransaction(description, amount, options) {
@@ -291,8 +311,14 @@ function updateAnalytics() {
     }
     if (heroGain) {
         const arrow = todayProfit >= 0 ? "▲" : "▼";
-        heroGain.textContent = arrow + " " + (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit) +
+        const gainText = arrow + " " + (todayProfit >= 0 ? "+" : "") + formatPrice(todayProfit) +
             " (" + (dayPct >= 0 ? "+" : "") + dayPct.toFixed(2) + "%)";
+        heroGain.setAttribute("data-gain-value", gainText);
+        if (document.body.classList.contains("balances-hidden")) {
+            heroGain.textContent = "Today's change hidden";
+        } else {
+            heroGain.textContent = gainText;
+        }
         heroGain.className = "gv-hero-gain " + (todayProfit >= 0 ? "pl-positive" : "pl-negative");
     }
 
@@ -394,6 +420,7 @@ function updateUI() {
     updateAnalytics();
     refreshNotificationsFromStorage();
     renderVerificationBanner();
+    syncFintechDashboard();
 }
 
 function checkPriceAlerts() {

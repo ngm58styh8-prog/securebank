@@ -85,8 +85,8 @@
     }
 
     function initInvestBtn() {
-        const investBtn = document.getElementById("investQuickBtn");
-        if (investBtn) {
+        const investBtn = document.getElementById("investQuickBtn") || document.getElementById("moreQuickBtn");
+        if (investBtn && investBtn.id === "investQuickBtn") {
             investBtn.addEventListener("click", function() {
                 window.location.href = "exchange.html";
             });
