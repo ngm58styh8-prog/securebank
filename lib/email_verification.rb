@@ -140,14 +140,17 @@ module EmailVerification
   def resend_email(to, code)
     uri = URI("https://api.resend.com/emails")
     content = EmailDeliverability.verification_content(code, to)
+    demo_notice = "Demo project — GlobalVest is not a real bank. No real money is involved; balances, returns and transactions are simulated. Do not send real funds."
+    demo_html = "<div style=\"margin:0;padding:12px 16px;background-color:#F5B700;color:#1F1600;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;font-weight:700;text-align:center;\">#{demo_notice}</div>"
+    html = content[:html].to_s.sub(/<body[^>]*>/i) { |tag| tag + demo_html }
 
     body = {
       from: EmailDeliverability.from_address,
       to: [to],
       reply_to: EmailDeliverability.reply_to,
-      subject: content[:subject],
-      text: content[:text],
-      html: content[:html],
+      subject: "[DEMO] #{content[:subject]}",
+      text: "#{content[:text]}\n\n---\n#{demo_notice}",
+      html: html,
       headers: content[:headers],
       tags: [{ name: "category", value: "email_verification" }, { name: "environment", value: "production" }]
     }

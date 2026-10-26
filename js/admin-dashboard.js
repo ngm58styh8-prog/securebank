@@ -1521,7 +1521,7 @@ document.getElementById("walletSettingsForm").addEventListener("submit", functio
 
     const cryptoWallets = [
         { symbol: "BTC", name: "Bitcoin", address: btcAddress },
-        { symbol: "ETH", name: "Ethereum", address: ethAddress || "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+        { symbol: "ETH", name: "Ethereum", address: ethAddress || "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
     ];
 
     updateAdminPaymentSettings(btcAddress, document.getElementById("adminBankInput").value, cryptoWallets);

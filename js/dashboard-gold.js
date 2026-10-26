@@ -91,8 +91,8 @@
         var card = document.getElementById("goldInvestmentCard");
         if (text) {
             text.textContent = amount
-                ? "Your Gold Investment generated today's return of " + formatUsd(amount) + "."
-                : "Your Gold Investment generated today's return.";
+                ? "Your Gold Investment generated today's simulated return of " + formatUsd(amount) + "."
+                : "Your Gold Investment generated today's simulated return.";
         }
         if (toast) {
             toast.classList.remove("hidden");

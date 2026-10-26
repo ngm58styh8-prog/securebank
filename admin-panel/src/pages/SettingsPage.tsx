@@ -24,7 +24,7 @@ export default function SettingsPage() {
     walletAddress: admin.walletAddress,
     ethWalletAddress:
       (admin.cryptoDepositWallets || []).find((w) => w.symbol === "ETH")?.address ||
-      "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
+      "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS",
     bankDetails: admin.bankDetails
   });
 

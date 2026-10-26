@@ -609,6 +609,9 @@
         const nav = document.querySelector(".gv-bottom-nav");
         const limit = nav && getComputedStyle(nav).display !== "none" ? nav.getBoundingClientRect().top : window.innerHeight;
         panel.style.setProperty("top", top + "px", "important");
+        // A filtered/transformed ancestor can become the containing block, shifting "fixed" coordinates.
+        const drift = Math.round(panel.getBoundingClientRect().top - top);
+        if (drift) panel.style.setProperty("top", (top - drift) + "px", "important");
         panel.style.setProperty("max-height", Math.max(220, Math.round(limit - top - 12)) + "px", "important");
     }
 

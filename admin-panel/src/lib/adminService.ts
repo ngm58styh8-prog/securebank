@@ -27,7 +27,7 @@ const DEFAULT_ADMIN: AdminData = {
   payments: [],
   pendingTransfers: [],
   pendingDeposits: [],
-  walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+  walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
   bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
   userActivityLog: [],
   registeredUsers: {},
@@ -41,8 +41,8 @@ const DEFAULT_ADMIN: AdminData = {
     maintenanceMode: false
   },
   cryptoDepositWallets: [
-    { symbol: "BTC", name: "Bitcoin", address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" },
-    { symbol: "ETH", name: "Ethereum", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    { symbol: "BTC", name: "Bitcoin", address: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS" },
+    { symbol: "ETH", name: "Ethereum", address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
   ]
 };
 

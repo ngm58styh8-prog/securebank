@@ -21,6 +21,7 @@
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
+    <script src="/js/demo-banner.js?v=1"></script>
 </head>
 <body class="admin-dashboard-body admin-premium luxury-admin" data-theme="dark">
 
@@ -472,12 +473,12 @@
     <form id="walletSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">
             <label class="form-label" for="adminWalletInput">Bitcoin (BTC) Deposit Address</label>
-            <input id="adminWalletInput" type="text" placeholder="1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" required>
+            <input id="adminWalletInput" type="text" placeholder="DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS" required>
             <p class="admin-sub">Shown when users deposit Bitcoin — Legacy, SegWit, and Bech32 supported.</p>
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="adminEthWalletInput">Ethereum (ETH) Deposit Address</label>
-            <input id="adminEthWalletInput" type="text" placeholder="0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" required>
+            <input id="adminEthWalletInput" type="text" placeholder="DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" required>
             <p class="admin-sub">Shown when users deposit Ethereum — must start with 0x followed by 40 hex characters.</p>
         </div>
         <div class="admin-form-row">
@@ -669,8 +670,8 @@
     </div>
 </div>
 
-<script src="js/crypto-deposit-config.js"></script>
-<script src="js/storage.js"></script>
+<script src="js/crypto-deposit-config.js?v=demo1"></script>
+<script src="js/storage.js?v=demo1"></script>
 <script src="js/common.js"></script>
 <script>
 (function() {
@@ -699,7 +700,7 @@
     revealDashboard();
 })();
 </script>
-<script src="js/admin-dashboard.js"></script>
+<script src="js/admin-dashboard.js?v=demo1"></script>
 <script src="js/admin-gold.js"></script>
 <script src="js/admin-premium.js"></script>
 </body>

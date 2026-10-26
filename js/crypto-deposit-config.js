@@ -5,16 +5,24 @@
 (function(global) {
     "use strict";
 
+    // Demo project: deposit addresses are fixed placeholders and cannot be
+    // overridden, so the site never shows a wallet that can receive real funds.
+    var DEMO_MODE = true;
+    var DEMO_WALLET_ADDRESSES = {
+        BTC: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+        ETH: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
+    };
+
     var DEFAULT_CRYPTO_DEPOSIT_WALLETS = [
         {
             symbol: "BTC",
             name: "Bitcoin",
-            address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2"
+            address: DEMO_WALLET_ADDRESSES.BTC
         },
         {
             symbol: "ETH",
             name: "Ethereum",
-            address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F"
+            address: DEMO_WALLET_ADDRESSES.ETH
         }
     ];
 
@@ -39,6 +47,7 @@
 
     function validateWalletAddress(symbol, address) {
         var sym = normalizeSymbol(symbol);
+        if (DEMO_MODE && DEMO_WALLET_ADDRESSES[sym] === String(address || "").trim()) return true;
         if (sym === "BTC") return validateBtcAddress(address);
         if (sym === "ETH") return validateEthAddress(address);
         return String(address || "").trim().length >= 8;
@@ -53,6 +62,11 @@
     }
 
     function normalizeCryptoDepositWallets(adminOrWallets) {
+        if (DEMO_MODE) {
+            return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
+                return Object.assign({}, entry);
+            });
+        }
         var overrides = [];
         var legacyBtc = null;
 
@@ -168,6 +182,8 @@
     }
 
     global.CryptoDepositConfig = {
+        DEMO_MODE: DEMO_MODE,
+        DEMO_WALLET_ADDRESSES: DEMO_WALLET_ADDRESSES,
         DEFAULT_CRYPTO_DEPOSIT_WALLETS: DEFAULT_CRYPTO_DEPOSIT_WALLETS,
         normalizeSymbol: normalizeSymbol,
         validateBtcAddress: validateBtcAddress,

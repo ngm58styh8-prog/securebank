@@ -8,6 +8,30 @@ const {
 
 let resendClient = null;
 
+const DEMO_SUBJECT_PREFIX = "[DEMO] ";
+const DEMO_NOTICE = "Demo project — GlobalVest is not a real bank. No real money is involved; balances, returns and transactions are simulated. Do not send real funds.";
+const DEMO_NOTICE_HTML =
+    '<div style="margin:0;padding:12px 16px;background-color:#F5B700;color:#1F1600;font-family:Arial,sans-serif;font-size:13px;line-height:1.5;font-weight:700;text-align:center;">' +
+    DEMO_NOTICE +
+    "</div>";
+
+function applyDemoDisclaimer(options) {
+    const subject = String(options.subject || "");
+    const text = String(options.text || "");
+    let html = options.html ? String(options.html) : "";
+    if (html) {
+        const bodyOpen = html.match(/<body[^>]*>/i);
+        html = bodyOpen
+            ? html.replace(bodyOpen[0], bodyOpen[0] + DEMO_NOTICE_HTML)
+            : DEMO_NOTICE_HTML + html;
+    }
+    return {
+        subject: subject.indexOf(DEMO_SUBJECT_PREFIX) === 0 ? subject : DEMO_SUBJECT_PREFIX + subject,
+        text: text ? text + "\n\n---\n" + DEMO_NOTICE : DEMO_NOTICE,
+        html: html || undefined
+    };
+}
+
 function getResendClient() {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
@@ -28,12 +52,13 @@ async function sendTransactionalEmail(options) {
         console.warn("[resend] deliverability:", warnings.join(" "));
     }
 
+    const demo = applyDemoDisclaimer(options);
     const category = (options.tags || []).find(function(tag) {
         return tag && tag.name === "category";
     });
     const logMeta = {
         to: options.to,
-        subject: options.subject,
+        subject: demo.subject,
         category: category && category.value ? category.value : "transactional"
     };
 
@@ -44,9 +69,9 @@ async function sendTransactionalEmail(options) {
         from: options.from || getFromAddress(),
         to: options.to,
         replyTo: options.replyTo || getReplyTo(),
-        subject: options.subject,
-        text: options.text,
-        html: options.html,
+        subject: demo.subject,
+        text: demo.text,
+        html: demo.html,
         headers: options.headers || {},
         tags: options.tags || []
     };
@@ -83,5 +108,6 @@ async function sendVerificationEmail(to, code) {
 module.exports = {
     sendTransactionalEmail,
     sendVerificationEmail,
+    applyDemoDisclaimer,
     getDeliverabilityWarnings
 };

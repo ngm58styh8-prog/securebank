@@ -640,7 +640,7 @@ function getSelectedDepositWallet() {
         return {
             symbol: "ETH",
             name: "Ethereum",
-            address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F"
+            address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
         };
     }
     return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
