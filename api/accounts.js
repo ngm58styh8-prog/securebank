@@ -57,9 +57,11 @@ module.exports = async function handler(req, res) {
                         : eventType === "deposit-submit"
                             ? "deposit-submit"
                             : "signup";
+            const adjustment = req.body && req.body.adjustment;
             const result = await registerUserAccount(email, account, {
                 eventType: normalizedEvent,
-                logSignup: normalizedEvent === "signup"
+                logSignup: normalizedEvent === "signup",
+                adjustment: normalizedEvent === "admin-adjust" ? adjustment : undefined
             });
             const accounts = await loadAllAccounts();
             res.status(200).json({
@@ -67,7 +69,9 @@ module.exports = async function handler(req, res) {
                 email: result.email,
                 account: result.account,
                 adminLinked: true,
-                count: Object.keys(accounts).length
+                count: Object.keys(accounts).length,
+                adjustEmailSent: result.adjustEmailSent === true,
+                adjustEmailError: result.adjustEmailError || null
             });
             return;
         }

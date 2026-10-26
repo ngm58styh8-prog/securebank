@@ -1107,6 +1107,34 @@ function sendWithdrawalApprovedEmail(account, userEmail, amount, destination, me
     return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
 }
 
+function sendAdminBalanceAdjustmentEmail(account, userEmail, action, amount, note) {
+    const meta = getTransactionEmailMeta(account, userEmail);
+    const isCredit = action === "credit";
+    const noteText = note ? String(note).trim() : "";
+    const subject = meta.siteName + " — Account " + (isCredit ? "credited" : "debited") +
+        " $" + amount.toFixed(2);
+    const body = "Hi " + meta.fullName + ",\n\n" +
+        (isCredit
+            ? "An administrator credited your GlobalVest account.\n\n"
+            : "An administrator debited your GlobalVest account.\n\n") +
+        "Amount: $" + amount.toFixed(2) + "\n" +
+        (noteText ? "Note: " + noteText + "\n" : "") +
+        "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
+        "Date: " + new Date().toLocaleString() + "\n\n" +
+        "Log in to view your transaction history.\n\n" +
+        (isCredit
+            ? ""
+            : "If you did not expect this debit, contact " + meta.supportEmail + " immediately.\n\n") +
+        "Thank you,\n" + meta.siteName;
+    return dispatchAccountEmail(
+        account,
+        userEmail,
+        subject,
+        body,
+        isCredit ? "admin-credit" : "admin-debit"
+    );
+}
+
 function sendWithdrawalRejectedEmail(account, userEmail, amount, destination, reason) {
     const meta = getTransactionEmailMeta(account, userEmail);
     const subject = meta.siteName + " — Withdrawal request declined ($" + amount.toFixed(2) + ")";
@@ -2094,7 +2122,7 @@ function applyServerAccountLocally(email, serverAccount) {
     return merged;
 }
 
-function syncAccountToServer(email, account, eventType) {
+function syncAccountToServer(email, account, eventType, syncMeta) {
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: false, offline: true });
     }
@@ -2107,14 +2135,18 @@ function syncAccountToServer(email, account, eventType) {
     }
 
     const key = normalizeEmail(email);
+    const payload = {
+        email: key,
+        account: account,
+        eventType: normalizeRegistryEventType(eventType)
+    };
+    if (syncMeta && syncMeta.adjustment) {
+        payload.adjustment = syncMeta.adjustment;
+    }
     return registryFetch("/api/accounts", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            email: key,
-            account: account,
-            eventType: normalizeRegistryEventType(eventType)
-        })
+        body: JSON.stringify(payload)
     })
         .then(function(response) {
             return response.json().then(function(data) {
@@ -3505,14 +3537,26 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
     applyAdminBalanceAdjustment(key, account, action, amount, note);
 
     const admin = getAdminData();
-    return syncAccountToServer(key, account, "admin-adjust")
+    const adjustmentMeta = {
+        adjustment: {
+            action: action,
+            amount: amount,
+            note: noteText
+        }
+    };
+
+    return syncAccountToServer(key, account, "admin-adjust", adjustmentMeta)
         .then(function(accountResult) {
             if (!accountResult || (!accountResult.ok && !accountResult.offline)) {
                 throw new Error((accountResult && accountResult.error) || "Failed to save balance on server.");
             }
-            return syncAdminToServer(admin);
+            return syncAdminToServer(admin).then(function(adminResult) {
+                return { accountResult: accountResult, adminResult: adminResult };
+            });
         })
-        .then(function(adminResult) {
+        .then(function(syncResults) {
+            const adminResult = syncResults.adminResult;
+            const accountResult = syncResults.accountResult;
             if (adminResult && adminResult.ok === false && !adminResult.offline) {
                 throw new Error((adminResult && adminResult.error) || "Failed to save admin registry.");
             }
@@ -3527,14 +3571,25 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
             notifyAccountsChanged();
             syncAdminRegisteredUsers(getAdminData());
 
-            return {
+            const resultPayload = {
                 ok: true,
                 email: key,
                 userName: userName,
                 action: action,
                 amount: amount,
-                newBalance: account.cash
+                newBalance: account.cash,
+                emailSent: accountResult.adjustEmailSent === true
             };
+
+            if (accountResult.offline) {
+                return sendAdminBalanceAdjustmentEmail(account, key, action, amount, noteText)
+                    .then(function(emailResult) {
+                        resultPayload.emailSent = !!(emailResult && emailResult.ok);
+                        return resultPayload;
+                    });
+            }
+
+            return resultPayload;
         })
         .catch(function(err) {
             return { ok: false, error: err.message || String(err) };

@@ -36,6 +36,7 @@ const { getDeliverabilityReport } = require("../server-lib/email-deliverability.
 const depositEmails = require("../server-lib/deposit-emails.js");
 const withdrawalEmails = require("../server-lib/withdrawal-emails.js");
 const { sendTransferEmailsSafely } = require("../server-lib/send-money-emails.js");
+const { sendAdminAdjustEmailSafely } = require("../server-lib/admin-adjust-emails.js");
 
 const report = getDeliverabilityReport();
 
@@ -60,6 +61,7 @@ console.log("\nEmail triggers:");
 console.log("  Deposits: server-lib/deposit-emails.js (received, credited, declined)");
 console.log("  Withdrawals: server-lib/withdrawal-emails.js (received, processed, declined)");
 console.log("  Funds received: server-lib/send-money-emails.js (sender + recipient)");
+console.log("  Admin credit/debit: server-lib/admin-adjust-emails.js");
 console.log("  Verification: server-lib/resend.js sendVerificationEmail()");
 
 const testEmail = process.argv[2];
@@ -136,5 +138,16 @@ const fundsResult = await sendTransferEmailsSafely({
     recipientAccount: sampleAccount
 });
 console.log(fundsResult.sent ? "  sent" : "  partial/failed", fundsResult.error || "");
+
+console.log("Sending test admin credit email...");
+const adminCreditResult = await sendAdminAdjustEmailSafely({
+    userEmail: testEmail,
+    account: sampleAccount,
+    action: "credit",
+    amount: 10,
+    note: "Email flow test",
+    admin: sampleAdmin
+});
+console.log(adminCreditResult.sent ? "  sent" : "  failed", adminCreditResult.error || adminCreditResult.id || "");
 
 console.log("\nCheck inbox and spam folder. Mark as Not Spam if needed.\n");

@@ -68,6 +68,9 @@ function normalizeSiteUrl(rawUrl) {
     const fallback = cleanEnvValue(process.env.RESEND_SITE_URL) || DEFAULT_SITE_URL;
     let candidate = cleanEnvValue(rawUrl) || fallback;
 
+    if (/^http:\/\//i.test(candidate)) {
+        candidate = candidate.replace(/^http:\/\//i, "https://");
+    }
     if (!/^https:\/\//i.test(candidate)) {
         candidate = DEFAULT_SITE_URL;
     }
@@ -207,6 +210,17 @@ function getDnsRecommendations() {
     };
 }
 
+function effectiveFromIsProductionReady() {
+    const from = getFromAddress();
+    const parsed = parseFromAddress(from);
+    if (isSandboxFromAddress(from)) return false;
+    if (!parsed.email || !parsed.email.includes("@")) return false;
+    const expectedDomain = emailConfig.fromEmail.split("@")[1];
+    if (getSenderDomain(from) !== expectedDomain) return false;
+    if (parsed.email !== emailConfig.fromEmail) return false;
+    return from.includes("<") && String(parsed.name || "").trim().length > 0;
+}
+
 function getDeliverabilityWarnings() {
     const warnings = [];
     const from = getFromAddress();
@@ -214,6 +228,7 @@ function getDeliverabilityWarnings() {
     const replyTo = getReplyTo();
     const siteUrl = getSiteUrl();
     const envFrom = cleanEnvValue(process.env.RESEND_FROM_EMAIL);
+    const senderReady = effectiveFromIsProductionReady();
 
     if (isSandboxFromAddress(from)) {
         warnings.push(
@@ -243,7 +258,7 @@ function getDeliverabilityWarnings() {
             );
         }
 
-        if (parsed.email === emailConfig.replyToEmail) {
+        if (!senderReady && parsed.email === emailConfig.replyToEmail) {
             warnings.push(
                 "RESEND_FROM_EMAIL is set to support@" +
                     expectedDomain +
@@ -253,7 +268,7 @@ function getDeliverabilityWarnings() {
                     emailConfig.replyToEmail +
                     " so support inbox is not used for outbound mail."
             );
-        } else if (parsed.email !== emailConfig.fromEmail) {
+        } else if (!senderReady && parsed.email !== emailConfig.fromEmail) {
             warnings.push(
                 "RESEND_FROM_EMAIL is " +
                     parsed.email +
@@ -268,7 +283,7 @@ function getDeliverabilityWarnings() {
         warnings.push(
             "RESEND_FROM_EMAIL is not set. Set it to " + DEFAULT_FROM + " in Vercel after domain verification."
         );
-    } else if (envFrom && !envFrom.includes("<")) {
+    } else if (!senderReady && envFrom && !envFrom.includes("<")) {
         warnings.push(
             "RESEND_FROM_EMAIL should include a display name: GlobalVest Bank <" +
                 extractEmailAddress(envFrom) +
@@ -286,7 +301,23 @@ function getDeliverabilityWarnings() {
         warnings.push("RESEND_REPLY_TO should use the same domain as the From address for brand consistency.");
     }
 
-    if (siteUrl !== DEFAULT_SITE_URL && cleanEnvValue(process.env.RESEND_SITE_URL)) {
+    const rawSiteUrl = cleanEnvValue(process.env.RESEND_SITE_URL);
+    if (rawSiteUrl && /^http:\/\//i.test(rawSiteUrl)) {
+        try {
+            const parsedSite = new URL(siteUrl);
+            if (isBlockedSiteHost(parsedSite.hostname) || siteUrl.indexOf("https://") !== 0) {
+                warnings.push(
+                    "RESEND_SITE_URL uses http://. Set RESEND_SITE_URL=" + DEFAULT_SITE_URL + " in Vercel."
+                );
+            }
+        } catch (e) {
+            warnings.push(
+                "RESEND_SITE_URL uses http://. Set RESEND_SITE_URL=" + DEFAULT_SITE_URL + " in Vercel."
+            );
+        }
+    }
+
+    if (siteUrl !== DEFAULT_SITE_URL && rawSiteUrl) {
         try {
             const parsedSite = new URL(siteUrl);
             if (isBlockedSiteHost(parsedSite.hostname)) {
@@ -301,6 +332,12 @@ function getDeliverabilityWarnings() {
         } catch (e) {
             warnings.push("RESEND_SITE_URL is invalid. Use " + DEFAULT_SITE_URL + ".");
         }
+    }
+
+    if (senderReady && envFrom && envFrom.indexOf("<") === -1) {
+        return warnings.filter(function(w) {
+            return w.indexOf("RESEND_FROM_EMAIL should include a display name") === -1;
+        });
     }
 
     return warnings;

@@ -30,6 +30,7 @@ const {
     sendWithdrawalProcessedEmailSafely,
     sendWithdrawalDeclinedEmailSafely
 } = require("./withdrawal-emails");
+const { sendAdminAdjustEmailSafely } = require("./admin-adjust-emails");
 
 const ACCOUNTS_TABLE = "user_accounts";
 const ADMIN_TABLE = "admin_registry";
@@ -422,11 +423,35 @@ async function registerUserAccount(email, account, options) {
         source: options.source || "registerUserAccount"
     });
     const link = await linkAccountToAdminRegistry(result.email, result.account, options || { eventType: "signup" });
+    let adjustEmailResult = null;
+    if (options.eventType === "admin-adjust" && options.adjustment) {
+        const adj = options.adjustment;
+        const action = adj.action === "debit" ? "debit" : "credit";
+        const amount = parseFloat(adj.amount);
+        if (amount > 0) {
+            let admin = null;
+            try {
+                admin = await loadAdminRegistry();
+            } catch (adminErr) {
+                console.warn("[registry] admin-adjust email: admin load failed:", adminErr.message || adminErr);
+            }
+            adjustEmailResult = await sendAdminAdjustEmailSafely({
+                userEmail: result.email,
+                account: result.account,
+                action: action,
+                amount: amount,
+                note: adj.note || "",
+                admin: admin
+            });
+        }
+    }
     return {
         email: result.email,
         account: result.account,
         adminLinked: true,
-        isNew: link.isNew
+        isNew: link.isNew,
+        adjustEmailSent: adjustEmailResult ? !!adjustEmailResult.sent : false,
+        adjustEmailError: adjustEmailResult && adjustEmailResult.error ? adjustEmailResult.error : null
     };
 }
 
