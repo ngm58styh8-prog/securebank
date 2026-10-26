@@ -1,14 +1,6 @@
 (function() {
     "use strict";
 
-    var MARKET_SYMBOLS = [
-        { id: "btc", name: "Bitcoin", symbol: "BTC", iconClass: "btc", coinId: "bitcoin" },
-        { id: "eth", name: "Ethereum", symbol: "ETH", iconClass: "eth", coinId: "ethereum" },
-        { id: "gold", name: "Gold", symbol: "XAU", iconClass: "gold", coinId: null, staticPrice: 2340 },
-        { id: "oil", name: "Oil", symbol: "WTI", iconClass: "oil", coinId: null, staticPrice: 78.5 },
-        { id: "tsla", name: "Tesla", symbol: "TSLA", iconClass: "tsla", coinId: null, staticPrice: 248 }
-    ];
-
     function initLuxuryApp() {
         document.body.classList.add("lv-page-enter");
         /* An empty data-theme means light mode (see applyThemeToDocument); only default when the attribute is absent. */
@@ -19,7 +11,6 @@
         initCounters();
         syncHeroMetrics();
         initBottomNav();
-        initMarketCards();
         initPortfolioHero();
         initCardHovers();
         observeAnimations();
@@ -164,58 +155,6 @@
         if (window.GlobalVestBottomNavigation) {
             window.GlobalVestBottomNavigation.mount();
         }
-    }
-
-    function miniChartSvg(up) {
-        var color = up ? "#22C55E" : "#EF4444";
-        return '<svg viewBox="0 0 120 40" preserveAspectRatio="none">' +
-            '<polyline fill="none" stroke="' + color + '" stroke-width="2" points="' +
-            (up ? "0,32 20,28 40,24 60,18 80,14 100,8 120,4" : "0,8 20,12 40,16 60,20 80,26 100,30 120,36") +
-            '"/></svg>';
-    }
-
-    function renderMarketCard(item, price, change) {
-        var up = change >= 0;
-        var changeStr = (up ? "+" : "") + change.toFixed(2) + "%";
-        var priceStr = item.coinId
-            ? "$" + price.toLocaleString(undefined, { maximumFractionDigits: 0 })
-            : (item.id === "gold" ? "$" + price.toFixed(0) + "/oz" : item.id === "oil" ? "$" + price.toFixed(2) + "/bbl" : "$" + price.toFixed(2));
-
-        return (
-            '<div class="lv-market-card lv-animate-in">' +
-            '<div class="lv-market-card-head">' +
-            '<div class="lv-market-icon ' + item.iconClass + '">' + (item.symbol === "BTC" ? "₿" : item.symbol === "ETH" ? "Ξ" : item.symbol.charAt(0)) + '</div>' +
-            '<div><div class="lv-market-name">' + item.name + '</div><div class="lv-market-symbol">' + item.symbol + '</div></div>' +
-            '</div>' +
-            '<div class="lv-market-price">' + priceStr + '</div>' +
-            '<div class="lv-market-change ' + (up ? "up" : "down") + '">' + changeStr + ' today</div>' +
-            '<div class="lv-mini-chart">' + miniChartSvg(up) + '</div>' +
-            '</div>'
-        );
-    }
-
-    function initMarketCards() {
-        var grid = document.getElementById("lvMarketsGrid");
-        if (!grid) return;
-
-        grid.innerHTML = MARKET_SYMBOLS.map(function(item) {
-            return renderMarketCard(item, item.staticPrice || 0, Math.random() * 6 - 2);
-        }).join("");
-
-        var coinIds = MARKET_SYMBOLS.filter(function(m) { return m.coinId; }).map(function(m) { return m.coinId; }).join(",");
-        if (!coinIds) return;
-
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=" + coinIds + "&vs_currencies=usd&include_24hr_change=true")
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                grid.innerHTML = MARKET_SYMBOLS.map(function(item) {
-                    if (item.coinId && data[item.coinId]) {
-                        return renderMarketCard(item, data[item.coinId].usd, data[item.coinId].usd_24h_change || 0);
-                    }
-                    return renderMarketCard(item, item.staticPrice || 0, (Math.random() * 4 - 1));
-                }).join("");
-            })
-            .catch(function() { /* keep static fallback */ });
     }
 
     function initPortfolioHero() {

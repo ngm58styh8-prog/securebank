@@ -1,10 +1,10 @@
 function initPageNav(activePage) {
     const nav = document.getElementById("mainNav");
-    if (!nav) return;
-
-    nav.querySelectorAll(".nav-link").forEach(function(link) {
-        link.classList.toggle("active", link.dataset.page === activePage);
-    });
+    if (nav) {
+        nav.querySelectorAll(".nav-link").forEach(function(link) {
+            link.classList.toggle("active", link.dataset.page === activePage);
+        });
+    }
 
     const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn && !logoutBtn.dataset.bound) {

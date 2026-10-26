@@ -32,7 +32,12 @@
         return "";
     }
 
+    var MARKETS_ICON = "public/icons/globalvest-markets.svg";
+
     function svg(key, size) {
+        if (key === "markets") {
+            return '<img class="gv-markets-icon" src="' + MARKETS_ICON + '" alt="" width="' + size + '" height="' + size + '" aria-hidden="true">';
+        }
         return '<svg viewBox="0 0 24 24" width="' + size + '" height="' + size + '" fill="none" stroke="currentColor" ' +
             'stroke-width="' + (key === "transfer" ? "2.2" : "2") + '" aria-hidden="true">' + ICONS[key] + "</svg>";
     }

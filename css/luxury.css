@@ -317,105 +317,6 @@ body.luxury-app .gv-tier-badge {
     color: var(--lv-gold);
 }
 
-/* ── Market investment cards ── */
-.lv-markets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
-    margin-bottom: 28px;
-}
-
-.lv-market-card {
-    background: var(--lv-card);
-    border: 1px solid var(--lv-border);
-    border-radius: var(--lv-radius);
-    padding: 20px;
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-    animation: lvFadeUp 0.5s ease both;
-}
-
-.lv-market-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--lv-gradient);
-    opacity: 0.6;
-}
-
-.lv-market-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4);
-    border-color: rgba(62, 224, 160, 0.25);
-}
-
-.lv-market-card-head {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.lv-market-icon {
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
-.lv-market-icon.btc { background: rgba(251, 191, 36, 0.15); color: var(--lv-gold); }
-.lv-market-icon.eth { background: rgba(62, 224, 160, 0.15); color: var(--lv-purple); }
-.lv-market-icon.gold { background: rgba(251, 191, 36, 0.12); color: var(--lv-gold); }
-.lv-market-icon.oil { background: rgba(239, 68, 68, 0.12); color: var(--lv-red); }
-.lv-market-icon.tsla { background: rgba(239, 68, 68, 0.12); color: var(--lv-red); }
-
-.lv-market-name {
-    font-weight: 700;
-    font-size: 1rem;
-}
-
-.lv-market-symbol {
-    font-size: 0.78rem;
-    color: var(--lv-muted);
-}
-
-.lv-market-price {
-    font-size: 1.5rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-}
-
-.lv-market-change {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-top: 4px;
-}
-
-.lv-market-change.up { color: var(--lv-green); }
-.lv-market-change.down { color: var(--lv-red); }
-
-.lv-mini-chart {
-    height: 48px;
-    margin-top: 14px;
-    border-radius: 8px;
-    background: linear-gradient(180deg, rgba(62, 224, 160, 0.08) 0%, transparent 100%);
-    position: relative;
-    overflow: hidden;
-}
-
-.lv-mini-chart svg {
-    width: 100%;
-    height: 100%;
-}
-
 /* ── Banking cards ── */
 .lv-banking-grid {
     display: grid;
@@ -916,4 +817,13 @@ body.luxury-app .notif-panel {
     background: rgba(11, 18, 32, 0.96);
     border: 1px solid rgba(154, 245, 200, 0.16);
     box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+}
+
+/* Shared Markets icon (white card, red rising line) used by every Markets link. */
+.gv-markets-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -3px;
+    border-radius: 4px;
+    object-fit: contain;
 }

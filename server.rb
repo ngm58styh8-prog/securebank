@@ -408,6 +408,17 @@ server.mount_proc "/api/registry-health" do |req, res|
   invoke_node_api("api/registry-health.js", req, res)
 end
 
+server.mount_proc "/api/market-data" do |req, res|
+  if req.request_method == "OPTIONS"
+    res.status = 204
+    res["Access-Control-Allow-Origin"] = "*"
+    res["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+    res.body = ""
+    next
+  end
+  invoke_node_api("api/market-data.js", req, res)
+end
+
 server.mount_proc "/api/gold-investments" do |req, res|
   if req.request_method == "OPTIONS"
     res.status = 204

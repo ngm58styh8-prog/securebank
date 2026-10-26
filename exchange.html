@@ -3,114 +3,390 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#050807">
+<meta name="theme-color" content="#020B09">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://api.coingecko.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css?v=logo-emerald">
-<title>GlobalVest — Exchange</title>
+<title>GlobalVest — Markets</title>
 <link rel="stylesheet" href="css/dashboard.css?v=bell-fix">
 <link rel="stylesheet" href="css/dashboard-premium.css?v=bell-fix">
-<link rel="stylesheet" href="css/luxury.css?v=gvnav">
-<link rel="stylesheet" href="css/globalvest-bottom-nav.css?v=1">
+<link rel="stylesheet" href="css/luxury.css?v=mk1">
 <link rel="stylesheet" href="css/notifications.css?v=notif-premium2">
+<link rel="stylesheet" href="css/markets.css?v=2">
+<link rel="stylesheet" href="css/globalvest-bottom-nav.css?v=2">
 </head>
-<body class="luxury-app dashboard-premium" data-theme="dark">
+<body class="luxury-app dashboard-premium gv-markets-page" data-theme="dark">
 
-<header>
-    <div class="header-left">
-        <h2>📈 Markets</h2>
-        <p>Live markets, convert crypto ↔ cash, and view exchange history</p>
+<div class="gv-shell">
+
+<aside class="gv-sidebar" id="gvSidebar" aria-label="Main menu">
+    <div class="gv-sidebar-logo">
+        <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest">
     </div>
-    <div class="header-right">
-        <nav class="main-nav" id="mainNav">
-            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
-            <a href="exchange.html" class="nav-link active" data-page="exchange">Exchange</a>
-            <a href="support.html" class="nav-link" data-page="support">Support</a>
-            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
-        </nav>
-        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
-        <button id="themeToggle" class="icon-btn" type="button">🌙</button>
-        <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
+    <div class="gv-nav-section">Menu</div>
+    <a href="dashboard.html" class="gv-nav-link">🏠 Dashboard</a>
+    <a href="wallet.html#accounts" class="gv-nav-link">🏦 Accounts</a>
+    <a href="wallet.html#portfolio" class="gv-nav-link">📈 Investments</a>
+    <a href="gold-investment.html" class="gv-nav-link">🐷 Savings</a>
+    <a href="exchange.html" class="gv-nav-link active" aria-current="page"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
+    <a href="send-money.html" class="gv-nav-link">⇄ Transfers</a>
+    <a href="wallet.html#transactions" class="gv-nav-link">🧾 Transactions</a>
+    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+    <button type="button" class="gv-nav-link gv-nav-logout" id="gvSidebarLogout">⎋ Logout</button>
+</aside>
+<div class="mk-scrim" id="mkScrim" hidden></div>
+
+<div class="gv-app">
+
+<header class="gv-header mk-header">
+    <div class="gv-header-left">
+        <button type="button" class="gv-menu-toggle mk-menu-btn" id="sidebarToggle" aria-label="Open menu" aria-controls="gvSidebar" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="dashboard.html" class="mk-logo" aria-label="GlobalVest home">
+            <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest" class="brand-logo-img">
+        </a>
+    </div>
+    <div class="gv-header-actions profile-wrap">
+        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+        <button type="button" class="gv-icon-btn icon-btn mk-account-btn" id="mkAccountBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="mkAccountMenu" title="Account">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/></svg>
+        </button>
+        <div id="mkAccountMenu" class="dropdown hidden" role="menu">
+            <div class="dropdown-header" id="mkAccountName">👤 Account</div>
+            <a class="dropdown-item" role="menuitem" href="profile.html">My Profile</a>
+            <a class="dropdown-item" role="menuitem" href="settings.html">Account Settings</a>
+            <a class="dropdown-item" role="menuitem" href="wallet.html#transactions">Transaction History</a>
+            <a class="dropdown-item" role="menuitem" href="support.html">Support</a>
+            <button class="dropdown-item" role="menuitem" type="button" id="logoutBtn">Logout</button>
+        </div>
     </div>
 </header>
 
-<div class="container feature-page">
+<main class="gv-main mk-main">
+
+<section class="mk-hero" aria-labelledby="mkTitle">
+    <div class="mk-hero-bg" aria-hidden="true">
+        <div class="mk-hero-earth"></div>
+        <svg class="mk-hero-candles" viewBox="0 0 400 120" preserveAspectRatio="none">
+            <g stroke="#00E89B" stroke-width="1.2" fill="#00E89B">
+                <path d="M18 70v34M48 58v30M78 64v36M108 46v34M138 52v28M168 36v34M198 42v30M228 28v32M258 34v26M288 20v30M318 26v24M348 12v28M378 18v24"/>
+                <rect x="14" y="76" width="8" height="20"/><rect x="44" y="64" width="8" height="16"/>
+                <rect x="104" y="52" width="8" height="20"/><rect x="164" y="42" width="8" height="18"/>
+                <rect x="224" y="34" width="8" height="18"/><rect x="284" y="26" width="8" height="16"/>
+                <rect x="344" y="18" width="8" height="16"/>
+            </g>
+            <g stroke="#0D5744" stroke-width="1.2" fill="#0D5744">
+                <rect x="74" y="70" width="8" height="18"/><rect x="134" y="56" width="8" height="16"/>
+                <rect x="194" y="48" width="8" height="16"/><rect x="254" y="38" width="8" height="14"/>
+                <rect x="314" y="30" width="8" height="14"/><rect x="374" y="22" width="8" height="14"/>
+            </g>
+        </svg>
+        <span class="mk-particle" style="--x:12%;--y:22%;--d:0s"></span>
+        <span class="mk-particle" style="--x:68%;--y:14%;--d:1.2s"></span>
+        <span class="mk-particle" style="--x:84%;--y:48%;--d:2.1s"></span>
+        <span class="mk-particle" style="--x:38%;--y:62%;--d:0.6s"></span>
+        <span class="mk-particle" style="--x:56%;--y:78%;--d:1.8s"></span>
+    </div>
+
+    <div class="mk-hero-inner">
+        <h1 class="mk-title" id="mkTitle">
+            <img class="gv-markets-icon mk-title-icon" src="public/icons/globalvest-markets.svg" alt="" width="34" height="34">
+            Markets
+        </h1>
+        <p class="mk-subtitle">Live markets, convert crypto ↔ cash, and view exchange history.</p>
+
+        <div class="mk-search-row">
+            <label class="mk-search" for="mkSearch">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <span class="sr-only">Search assets</span>
+                <input id="mkSearch" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search assets (BTC, ETH, Gold, Diamond...)">
+                <button type="button" class="mk-search-clear" id="mkSearchClear" aria-label="Clear search" hidden>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+                </button>
+            </label>
+            <button type="button" class="mk-filter-btn" id="mkFilterBtn" aria-haspopup="dialog" aria-controls="mkFilters">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                <span>Filters</span>
+                <span class="mk-filter-count" id="mkFilterCount" hidden>0</span>
+            </button>
+        </div>
+
+        <div class="mk-cats" role="tablist" aria-label="Market categories" id="mkCats">
+            <button type="button" class="mk-cat active" role="tab" aria-selected="true" data-cat="all">All</button>
+            <button type="button" class="mk-cat" role="tab" aria-selected="false" data-cat="crypto">
+                <span class="mk-cat-ico mk-cat-btc" aria-hidden="true">₿</span>Crypto
+            </button>
+            <button type="button" class="mk-cat" role="tab" aria-selected="false" data-cat="stocks">
+                <svg class="mk-cat-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>Stocks
+            </button>
+            <button type="button" class="mk-cat" role="tab" aria-selected="false" data-cat="commodities">
+                <svg class="mk-cat-ico mk-cat-gold" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 20l2.2-6h6.6L14 20zM10 20l2.2-6h6.6L21 20zM6.5 12l2.2-6h6.6l2.2 6z"/></svg>Commodities
+            </button>
+            <button type="button" class="mk-cat mk-cat-diamond" role="tab" aria-selected="false" data-cat="diamond">
+                <span class="mk-cat-ico" aria-hidden="true">💎</span>Diamond
+            </button>
+        </div>
+    </div>
+</section>
 
 <div id="siteAnnouncement" class="site-announcement hidden"></div>
 
-<h2 class="gv-section-title lv-animate-in" style="margin-bottom:16px;">Live Markets</h2>
-<div id="lvMarketsGrid" class="lv-markets-grid"></div>
+<section class="mk-overview" aria-label="Market overview">
+    <article class="mk-ov-card" id="mkOvCap">
+        <div class="mk-ov-head"><span>Total Market Cap</span><span class="mk-ov-src">Crypto · CoinGecko</span></div>
+        <div class="mk-ov-value mk-skel-text" data-field="value">&nbsp;</div>
+        <div class="mk-ov-sub" data-field="sub">&nbsp;</div>
+        <div class="mk-ov-viz" data-field="viz"></div>
+    </article>
+    <article class="mk-ov-card" id="mkOvVol">
+        <div class="mk-ov-head"><span>24h Volume</span><span class="mk-ov-src">Crypto · CoinGecko</span></div>
+        <div class="mk-ov-value mk-skel-text" data-field="value">&nbsp;</div>
+        <div class="mk-ov-sub" data-field="sub">&nbsp;</div>
+        <div class="mk-ov-viz" data-field="viz"></div>
+    </article>
+    <article class="mk-ov-card" id="mkOvGainers">
+        <div class="mk-ov-head"><span>Top Gainers</span><span class="mk-ov-src">24h</span></div>
+        <div class="mk-gainers" data-field="list"></div>
+    </article>
+</section>
 
-<div class="feature-grid">
-    <div class="card settings-section">
-        <h3>Convert Crypto ↔ Cash</h3>
-        <p class="section-desc">Instantly convert between your cash balance and crypto holdings.</p>
-        <div class="exchange-balances">
-            <div><strong>Cash:</strong> <span id="exchangeCash">—</span></div>
-            <div><strong>BTC:</strong> <span id="exchangeBtc">—</span></div>
-            <div><strong>BTC Price:</strong> <span id="exchangeBtcPrice">Loading…</span></div>
+<section class="mk-live" aria-labelledby="mkLiveTitle">
+    <div class="mk-live-head">
+        <div>
+            <h2 class="mk-h2" id="mkLiveTitle">Live Markets</h2>
+            <p class="mk-updated" id="mkUpdated" aria-live="polite">Loading market data…</p>
         </div>
-        <form id="convertForm" class="exchange-form">
-            <label class="form-label" for="convertDirection">Direction</label>
-            <select id="convertDirection">
-                <option value="cash-to-btc">Cash → BTC</option>
-                <option value="btc-to-cash">BTC → Cash</option>
-            </select>
-            <label class="form-label" for="convertAmount">Amount</label>
-            <input id="convertAmount" type="number" min="0.00000001" step="any" placeholder="0.00" required>
-            <p class="form-hint" id="convertHint">Enter USD amount to spend on BTC.</p>
-            <button class="edit-profile-btn" type="submit">Convert Now</button>
+        <div class="mk-live-tools">
+            <label class="mk-sort">
+                <span class="sr-only">Sort markets</span>
+                <select id="mkSort">
+                    <option value="mcap">Market Cap</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="gainers">Top Gainers</option>
+                    <option value="losers">Top Losers</option>
+                    <option value="alpha">Alphabetical</option>
+                </select>
+            </label>
+            <div class="mk-view" role="group" aria-label="Layout">
+                <button type="button" class="mk-view-btn active" data-view="list" aria-pressed="true" aria-label="List view">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                </button>
+                <button type="button" class="mk-view-btn" data-view="grid" aria-pressed="false" aria-label="Grid view">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="mk-notice" id="mkNotice" hidden></div>
+    <div class="mk-list" id="mkList" data-view="list" aria-busy="true"></div>
+    <p class="mk-empty" id="mkEmpty" hidden>No assets match your search or filters.</p>
+</section>
+
+<div class="mk-lower">
+    <section class="mk-card mk-convert" id="mkConvert" aria-labelledby="mkConvertTitle">
+        <div class="mk-card-head">
+            <h2 class="mk-h2" id="mkConvertTitle">Convert Crypto ↔ Cash</h2>
+            <span class="mk-chip" id="mkRateStatus">Rate loading…</span>
+        </div>
+        <form id="convertForm" class="mk-convert-form" novalidate>
+            <div class="mk-convert-pair">
+                <label class="mk-field">
+                    <span>From</span>
+                    <select id="convertFrom">
+                        <option value="USD">USD Cash</option>
+                        <option value="BTC">Bitcoin (BTC)</option>
+                    </select>
+                </label>
+                <button type="button" class="mk-swap" id="convertSwap" aria-label="Swap currencies">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 4 3 8M7 4l4 4M17 20V4M17 20l-4-4M17 20l4-4"/></svg>
+                </button>
+                <label class="mk-field">
+                    <span>To</span>
+                    <select id="convertTo">
+                        <option value="BTC">Bitcoin (BTC)</option>
+                        <option value="USD">USD Cash</option>
+                    </select>
+                </label>
+            </div>
+            <label class="mk-field">
+                <span>Amount <small id="convertUnit">(USD)</small></span>
+                <input id="convertAmount" type="number" inputmode="decimal" min="0" step="any" placeholder="0.00" required>
+            </label>
+            <dl class="mk-quote">
+                <div><dt>Available balance</dt><dd id="convertAvailable">—</dd></div>
+                <div><dt>Exchange rate</dt><dd id="convertRate">—</dd></div>
+                <div><dt>Fees</dt><dd id="convertFee">$0.00 (no conversion fee)</dd></div>
+                <div class="mk-quote-total"><dt>Estimated you receive</dt><dd id="convertReceive">—</dd></div>
+            </dl>
+            <p class="mk-form-error" id="convertError" role="alert" hidden></p>
+            <button class="mk-primary" type="submit" id="convertReviewBtn">Review Conversion</button>
+        </form>
+    </section>
+
+    <section class="mk-card mk-fx" aria-labelledby="mkFxTitle">
+        <div class="mk-card-head">
+            <h2 class="mk-h2" id="mkFxTitle">Currency Converter</h2>
+            <span class="mk-chip">Reference rates</span>
+        </div>
+        <form id="fxForm" class="mk-fx-form">
+            <label class="mk-field">
+                <span>Amount</span>
+                <input id="fxAmount" type="number" min="0.01" step="0.01" value="100" required>
+            </label>
+            <div class="mk-convert-pair">
+                <label class="mk-field">
+                    <span>From</span>
+                    <select id="fxFrom">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
+                </label>
+                <span class="mk-swap mk-swap-static" aria-hidden="true">→</span>
+                <label class="mk-field">
+                    <span>To</span>
+                    <select id="fxTo">
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
+                </label>
+            </div>
+            <div class="mk-fx-result" id="fxResult">—</div>
+            <button class="mk-secondary" type="button" id="fxConvertBtn">Convert</button>
+        </form>
+    </section>
+
+    <section class="mk-card mk-history" aria-labelledby="mkHistoryTitle">
+        <div class="mk-card-head">
+            <h2 class="mk-h2" id="mkHistoryTitle">Exchange History</h2>
+            <span class="mk-chip" id="mkHistoryCount">0</span>
+        </div>
+        <ul class="mk-history-list" id="exchangeHistoryList"></ul>
+    </section>
+</div>
+
+</main>
+</div>
+</div>
+
+<div class="mk-dialog" id="mkFilters" role="dialog" aria-modal="true" aria-labelledby="mkFiltersTitle" hidden>
+    <div class="mk-dialog-card mk-sheet">
+        <div class="mk-dialog-head">
+            <h2 class="mk-h2" id="mkFiltersTitle">Filters</h2>
+            <button type="button" class="mk-close" data-close aria-label="Close filters">✕</button>
+        </div>
+        <form id="mkFilterForm" class="mk-filter-form">
+            <fieldset>
+                <legend>Asset category</legend>
+                <div class="mk-checks">
+                    <label><input type="checkbox" name="cat" value="crypto" checked> Crypto</label>
+                    <label><input type="checkbox" name="cat" value="stocks" checked> Stocks &amp; ETFs</label>
+                    <label><input type="checkbox" name="cat" value="commodities" checked> Commodities</label>
+                    <label><input type="checkbox" name="cat" value="diamond" checked> Diamond</label>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Price range (USD)</legend>
+                <div class="mk-range">
+                    <input type="number" name="minPrice" min="0" step="any" placeholder="Min" aria-label="Minimum price">
+                    <span>–</span>
+                    <input type="number" name="maxPrice" min="0" step="any" placeholder="Max" aria-label="Maximum price">
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>24h performance</legend>
+                <div class="mk-checks mk-radios">
+                    <label><input type="radio" name="perf" value="any" checked> Any</label>
+                    <label><input type="radio" name="perf" value="positive"> Positive</label>
+                    <label><input type="radio" name="perf" value="negative"> Negative</label>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Minimum market cap</legend>
+                <select name="minCap">
+                    <option value="0">Any</option>
+                    <option value="1e9">$1B+</option>
+                    <option value="1e10">$10B+</option>
+                    <option value="1e11">$100B+</option>
+                </select>
+                <p class="mk-hint">Market cap is available for crypto assets only; other assets are hidden when this is set.</p>
+            </fieldset>
+            <fieldset>
+                <legend>Minimum 24h volume</legend>
+                <select name="minVol">
+                    <option value="0">Any</option>
+                    <option value="1e8">$100M+</option>
+                    <option value="1e9">$1B+</option>
+                    <option value="1e10">$10B+</option>
+                </select>
+                <p class="mk-hint">USD trading volume is available for crypto and gold; other assets are hidden when this is set.</p>
+            </fieldset>
+            <div class="mk-dialog-actions">
+                <button type="button" class="mk-secondary" id="mkFilterReset">Reset Filters</button>
+                <button type="submit" class="mk-primary">Apply Filters</button>
+            </div>
         </form>
     </div>
+</div>
 
-    <div class="card settings-section">
-        <h3>Currency Converter</h3>
-        <p class="section-desc">Convert between USD, EUR, and GBP.</p>
-        <form id="fxForm" class="exchange-form">
-            <label class="form-label" for="fxAmount">Amount</label>
-            <input id="fxAmount" type="number" min="0.01" step="0.01" value="100" required>
-            <label class="form-label" for="fxFrom">From</label>
-            <select id="fxFrom">
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-            </select>
-            <label class="form-label" for="fxTo">To</label>
-            <select id="fxTo">
-                <option value="EUR">EUR (€)</option>
-                <option value="USD">USD ($)</option>
-                <option value="GBP">GBP (£)</option>
-            </select>
-            <div class="fx-result" id="fxResult">—</div>
-            <button class="edit-profile-btn" type="button" id="fxConvertBtn">Convert</button>
-        </form>
+<div class="mk-dialog" id="mkDetail" role="dialog" aria-modal="true" aria-labelledby="mkDetailName" hidden>
+    <div class="mk-dialog-card mk-detail">
+        <div class="mk-dialog-head">
+            <div class="mk-detail-id">
+                <span class="mk-icon" id="mkDetailIcon"></span>
+                <div>
+                    <h2 class="mk-h2" id="mkDetailName">—</h2>
+                    <p class="mk-detail-sym" id="mkDetailSym"></p>
+                </div>
+            </div>
+            <button type="button" class="mk-close" data-close aria-label="Close asset details">✕</button>
+        </div>
+        <div class="mk-detail-price">
+            <span id="mkDetailPrice">—</span>
+            <span class="mk-chg" id="mkDetailChange"></span>
+        </div>
+        <div class="mk-ranges" id="mkDetailRanges" role="tablist" aria-label="Chart range"></div>
+        <div class="mk-detail-chart" id="mkDetailChartWrap">
+            <canvas id="mkDetailChart" aria-label="Price history chart" role="img"></canvas>
+            <p class="mk-chart-msg" id="mkDetailChartMsg" hidden></p>
+        </div>
+        <dl class="mk-stats" id="mkDetailStats"></dl>
+        <p class="mk-detail-note" id="mkDetailNote" hidden></p>
+        <div class="mk-dialog-actions" id="mkDetailActions"></div>
     </div>
 </div>
 
-<div class="card settings-section">
-    <h3>Exchange History</h3>
-    <div class="table-scroll">
-        <table>
-            <thead>
-                <tr><th>Date</th><th>Type</th><th>Details</th><th>Amount</th></tr>
-            </thead>
-            <tbody id="exchangeHistoryBody">
-                <tr><td colspan="4">No exchanges yet.</td></tr>
-            </tbody>
-        </table>
+<div class="mk-dialog" id="mkReview" role="dialog" aria-modal="true" aria-labelledby="mkReviewTitle" hidden>
+    <div class="mk-dialog-card mk-review">
+        <div class="mk-dialog-head">
+            <h2 class="mk-h2" id="mkReviewTitle">Review Conversion</h2>
+            <button type="button" class="mk-close" data-close aria-label="Close review">✕</button>
+        </div>
+        <dl class="mk-quote" id="mkReviewBody"></dl>
+        <p class="mk-hint" id="mkReviewHint">The live rate was refreshed for this review. If more than 60 seconds pass before you confirm, it is refreshed again.</p>
+        <p class="mk-form-error" id="mkReviewError" role="alert" hidden></p>
+        <div class="mk-dialog-actions">
+            <button type="button" class="mk-secondary" data-close>Cancel</button>
+            <button type="button" class="mk-primary" id="mkReviewConfirm">Confirm Conversion</button>
+        </div>
     </div>
 </div>
 
-</div>
+<div class="mk-toast" id="mkToast" role="status" aria-live="polite" hidden></div>
 
-<script src="js/storage.js?v=device-reauth"></script>
+<script src="js/storage.js?v=zero-holdings"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-premium2"></script>
-<script src="js/nav.js"></script>
-<script src="js/exchange.js"></script>
-<script src="js/globalvest-bottom-nav.js?v=1"></script>
-<script src="js/luxury-ui.js?v=gvnav"></script>
+<script src="js/nav.js?v=mk1"></script>
+<script src="js/market-data.js?v=1"></script>
+<script src="js/exchange.js?v=mk2"></script>
+<script src="js/globalvest-bottom-nav.js?v=2"></script>
+<script src="js/luxury-ui.js?v=mk1"></script>
 </body>
 </html>
