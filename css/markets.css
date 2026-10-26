@@ -250,8 +250,9 @@ body.gv-markets-page .mk-main {
     flex-shrink: 0;
 }
 
-.mk-search input {
+body.gv-markets-page .mk-search input {
     flex: 1;
+    border-radius: 0;
     min-width: 0;
     height: 100%;
     border: none;
@@ -620,7 +621,7 @@ body.gv-markets-page .mk-main {
     gap: 8px;
 }
 
-.mk-sort select {
+body.gv-markets-page .mk-sort select {
     height: 38px;
     padding: 0 32px 0 12px;
     border-radius: 12px;
@@ -973,6 +974,22 @@ body.gv-markets-page .mk-main {
     grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
     gap: 8px;
     align-items: end;
+}
+
+body.gv-markets-page button.gv-nav-link {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+body.gv-markets-page .gv-sidebar .gv-nav-logout {
+    margin-top: auto;
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.25);
 }
 
 .mk-field {
