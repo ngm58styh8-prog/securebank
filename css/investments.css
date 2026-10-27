@@ -1,65 +1,514 @@
-body.investments-page .inv-sim-note {
-    color: #f5b700;
-    font-size: 0.88rem;
-    margin: 0 0 16px;
-    line-height: 1.45;
+/* GlobalVest Investments — premium fintech v2 */
+
+body.investments-page.inv-v2 {
+    --inv-bg: #020B09;
+    --inv-card: #071A15;
+    --inv-emerald: #00E89B;
+    --inv-emerald-light: #8BFFD0;
+    --inv-gold: #FFD166;
+    --inv-text: #FFFFFF;
+    --inv-muted: #A6B5AF;
+    --inv-glow: rgba(0, 232, 155, 0.35);
+    background: var(--inv-bg);
+    color: var(--inv-text);
 }
 
-body.investments-page .inv-summary-grid {
+body.investments-page.inv-v2 .gv-main.inv-main {
+    padding: 16px 16px 32px;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+body.investments-page.inv-v2 .inv-disclaimer {
+    font-size: 0.75rem;
+    color: var(--inv-muted);
+    line-height: 1.45;
+    margin: 0 0 16px;
+    opacity: 0.9;
+}
+
+body.investments-page.inv-v2 .inv-header .gv-welcome h1 {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--inv-text);
+    letter-spacing: -0.02em;
+}
+
+body.investments-page.inv-v2 .inv-header .gv-welcome p {
+    font-size: 0.78rem;
+    color: var(--inv-muted);
+}
+
+body.investments-page.inv-v2 .inv-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+body.investments-page.inv-v2 .inv-header-chart-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: rgba(0, 232, 155, 0.08);
+    border: 1px solid rgba(0, 232, 155, 0.25);
+    box-shadow: 0 0 20px rgba(0, 232, 155, 0.12);
+}
+
+body.investments-page.inv-v2 .hidden {
+    display: none !important;
+}
+
+body.investments-page.inv-v2 .inv-loading .inv-skeleton-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    min-height: 120px;
+}
+
+@media (min-width: 900px) {
+    body.investments-page.inv-v2 .inv-loading .inv-skeleton-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* Summary cards */
+body.investments-page.inv-v2 .inv-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     margin-bottom: 20px;
 }
 
-body.investments-page .inv-card {
-    padding: 16px;
-    border-radius: 16px;
-    border: 1px solid rgba(35, 230, 163, 0.22);
-    background: rgba(8, 16, 12, 0.72);
-    box-shadow: 0 0 24px rgba(35, 230, 163, 0.06);
+@media (min-width: 900px) {
+    body.investments-page.inv-v2 .inv-summary-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+    }
 }
 
-body.investments-page .inv-card .label {
-    font-size: 0.75rem;
-    color: #9caaa5;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+body.investments-page.inv-v2 .inv-stat-card {
+    position: relative;
+    padding: 14px 14px 10px;
+    border-radius: 18px;
+    background: var(--inv-card);
+    border: 1px solid rgba(0, 232, 155, 0.22);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(139, 255, 208, 0.06);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    min-height: 118px;
 }
 
-body.investments-page .inv-card .value {
-    font-size: 1.35rem;
+body.investments-page.inv-v2 .inv-stat-card::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: 0 0 24px var(--inv-glow);
+    opacity: 0.15;
+}
+
+body.investments-page.inv-v2 .inv-stat-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+body.investments-page.inv-v2 .inv-stat-label {
+    font-size: 0.65rem;
     font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--inv-muted);
+}
+
+body.investments-page.inv-v2 .inv-stat-icon {
+    color: var(--inv-emerald);
+    opacity: 0.95;
+    flex-shrink: 0;
+}
+
+body.investments-page.inv-v2 .inv-stat-icon-gold {
+    color: var(--inv-gold);
+}
+
+body.investments-page.inv-v2 .inv-stat-value {
+    font-size: clamp(1rem, 4.2vw, 1.35rem);
+    font-weight: 800;
+    color: var(--inv-text);
+    line-height: 1.2;
+    word-break: break-word;
+}
+
+body.investments-page.inv-v2 .inv-stat-sub {
+    font-size: 0.72rem;
+    color: var(--inv-muted);
+    margin-top: 4px;
+}
+
+body.investments-page.inv-v2 .inv-stat-chart-wrap {
+    height: 44px;
+    margin-top: 8px;
+    position: relative;
+}
+
+body.investments-page.inv-v2 .inv-stat-chart-wrap canvas {
+    width: 100% !important;
+    height: 44px !important;
+}
+
+body.investments-page.inv-v2 .inv-stat-clock {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin-top: 6px;
 }
 
-body.investments-page .inv-asset-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 14px;
+body.investments-page.inv-v2 .inv-countdown-lg {
+    font-size: clamp(1.1rem, 4.5vw, 1.4rem);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--inv-gold);
+    letter-spacing: 0.04em;
 }
 
-body.investments-page .inv-position-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 14px;
-    margin-top: 16px;
+/* Wealth banner */
+body.investments-page.inv-v2 .inv-wealth-banner {
+    margin-bottom: 24px;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 232, 155, 0.35);
+    box-shadow: 0 0 40px rgba(0, 232, 155, 0.12);
+    background: linear-gradient(135deg, #031612 0%, #071A15 55%, #020B09 100%);
 }
 
-body.investments-page .inv-asset-card h4 {
-    margin: 0 0 8px;
+body.investments-page.inv-v2 .inv-wealth-inner {
+    position: relative;
+    min-height: 160px;
+    padding: 24px 20px;
+    background-image:
+        linear-gradient(105deg, rgba(2, 11, 9, 0.92) 0%, rgba(2, 11, 9, 0.55) 45%, rgba(2, 11, 9, 0.75) 100%),
+        url("../public/assets/invest-grow-wealth-banner.jpg");
+    background-size: cover;
+    background-position: center right;
+}
+
+@media (min-width: 768px) {
+    body.investments-page.inv-v2 .inv-wealth-inner {
+        min-height: 200px;
+        padding: 32px 36px;
+    }
+}
+
+body.investments-page.inv-v2 .inv-wealth-copy {
+    max-width: 420px;
+    position: relative;
+    z-index: 1;
+}
+
+body.investments-page.inv-v2 .inv-wealth-copy h2 {
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 800;
+    margin: 0 0 10px;
+    letter-spacing: -0.03em;
+}
+
+body.investments-page.inv-v2 .inv-wealth-white {
+    color: #fff;
+}
+
+body.investments-page.inv-v2 .inv-wealth-emerald {
+    color: var(--inv-emerald);
+}
+
+body.investments-page.inv-v2 .inv-wealth-copy p {
+    color: var(--inv-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0 0 16px;
+}
+
+body.investments-page.inv-v2 .inv-wealth-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 232, 155, 0.5);
+    background: linear-gradient(135deg, rgba(0, 232, 155, 0.25), rgba(0, 232, 155, 0.08));
+    color: var(--inv-emerald-light);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 0 24px rgba(0, 232, 155, 0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+body.investments-page.inv-v2 .inv-wealth-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 32px rgba(0, 232, 155, 0.35);
+}
+
+/* Sections */
+body.investments-page.inv-v2 .inv-section {
+    margin-bottom: 28px;
+}
+
+body.investments-page.inv-v2 .inv-section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+body.investments-page.inv-v2 .inv-section-title {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--inv-text);
+    margin: 0;
+}
+
+body.investments-page.inv-v2 .inv-section-sub {
+    font-size: 0.82rem;
+    color: var(--inv-muted);
+    margin: 6px 0 0;
+}
+
+body.investments-page.inv-v2 .inv-section-link {
+    color: var(--inv-emerald);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+body.investments-page.inv-v2 .inv-section-link-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 0;
+}
+
+body.investments-page.inv-v2 .inv-empty {
+    color: var(--inv-muted);
+    font-size: 0.9rem;
+    padding: 12px 0;
+}
+
+/* Position cards */
+body.investments-page.inv-v2 .inv-position-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 900px) {
+    body.investments-page.inv-v2 .inv-position-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+body.investments-page.inv-v2 .inv-pos-card {
+    border-radius: 20px;
+    padding: 18px;
+    background: var(--inv-card);
+    border: 1px solid rgba(0, 232, 155, 0.22);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+body.investments-page.inv-v2 .inv-pos-card.inv-pos-gold {
+    border-color: rgba(255, 209, 102, 0.45);
+    box-shadow: 0 0 28px rgba(255, 209, 102, 0.12);
+}
+
+body.investments-page.inv-v2 .inv-pos-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+body.investments-page.inv-v2 .inv-pos-title-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
+    min-width: 0;
 }
 
-body.investments-page .inv-asset-card .price {
-    color: #8bffd0;
+body.investments-page.inv-v2 .inv-pos-title-row h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+body.investments-page.inv-v2 .inv-pos-symbol {
+    font-size: 0.75rem;
+    color: var(--inv-muted);
     font-weight: 600;
-    margin-bottom: 10px;
 }
 
-body.investments-page .inv-dialog {
+body.investments-page.inv-v2 .inv-status-pill {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(0, 232, 155, 0.15);
+    color: var(--inv-emerald);
+    border: 1px solid rgba(0, 232, 155, 0.35);
+    flex-shrink: 0;
+}
+
+body.investments-page.inv-v2 .inv-pos-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 14px;
+    margin-bottom: 12px;
+}
+
+body.investments-page.inv-v2 .inv-metric label {
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--inv-muted);
+    margin-bottom: 2px;
+}
+
+body.investments-page.inv-v2 .inv-metric span {
+    font-size: 0.95rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+body.investments-page.inv-v2 .inv-pos-chart {
+    height: 72px;
+    margin: 12px 0;
+}
+
+body.investments-page.inv-v2 .inv-plan-name {
+    font-size: 0.78rem;
+    color: var(--inv-muted);
+    margin-bottom: 12px;
+}
+
+body.investments-page.inv-v2 .inv-manage-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 232, 155, 0.4);
+    background: rgba(0, 232, 155, 0.12);
+    color: var(--inv-emerald-light);
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+body.investments-page.inv-v2 .inv-pos-gold .inv-manage-btn {
+    border-color: rgba(255, 209, 102, 0.45);
+    background: rgba(255, 209, 102, 0.1);
+    color: var(--inv-gold);
+}
+
+body.investments-page.inv-v2 .inv-manage-btn:hover {
+    background: rgba(0, 232, 155, 0.22);
+}
+
+body.investments-page.inv-v2 .inv-asset-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+/* Asset scroll */
+body.investments-page.inv-v2 .inv-asset-scroll-wrap {
+    margin: 0 -16px;
+    padding: 0 16px;
+    overflow: hidden;
+}
+
+body.investments-page.inv-v2 .inv-asset-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.investments-page.inv-v2 .inv-asset-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+body.investments-page.inv-v2 .inv-asset-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 232, 155, 0.3);
+    border-radius: 4px;
+}
+
+body.investments-page.inv-v2 .inv-asset-chip {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    width: 108px;
+    padding: 14px 10px;
+    border-radius: 16px;
+    background: var(--inv-card);
+    border: 1px solid rgba(0, 232, 155, 0.2);
+    text-align: center;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--inv-text);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+body.investments-page.inv-v2 .inv-asset-chip:hover,
+body.investments-page.inv-v2 .inv-asset-chip:focus-visible {
+    border-color: var(--inv-emerald);
+    box-shadow: 0 0 20px rgba(0, 232, 155, 0.15);
+}
+
+body.investments-page.inv-v2 .inv-asset-chip .inv-asset-icon {
+    margin: 0 auto 8px;
+}
+
+body.investments-page.inv-v2 .inv-asset-chip-name {
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+body.investments-page.inv-v2 .inv-asset-chip-sym {
+    font-size: 0.65rem;
+    color: var(--inv-muted);
+}
+
+body.investments-page.inv-v2 .inv-asset-chip.unavailable {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* Dialogs */
+body.investments-page.inv-v2 .inv-dialog {
     position: fixed;
     inset: 0;
     z-index: 1200;
@@ -67,28 +516,93 @@ body.investments-page .inv-dialog {
     align-items: flex-end;
     justify-content: center;
     padding: 16px;
-    background: rgba(0, 0, 0, 0.65);
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(6px);
 }
 
-body.investments-page .inv-dialog.hidden {
-    display: none;
-}
-
-body.investments-page .inv-dialog-panel {
-    width: min(480px, 100%);
-    max-height: 90vh;
+body.investments-page.inv-v2 .inv-dialog-panel {
+    width: min(520px, 100%);
+    max-height: min(92dvh, 680px);
     overflow: auto;
-    border-radius: 18px 18px 0 0;
-    padding: 20px;
-    border: 1px solid rgba(35, 230, 163, 0.3);
-    background: #0a1210;
+    border-radius: 20px 20px 0 0;
+    padding: 22px;
+    border: 1px solid rgba(0, 232, 155, 0.3);
+    background: var(--inv-card);
+    color: var(--inv-text);
 }
 
 @media (min-width: 768px) {
-    body.investments-page .inv-dialog {
+    body.investments-page.inv-v2 .inv-dialog {
         align-items: center;
     }
-    body.investments-page .inv-dialog-panel {
-        border-radius: 18px;
+    body.investments-page.inv-v2 .inv-dialog-panel {
+        border-radius: 20px;
+    }
+}
+
+body.investments-page.inv-v2 .inv-dialog-panel h3 {
+    margin: 0 0 12px;
+    font-size: 1.15rem;
+}
+
+body.investments-page.inv-v2 .inv-dialog-price {
+    color: var(--inv-emerald-light);
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+body.investments-page.inv-v2 .inv-manage-panel dl {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 16px;
+}
+
+body.investments-page.inv-v2 .inv-manage-panel dt {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--inv-muted);
+}
+
+body.investments-page.inv-v2 .inv-manage-panel dd {
+    margin: 0;
+    font-weight: 600;
+}
+
+body.investments-page.inv-v2 .inv-manage-history {
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 0.82rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+
+body.investments-page.inv-v2 .form-label {
+    color: var(--inv-muted);
+    font-size: 0.82rem;
+}
+
+body.investments-page.inv-v2 select,
+body.investments-page.inv-v2 input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 232, 155, 0.25);
+    background: rgba(2, 11, 9, 0.8);
+    color: var(--inv-text);
+}
+
+body.investments-page.inv-v2 .form-hint {
+    font-size: 0.78rem;
+    color: var(--inv-muted);
+    margin: 4px 0 10px;
+}
+
+@media (max-width: 900px) {
+    body.investments-page.inv-v2 .gv-header-actions .gv-nav-link {
+        display: none;
     }
 }

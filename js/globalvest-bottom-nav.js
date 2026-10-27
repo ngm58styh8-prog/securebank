@@ -6,7 +6,7 @@
         home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
         markets: '<path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 10l5-5 5 5M12 5v12"/>',
         transfer: '<path d="M7 8h10M7 12h10M7 16h10M4 8l3-3 3 3M17 16l3 3 3-3"/>',
-        portfolio: '<path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="9"/>',
+        portfolio: '<path d="M21 12a9 9 0 1 1-9-9"/><path d="M12 3v9l6.5 6.5"/>',
         account: '<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>'
     };
 
@@ -51,8 +51,11 @@
                     '<span class="gv-bottom-nav-fab">' + svg(item.key, 26) + "</span>" +
                     '<span class="gv-bottom-nav-label">' + item.label + "</span></a>";
             }
+            var iconMarkup = item.key === "portfolio"
+                ? '<svg class="gv-portfolio-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#00E89B" stroke-width="2" aria-hidden="true">' + ICONS.portfolio + "</svg>"
+                : svg(item.key, 22);
             return '<a class="gv-bottom-nav-item' + (isActive ? " active" : "") + '"' + attrs + ">" +
-                svg(item.key, 22) + '<span class="gv-bottom-nav-label">' + item.label + "</span></a>";
+                iconMarkup + '<span class="gv-bottom-nav-label">' + item.label + "</span></a>";
         }).join("") + "</nav>";
     }
 

@@ -2,10 +2,10 @@
    Shown at the same breakpoint where the desktop sidebar collapses into a drawer (≤900px). */
 
 .gv-bottom-nav {
-    --gvbn-bg: rgba(6, 24, 17, 0.94);
+    --gvbn-bg: rgba(2, 11, 9, 0.97);
     --gvbn-green: #00E89B;
     --gvbn-green-light: #8BFFD0;
-    --gvbn-muted: #9CAAA5;
+    --gvbn-muted: #A6B5AF;
 
     position: fixed;
     left: 0;
@@ -16,7 +16,7 @@
     align-items: flex-end;
     justify-content: space-around;
     padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: var(--gvbn-bg);
+    background: linear-gradient(180deg, rgba(2, 11, 9, 0.98) 0%, rgba(5, 14, 12, 0.99) 100%);
     -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
     border-top: 1px solid rgba(0, 232, 155, 0.2);

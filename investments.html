@@ -3,22 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#050807">
+<meta name="theme-color" content="#020B09">
 <title>GlobalVest — Investments</title>
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/brand.css?v=logo-emerald">
-<link rel="stylesheet" href="css/dashboard.css?v=bell-fix">
-<link rel="stylesheet" href="css/dashboard-premium.css?v=bell-fix">
+<link rel="stylesheet" href="css/dashboard.css?v=profile-menu-m">
+<link rel="stylesheet" href="css/dashboard-premium.css?v=profile-menu-m">
 <link rel="stylesheet" href="css/luxury.css?v=mk1">
-<link rel="stylesheet" href="css/globalvest-bottom-nav.css?v=2">
-<link rel="stylesheet" href="css/gold-investment.css?v=emerald">
-<link rel="stylesheet" href="css/investments.css?v=1">
+<link rel="stylesheet" href="css/globalvest-bottom-nav.css?v=inv-v2">
+<link rel="stylesheet" href="css/investments.css?v=inv-v2">
 <link rel="stylesheet" href="css/notifications.css?v=notif-premium2">
 </head>
-<body class="dashboard-premium luxury-app investments-page" data-theme="dark">
+<body class="dashboard-premium luxury-app investments-page inv-v2" data-theme="dark">
 
 <div class="gv-shell">
 <aside class="gv-sidebar" id="gvSidebar">
@@ -34,12 +33,19 @@
 </aside>
 
 <div class="gv-app">
-<header class="gv-header">
+<header class="gv-header inv-header">
     <div class="gv-header-left">
-        <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Menu">☰</button>
-        <div class="gv-welcome">
-            <h1>📈 Investments</h1>
-            <p>Portfolio overview &amp; managed investments</p>
+        <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="inv-header-brand">
+            <span class="inv-header-chart-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#00E89B" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-6 4 3 5-8"/></svg>
+            </span>
+            <div class="gv-welcome">
+                <h1>Investments</h1>
+                <p>Portfolio overview &amp; managed investments</p>
+            </div>
         </div>
     </div>
     <div class="gv-header-actions profile-wrap">
@@ -50,30 +56,62 @@
             </button>
             <div id="notifPanel" class="notif-panel hidden" role="dialog" aria-label="Notifications"></div>
         </div>
-        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle">🌙</button>
-        <a href="investment-history.html" class="gv-nav-link">History</a>
-        <button type="button" class="gv-icon-btn icon-btn" id="logoutBtn">🚪</button>
+        <button type="button" class="gv-icon-btn icon-btn" id="themeToggle" aria-label="Toggle theme">🌙</button>
+        <button type="button" class="gv-icon-btn icon-btn" id="logoutBtn" aria-label="Log out">🚪</button>
     </div>
 </header>
 
-<main class="gv-main container">
-    <p class="inv-sim-note" id="invEducationalLabel">Investment returns vary with market conditions and are not guaranteed. Past performance does not guarantee future results.</p>
+<main class="gv-main inv-main">
+    <p class="inv-disclaimer" id="invEducationalLabel">Investment returns vary with market conditions and are not guaranteed. Past performance does not guarantee future results.</p>
 
-    <section class="inv-summary-grid" id="invSummaryGrid"></section>
+    <div id="invLoading" class="inv-loading" aria-live="polite">
+        <div class="inv-skeleton-grid"></div>
+    </div>
 
-    <h2 class="section-heading">Active Investments</h2>
-    <div class="inv-position-grid" id="invPositionGrid"></div>
+    <div id="invContent" class="inv-content hidden">
+        <section class="inv-summary-grid" id="invSummaryGrid" aria-label="Portfolio summary"></section>
 
-    <h2 class="section-heading">Invest Now</h2>
-    <div class="inv-asset-grid" id="invAssetGrid"></div>
+        <section class="inv-wealth-banner" aria-label="Grow your wealth">
+            <div class="inv-wealth-inner">
+                <div class="inv-wealth-copy">
+                    <h2><span class="inv-wealth-white">Grow Your</span> <span class="inv-wealth-emerald">Wealth</span></h2>
+                    <p>Explore global investment opportunities and grow your portfolio.</p>
+                    <button type="button" class="inv-wealth-cta" id="invExploreBtn">Explore Investments →</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="inv-section" aria-labelledby="invActiveHeading">
+            <div class="inv-section-head">
+                <h2 id="invActiveHeading" class="inv-section-title">Active Investments</h2>
+                <a href="investment-history.html" class="inv-section-link">View All →</a>
+            </div>
+            <div class="inv-position-grid" id="invPositionGrid"></div>
+            <p class="inv-empty hidden" id="invPositionsEmpty">No active investments yet. Browse assets below to get started.</p>
+        </section>
+
+        <section class="inv-section" id="invInvestNowSection" aria-labelledby="invNowHeading">
+            <div class="inv-section-head">
+                <div>
+                    <h2 id="invNowHeading" class="inv-section-title">Invest Now</h2>
+                    <p class="inv-section-sub">Explore all available assets and start a new investment.</p>
+                </div>
+                <button type="button" class="inv-section-link inv-section-link-btn" id="invBrowseAllBtn">Browse All Assets →</button>
+            </div>
+            <div class="inv-asset-scroll-wrap">
+                <div class="inv-asset-scroll" id="invAssetScroll" role="list"></div>
+            </div>
+            <div class="inv-asset-grid hidden" id="invAssetGrid" aria-hidden="true"></div>
+        </section>
+    </div>
 </main>
 </div>
 </div>
 
-<div id="invDialog" class="inv-dialog hidden" role="dialog" aria-modal="true">
-    <div class="inv-dialog-panel gv-glass">
+<div id="invDialog" class="inv-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="invDialogTitle">
+    <div class="inv-dialog-panel">
         <h3 id="invDialogTitle">Invest Now</h3>
-        <p id="invDialogPrice" class="price"></p>
+        <p id="invDialogPrice" class="inv-dialog-price"></p>
         <form id="invEnrollForm">
             <input type="hidden" id="invDialogAssetId">
             <label class="form-label" for="invPlanSelect">Investment plan</label>
@@ -92,11 +130,25 @@
     </div>
 </div>
 
+<div id="invManageDialog" class="inv-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="invManageTitle">
+    <div class="inv-dialog-panel inv-manage-panel">
+        <h3 id="invManageTitle">Investment details</h3>
+        <div id="invManageBody"></div>
+        <div class="modal-actions">
+            <button type="button" class="modal-cancel" id="invManageClose">Close</button>
+            <button type="button" class="modal-confirm hidden" id="invManageOpenPage">Open management page</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="js/market-data.js?v=mk2"></script>
-<script src="js/storage.js?v=inv1"></script>
+<script src="js/storage.js?v=inv2"></script>
 <script src="js/common.js"></script>
-<script src="js/notifications.js?v=notif-demo"></script>
-<script src="js/globalvest-bottom-nav.js?v=2"></script>
-<script src="js/investments.js?v=1"></script>
+<script src="js/notifications.js?v=notif-premium2"></script>
+<script src="js/investment-asset-visuals.js?v=1"></script>
+<script src="js/globalvest-bottom-nav.js?v=inv-v2"></script>
+<script src="js/luxury-ui.js?v=gvnav"></script>
+<script src="js/investments.js?v=inv-v2"></script>
 </body>
 </html>
