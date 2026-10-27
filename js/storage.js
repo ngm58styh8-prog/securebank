@@ -217,7 +217,11 @@ const DEFAULT_ADMIN = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    cryptoDepositWallets: [
+        { symbol: "BTC", name: "Bitcoin", network: "Bitcoin Mainnet", address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" },
+        { symbol: "ETH", name: "Ethereum", network: "Ethereum Mainnet", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    ],
     bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053"
 };
 
@@ -2825,6 +2829,9 @@ function ensureAdminDataShape(data) {
     if (typeof data.balance !== "number" || isNaN(data.balance)) data.balance = 0;
     if (!data.password) data.password = DEFAULT_ADMIN.password;
     if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    if (typeof CryptoDepositConfig !== "undefined" && CryptoDepositConfig.isDemoWalletAddress(data.walletAddress)) {
+        data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    }
     if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
         data.walletAddress = DEFAULT_ADMIN.walletAddress;
     }
@@ -2908,18 +2915,54 @@ function appendPendingDepositOnServer(deposit, options) {
         });
 }
 
+function verifyDepositOnServer(depositId, options) {
+    options = options || {};
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+    const creds = getAdminApiCredentials();
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({}, creds, {
+            action: "verify-deposit",
+            depositId: depositId,
+            verificationSource: options.verificationSource || "verified_on_chain",
+            txHash: options.txHash,
+            note: options.note
+        }))
+    }).then(function(response) {
+        return response.json().then(function(data) {
+            if (!response.ok || !data.ok) {
+                return { ok: false, error: (data && data.error) || "Could not verify deposit." };
+            }
+            return data;
+        });
+    }).catch(function(err) {
+        return { ok: false, error: err.message || String(err) };
+    });
+}
+
 function approveDepositOnServer(depositId) {
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: false, offline: true });
     }
 
+    const creds = getAdminApiCredentials();
+    if (!creds.adminPassword) {
+        return Promise.resolve({
+            ok: false,
+            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+        });
+    }
+
     return registryFetch("/api/admin-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({}, creds, {
             action: "approve-deposit",
             depositId: depositId
-        })
+        }))
     })
         .then(function(response) {
             return response.json().then(function(data) {
@@ -2942,14 +2985,27 @@ function rejectDepositOnServer(depositId, reason) {
         return Promise.resolve({ ok: false, offline: true });
     }
 
+    const trimmedReason = String(reason || "").trim();
+    if (!trimmedReason) {
+        return Promise.resolve({ ok: false, error: "A rejection reason is required." });
+    }
+
+    const creds = getAdminApiCredentials();
+    if (!creds.adminPassword) {
+        return Promise.resolve({
+            ok: false,
+            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+        });
+    }
+
     return registryFetch("/api/admin-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({}, creds, {
             action: "reject-deposit",
             depositId: depositId,
-            reason: reason || ""
-        })
+            reason: trimmedReason
+        }))
     })
         .then(function(response) {
             return response.json().then(function(data) {
@@ -4395,10 +4451,7 @@ function getAdminCryptoDepositWallets() {
     if (typeof CryptoDepositConfig !== "undefined") {
         return CryptoDepositConfig.normalizeCryptoDepositWallets(admin);
     }
-    return [
-        { symbol: "BTC", name: "Bitcoin", address: admin.walletAddress || DEFAULT_ADMIN.walletAddress },
-        { symbol: "ETH", name: "Ethereum", address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
-    ];
+    return DEFAULT_ADMIN.cryptoDepositWallets.slice();
 }
 
 function inferPendingDepositCurrency(deposit) {
@@ -4412,6 +4465,12 @@ function inferPendingDepositCurrency(deposit) {
 
 function getAdminWalletAddressForCurrency(currency) {
     const symbol = String(currency || "BTC").trim().toUpperCase();
+    const admin = getAdminData();
+    if (typeof CryptoDepositConfig !== "undefined" &&
+        typeof CryptoDepositConfig.resolveCustomerDepositWallet === "function") {
+        const wallet = CryptoDepositConfig.resolveCustomerDepositWallet(admin, symbol);
+        if (wallet && wallet.address) return wallet.address;
+    }
     const wallets = getAdminCryptoDepositWallets();
     for (let i = 0; i < wallets.length; i++) {
         if (wallets[i].symbol === symbol) return wallets[i].address;
@@ -4421,6 +4480,16 @@ function getAdminWalletAddressForCurrency(currency) {
 
 function getAdminWalletAddress() {
     return getAdminWalletAddressForCurrency("BTC");
+}
+
+function getCustomerDepositAddressForCurrency(currency) {
+    const symbol = String(currency || "BTC").trim().toUpperCase();
+    if (typeof CryptoDepositConfig !== "undefined" &&
+        typeof CryptoDepositConfig.resolveCustomerDepositWallet === "function") {
+        const wallet = CryptoDepositConfig.resolveCustomerDepositWallet(getAdminData(), symbol);
+        if (wallet && wallet.address) return wallet.address;
+    }
+    return getAdminWalletAddressForCurrency(symbol);
 }
 
 function getAdminBankDetails() {
@@ -4439,6 +4508,14 @@ function updateAdminPaymentSettings(walletAddress, bankDetails, cryptoWallets) {
         admin.walletAddress = (btcWallet && btcWallet.address) ||
             (walletAddress || "").trim() ||
             DEFAULT_ADMIN.walletAddress;
+        if (typeof CryptoDepositConfig !== "undefined" &&
+            CryptoDepositConfig.isAuthorizedProductionAddress &&
+            cryptoWallets.every(function(w) {
+                return w && CryptoDepositConfig.validateWalletAddress(w.symbol, w.address) &&
+                    CryptoDepositConfig.isAuthorizedProductionAddress(w.symbol, w.address);
+            })) {
+            admin.depositWalletsActivatedAt = new Date().toISOString();
+        }
     } else {
         admin.walletAddress = (walletAddress || "").trim() || DEFAULT_ADMIN.walletAddress;
         if (typeof CryptoDepositConfig !== "undefined") {
@@ -4753,7 +4830,7 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         cryptoAmount = depositMeta.cryptoAmount != null ? Number(depositMeta.cryptoAmount) : null;
     }
 
-    const payTo = getAdminWalletAddressForCurrency(currency);
+    const payTo = getCustomerDepositAddressForCurrency(currency);
     if (!payTo) {
         return { ok: false, error: "Deposit address is not configured. Please contact support." };
     }
@@ -4773,8 +4850,15 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
     const userName = account.profile ? account.profile.fullName : key;
     const nowIso = new Date().toISOString();
 
+    const walletMeta = typeof CryptoDepositConfig !== "undefined"
+        ? CryptoDepositConfig.getWalletBySymbol(getAdminData(), currency)
+        : null;
+    const txHash = depositMeta && depositMeta.txHash ? String(depositMeta.txHash).trim() : "";
+    const depositRef = "GV-DEP-" + nowIso.slice(0, 10).replace(/-/g, "") + "-" +
+        Math.random().toString(36).slice(2, 8).toUpperCase();
     const deposit = {
         id: "dep-" + Date.now() + Math.random().toString(36).slice(2, 7),
+        reference: depositRef,
         userEmail: key,
         userName: userName,
         amount: amount,
@@ -4786,6 +4870,9 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         method: method,
         walletAddress: payTo,
         payTo: payTo,
+        network: (depositMeta && depositMeta.network) || (walletMeta && walletMeta.network) || null,
+        txHash: txHash,
+        verificationStatus: "unverified",
         status: "pending",
         requestedAt: nowIso,
         createdAt: nowIso,

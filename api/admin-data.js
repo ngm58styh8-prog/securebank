@@ -8,10 +8,12 @@ const {
     appendPendingDeposit,
     approvePendingDeposit,
     rejectPendingDeposit,
+    verifyDepositPayment,
     appendPendingTransfer,
     approvePendingTransfer,
     rejectPendingTransfer
 } = require("../server-lib/registry");
+const { assertAdminAuthorized } = require("../server-lib/admin-auth");
 
 module.exports = async function handler(req, res) {
     if (handleRegistryOptions(req, res)) return;
@@ -53,14 +55,33 @@ module.exports = async function handler(req, res) {
                 return;
             }
 
+            if (body.action === "verify-deposit" && body.depositId) {
+                await assertAdminAuthorized(req, body);
+                const result = await verifyDepositPayment(body.depositId, {
+                    adminEmail: body.adminEmail,
+                    verificationSource: body.verificationSource || "verified_on_chain",
+                    txHash: body.txHash,
+                    note: body.note
+                });
+                res.status(200).json(result);
+                return;
+            }
+
             if (body.action === "approve-deposit" && body.depositId) {
-                const result = await approvePendingDeposit(body.depositId);
+                await assertAdminAuthorized(req, body);
+                const result = await approvePendingDeposit(body.depositId, {
+                    adminEmail: body.adminEmail,
+                    adminActor: body.adminEmail
+                });
                 res.status(200).json(result);
                 return;
             }
 
             if (body.action === "reject-deposit" && body.depositId) {
-                const result = await rejectPendingDeposit(body.depositId, body.reason);
+                await assertAdminAuthorized(req, body);
+                const result = await rejectPendingDeposit(body.depositId, body.reason, {
+                    adminEmail: body.adminEmail
+                });
                 res.status(200).json(result);
                 return;
             }

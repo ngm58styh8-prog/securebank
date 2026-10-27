@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/admin-luxury.css">
 <link rel="stylesheet" href="css/gold-investment.css">
 <link rel="stylesheet" href="css/admin-investments.css?v=1">
+<link rel="stylesheet" href="css/admin-deposits.css?v=2">
 <style>
 .admin-dashboard-body:not(.admin-auth-ready) { visibility: hidden; }
 </style>
@@ -649,12 +650,12 @@
     <form id="walletSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">
             <label class="form-label" for="adminWalletInput">Bitcoin (BTC) Deposit Address</label>
-            <input id="adminWalletInput" type="text" placeholder="DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS" required>
+            <input id="adminWalletInput" type="text" placeholder="1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" required>
             <p class="admin-sub">Shown when users deposit Bitcoin — Legacy, SegWit, and Bech32 supported.</p>
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="adminEthWalletInput">Ethereum (ETH) Deposit Address</label>
-            <input id="adminEthWalletInput" type="text" placeholder="DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" required>
+            <input id="adminEthWalletInput" type="text" placeholder="0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" required>
             <p class="admin-sub">Shown when users deposit Ethereum — must start with 0x followed by 40 hex characters.</p>
         </div>
         <div class="admin-form-row">
@@ -669,20 +670,27 @@
 
 <section id="section-approvals" class="admin-panel-section">
 <h2 class="section-title">✅ Approve Deposits</h2>
-<div class="table-scroll">
+<p class="admin-sub">Verify on-chain or provider evidence before approving. Unverified deposits cannot be credited.</p>
+<div class="admin-deposits-responsive">
+<div class="table-scroll admin-deposits-table-wrap">
 <table id="pendingDepositsTable">
 <thead>
 <tr>
     <th>Date</th>
     <th>User</th>
-    <th>Currency</th>
+    <th>Reference</th>
+    <th>Asset / Network</th>
     <th>Pay To (Admin)</th>
     <th>Amount</th>
+    <th>Tx Hash</th>
+    <th>Verification</th>
     <th>Actions</th>
 </tr>
 </thead>
 <tbody id="pendingDepositsBody"></tbody>
 </table>
+</div>
+<div id="pendingDepositsCards" class="admin-deposit-cards" aria-label="Pending deposits (mobile)"></div>
 </div>
 
 <h2 class="section-title">✅ Approve Transfers</h2>
@@ -831,6 +839,24 @@
     </div>
 </div>
 
+<div id="depositActionModal" class="modal-overlay hidden" role="dialog" aria-labelledby="depositActionModalTitle">
+    <div class="modal modal-wide admin-deposit-modal">
+        <div class="admin-deposit-modal-header">
+            <h3 id="depositActionModalTitle">Deposit details</h3>
+            <button type="button" class="modal-cancel admin-close-btn" id="depositActionModalClose" aria-label="Close">✕</button>
+        </div>
+        <div id="depositActionModalBody" class="admin-deposit-modal-body"></div>
+        <label class="form-label hidden" id="depositModalRejectReasonLabel" for="depositModalRejectReason">Rejection reason (required)</label>
+        <textarea id="depositModalRejectReason" class="hidden" rows="3" placeholder="Explain why this deposit is rejected"></textarea>
+        <div class="modal-actions admin-deposit-modal-actions">
+            <button type="button" class="modal-cancel" id="depositActionModalCancel">Cancel</button>
+            <button type="button" class="admin-verify-deposit-btn" id="depositModalVerifyBtn">Mark payment verified</button>
+            <button type="button" class="admin-reject-btn" id="depositModalRejectBtn">Reject</button>
+            <button type="button" class="admin-approve-btn" id="depositModalApproveBtn">Approve deposit</button>
+        </div>
+    </div>
+</div>
+
 <div id="adjustModal" class="modal-overlay hidden">
     <div class="modal">
         <h3 id="adjustModalTitle">Adjust Balance</h3>
@@ -846,8 +872,8 @@
     </div>
 </div>
 
-<script src="js/crypto-deposit-config.js?v=demo1"></script>
-<script src="js/storage.js?v=demo1"></script>
+<script src="js/crypto-deposit-config.js?v=dep1"></script>
+<script src="js/storage.js?v=dep1"></script>
 <script src="js/common.js"></script>
 <script>
 (function() {
@@ -876,7 +902,7 @@
     revealDashboard();
 })();
 </script>
-<script src="js/admin-dashboard.js?v=demo1"></script>
+<script src="js/admin-dashboard.js?v=dep1"></script>
 <script src="js/admin-gold.js"></script>
 <script src="js/admin-investments.js?v=1"></script>
 <script src="js/admin-investment-emails.js"></script>

@@ -2,9 +2,8 @@
  * Cryptocurrency deposit wallet configuration (server).
  * Add future assets by extending DEFAULT_CRYPTO_DEPOSIT_WALLETS only.
  */
-// Demo project: deposit addresses are fixed placeholders and cannot be
-// overridden, so the site never shows a wallet that can receive real funds.
-const DEMO_MODE = true;
+/** Restored from repository history (commit 68a583d). Override via admin cryptoDepositWallets. */
+const DEMO_MODE = false;
 const DEMO_WALLET_ADDRESSES = {
     BTC: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
     ETH: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
@@ -14,16 +13,70 @@ const DEFAULT_CRYPTO_DEPOSIT_WALLETS = [
     {
         symbol: "BTC",
         name: "Bitcoin",
-        address: DEMO_WALLET_ADDRESSES.BTC
+        network: "Bitcoin Mainnet",
+        address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+        minDepositUsd: 50,
+        confirmationsRequired: 3
     },
     {
         symbol: "ETH",
         name: "Ethereum",
-        address: DEMO_WALLET_ADDRESSES.ETH
+        network: "Ethereum Mainnet",
+        address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
+        minDepositUsd: 50,
+        confirmationsRequired: 12
     }
 ];
 
 const LEGACY_DEMO_BTC = "bc1qsecurebank0ff1c1aladm1nwalle7demo2024";
+
+/** Production deposit addresses (validated formats). Customer UI and fallbacks use these. */
+const AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES = {
+    BTC: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    ETH: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F"
+};
+
+function isAuthorizedProductionAddress(symbol, address) {
+    const sym = normalizeSymbol(symbol);
+    return String(address || "").trim() === AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym];
+}
+
+function getNetworkIncompatibilityWarning(symbol) {
+    const sym = normalizeSymbol(symbol);
+    if (sym === "BTC") {
+        return "Send Bitcoin (BTC) on Bitcoin Mainnet only. Do not send Ethereum, ERC-20 tokens, or other assets to this address — funds sent on the wrong network may be lost.";
+    }
+    if (sym === "ETH") {
+        return "Send Ethereum (ETH) on Ethereum Mainnet only. Do not send Bitcoin or assets via BNB Chain, Polygon, Arbitrum, or other networks — incompatible transfers may be lost.";
+    }
+    return "Use only the network shown above. Sending on an incompatible network may result in permanent loss of funds.";
+}
+
+function resolveCustomerDepositWallet(adminOrWallets, symbol) {
+    const sym = normalizeSymbol(symbol);
+    const base = DEFAULT_CRYPTO_DEPOSIT_WALLETS.find(function(entry) {
+        return entry.symbol === sym;
+    });
+    if (!base) return null;
+    const addr = AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym];
+    if (!validateWalletAddress(sym, addr)) return null;
+    const fromAdmin = getWalletBySymbol(adminOrWallets, sym);
+    return Object.assign({}, base, fromAdmin || {}, {
+        symbol: sym,
+        address: addr,
+        network: (fromAdmin && fromAdmin.network) || base.network
+    });
+}
+
+function sanitizeWalletEntry(entry) {
+    if (!entry || !entry.symbol) return entry;
+    const sym = normalizeSymbol(entry.symbol);
+    let address = String(entry.address || "").trim();
+    if (!validateWalletAddress(sym, address) || isDemoWalletAddress(address)) {
+        address = AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym] || address;
+    }
+    return Object.assign({}, entry, { address: address });
+}
 
 function normalizeSymbol(symbol) {
     return String(symbol || "BTC").trim().toUpperCase();
@@ -42,9 +95,15 @@ function validateEthAddress(address) {
     return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
 }
 
+function isDemoWalletAddress(address) {
+    const val = String(address || "").trim();
+    return val === DEMO_WALLET_ADDRESSES.BTC || val === DEMO_WALLET_ADDRESSES.ETH ||
+        val.indexOf("DEMO-") === 0 || val === LEGACY_DEMO_BTC;
+}
+
 function validateWalletAddress(symbol, address) {
     const sym = normalizeSymbol(symbol);
-    if (DEMO_MODE && DEMO_WALLET_ADDRESSES[sym] === String(address || "").trim()) return true;
+    if (isDemoWalletAddress(address)) return false;
     if (sym === "BTC") return validateBtcAddress(address);
     if (sym === "ETH") return validateEthAddress(address);
     return String(address || "").trim().length >= 8;
@@ -59,11 +118,6 @@ function mergeWalletEntry(defaultEntry, overrideEntry) {
 }
 
 function normalizeCryptoDepositWallets(adminOrWallets) {
-    if (DEMO_MODE) {
-        return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
-            return Object.assign({}, entry);
-        });
-    }
     let overrides = [];
     let legacyBtc = null;
 
@@ -99,7 +153,8 @@ function normalizeCryptoDepositWallets(adminOrWallets) {
     }
 
     return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
-        return bySymbol[entry.symbol] || entry;
+        const merged = bySymbol[entry.symbol] || entry;
+        return sanitizeWalletEntry(merged);
     });
 }
 
@@ -168,6 +223,11 @@ function normalizeDepositCurrencyFields(deposit) {
 module.exports = {
     DEMO_MODE,
     DEMO_WALLET_ADDRESSES,
+    isDemoWalletAddress,
+    AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES,
+    isAuthorizedProductionAddress,
+    getNetworkIncompatibilityWarning,
+    resolveCustomerDepositWallet,
     DEFAULT_CRYPTO_DEPOSIT_WALLETS,
     normalizeSymbol,
     validateBtcAddress,

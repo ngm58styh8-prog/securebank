@@ -616,7 +616,9 @@ function buyXRP() { buyAsset("xrp"); }
 function sellXRP() { sellAsset("xrp"); }
 
 function getAdminBtcAddress() {
-    return getAdminWalletAddress();
+    return typeof getCustomerDepositAddressForCurrency === "function"
+        ? getCustomerDepositAddressForCurrency("BTC")
+        : getAdminWalletAddress();
 }
 
 function getDepositCryptoConfig() {
@@ -632,18 +634,21 @@ function getSelectedDepositCurrency() {
 function getSelectedDepositWallet() {
     const cfg = getDepositCryptoConfig();
     const symbol = getSelectedDepositCurrency();
+    const admin = typeof getAdminData === "function" ? getAdminData() : null;
+    if (cfg && typeof cfg.resolveCustomerDepositWallet === "function") {
+        return cfg.resolveCustomerDepositWallet(admin, symbol);
+    }
     if (cfg && typeof getAdminCryptoDepositWallets === "function") {
         const wallets = getAdminCryptoDepositWallets();
         return cfg.getWalletBySymbol(wallets, symbol);
     }
-    if (symbol === "ETH") {
-        return {
-            symbol: "ETH",
-            name: "Ethereum",
-            address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
-        };
+    if (cfg && typeof cfg.resolveCustomerDepositWallet === "function") {
+        return cfg.resolveCustomerDepositWallet(null, symbol);
     }
-    return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
+    const addr = typeof getCustomerDepositAddressForCurrency === "function"
+        ? getCustomerDepositAddressForCurrency(symbol)
+        : getAdminWalletAddress();
+    return { symbol: symbol, name: symbol === "ETH" ? "Ethereum" : "Bitcoin", address: addr };
 }
 
 function populateDepositCryptoSelect() {
@@ -651,9 +656,16 @@ function populateDepositCryptoSelect() {
     if (!select) return;
 
     const cfg = getDepositCryptoConfig();
-    const wallets = typeof getAdminCryptoDepositWallets === "function"
-        ? getAdminCryptoDepositWallets()
-        : (cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : []);
+    const admin = typeof getAdminData === "function" ? getAdminData() : null;
+    const defaults = cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : [];
+    const wallets = defaults.map(function(entry) {
+        if (cfg && typeof cfg.resolveCustomerDepositWallet === "function") {
+            return cfg.resolveCustomerDepositWallet(admin, entry.symbol);
+        }
+        return entry;
+    }).filter(function(w) {
+        return w && w.address && cfg && cfg.validateWalletAddress(w.symbol, w.address);
+    });
     const current = getSelectedDepositCurrency();
 
     select.innerHTML = wallets.map(function(w) {
@@ -706,7 +718,60 @@ function updateDepositCryptoDisplay() {
 
     updateDepositConfirmInstruction();
     updateDepositQrCode(wallet && wallet.address ? wallet.address : "");
-    return wallet && wallet.address ? wallet.address : "";
+
+    const networkEl = document.getElementById("depositNetworkLabel");
+    const minEl = document.getElementById("depositMinLabel");
+    const confEl = document.getElementById("depositConfirmationsLabel");
+    if (wallet) {
+        if (networkEl) {
+            networkEl.textContent = "Network: " + (wallet.network || (wallet.symbol === "ETH" ? "Ethereum Mainnet" : "Bitcoin Mainnet"));
+        }
+        if (minEl) {
+            const minUsd = wallet.minDepositUsd != null ? wallet.minDepositUsd : 50;
+            minEl.textContent = "Minimum deposit: $" + Number(minUsd).toFixed(2) + " USD equivalent";
+        }
+        if (confEl) {
+            const conf = wallet.confirmationsRequired != null ? wallet.confirmationsRequired : (wallet.symbol === "ETH" ? 12 : 3);
+            confEl.textContent = "Network confirmations required: " + conf;
+        }
+    }
+
+    const warnEl = document.getElementById("depositNetworkWarning");
+    if (warnEl && wallet && cfg && typeof cfg.getNetworkIncompatibilityWarning === "function") {
+        warnEl.textContent = cfg.getNetworkIncompatibilityWarning(wallet.symbol);
+        warnEl.classList.remove("hidden");
+    } else if (warnEl) {
+        warnEl.classList.add("hidden");
+    }
+
+    const valid = wallet && cfg && cfg.validateWalletAddress(wallet.symbol, wallet.address);
+    if (addressEl && !valid) {
+        addressEl.textContent = "Deposit address is not available. Please contact support.";
+        updateDepositQrCode("");
+    }
+
+    const confirmAddr = document.getElementById("depositConfirmAddress");
+    const confirmNet = document.getElementById("depositConfirmNetwork");
+    const confirmCopy = document.getElementById("copyDepositConfirmBtn");
+    if (confirmAddr) {
+        if (valid && wallet.address) {
+            confirmAddr.textContent = wallet.address;
+            confirmAddr.classList.remove("hidden");
+        } else {
+            confirmAddr.textContent = "";
+            confirmAddr.classList.add("hidden");
+        }
+    }
+    if (confirmCopy) {
+        if (valid && wallet.address) confirmCopy.classList.remove("hidden");
+        else confirmCopy.classList.add("hidden");
+    }
+    if (confirmNet && wallet) {
+        const net = wallet.network || (wallet.symbol === "ETH" ? "Ethereum Mainnet" : "Bitcoin Mainnet");
+        confirmNet.textContent = "Network: " + net;
+    }
+
+    return valid && wallet.address ? wallet.address : "";
 }
 
 function copyText(text, successMessage) {
@@ -923,7 +988,19 @@ function submitDepositFromPanel() {
         loadMarketPrices().then(updateDepositPagePreview).catch(updateDepositPagePreview);
         return;
     }
-    const depositMeta = { currency: symbol, cryptoAmount: cryptoAmount };
+    const txInput = document.getElementById("depositTxHashInput");
+    const txHash = txInput ? String(txInput.value || "").trim() : "";
+    const depositMeta = {
+        currency: symbol,
+        cryptoAmount: cryptoAmount,
+        network: wallet.network,
+        txHash: txHash
+    };
+    const minUsd = wallet.minDepositUsd != null ? Number(wallet.minDepositUsd) : 50;
+    if (minUsd > 0 && amount < minUsd) {
+        alert("Minimum deposit is $" + minUsd.toFixed(2) + " for " + symbol + ".");
+        return;
+    }
     const submitHandler = typeof submitDepositRequestAsync === "function"
         ? submitDepositRequestAsync(username, amount, "crypto", depositMeta)
         : Promise.resolve(submitDepositRequest(username, amount, "crypto", depositMeta));
@@ -941,11 +1018,12 @@ function submitDepositFromPanel() {
         reloadAccountFromRegistry();
         closeDepositPanel();
 
+        const displayAddress = (wallet && wallet.address) || result.payTo || "";
         alert(buildDepositSuccessAlert(
             amount,
             symbol,
             cryptoAmount,
-            result.payTo,
+            displayAddress,
             result.emailSent !== false
         ));
     }).catch(function(err) {
@@ -1151,6 +1229,10 @@ function initUI() {
     bindClick("depositBackBtn", hideDepositConfirmSection);
     bindClick("depositPanelCloseBtn", closeDepositPanel);
     bindClick("copyDepositPageBtn", function() {
+        const wallet = getSelectedDepositWallet();
+        copyText(wallet && wallet.address ? wallet.address : "", "Deposit address copied to clipboard.");
+    });
+    bindClick("copyDepositConfirmBtn", function() {
         const wallet = getSelectedDepositWallet();
         copyText(wallet && wallet.address ? wallet.address : "", "Deposit address copied to clipboard.");
     });
