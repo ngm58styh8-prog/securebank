@@ -178,10 +178,7 @@ function buildHtml(model, supportEmail, siteUrl, physicalAddress) {
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;">' +
 
         '<tr><td align="left" style="padding:0 4px 20px;">' +
-        '<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr>' +
-        '<td width="36" height="36" align="center" valign="middle" bgcolor="' + c.primary + '" style="background-color:' + c.primary + ';border-radius:8px;font-family:' + font + ";font-size:20px;font-weight:800;color:" + c.buttonText + ';">G</td>' +
-        '<td style="padding-left:12px;font-family:' + font + ";font-size:20px;font-weight:700;letter-spacing:0.02em;color:" + c.text + ';">Global<span style="color:' + c.primary + ';">Vest</span></td>' +
-        "</tr></table>" +
+        '<img src="' + escapeHtml(siteUrl) + '/assets/globalvest-logo-emerald.png" alt="GlobalVest" width="168" height="auto" style="display:block;border:0;max-width:168px;height:auto;" />' +
         "</td></tr>" +
 
         '<tr><td class="gv-card" bgcolor="' + c.card + '" style="background-color:' + c.card + ";border:1px solid " + c.border + ";border-radius:14px;padding:36px 32px;font-family:" + font + ';">' +
