@@ -131,6 +131,7 @@ body.dashboard-premium .gv-header {
     background: rgba(5, 8, 7, 0.78);
     backdrop-filter: blur(18px);
     border-bottom: 1px solid var(--gv-glass-border);
+    overflow: visible;
 }
 
 body.dashboard-premium .gv-header-left {
@@ -931,5 +932,29 @@ body.dashboard-premium .live-dot {
     }
     body.dashboard-premium .gv-header {
         padding: 12px 16px;
+    }
+}
+
+@media (max-width: 900px) {
+    body.dashboard-premium .gv-header-actions.profile-wrap {
+        position: relative;
+        z-index: 160;
+    }
+
+    body.dashboard-premium .gv-header-actions #profileMenu.dropdown {
+        position: fixed;
+        top: max(64px, calc(env(safe-area-inset-top) + 52px));
+        right: 12px;
+        left: 12px;
+        width: auto;
+        min-width: 0;
+        max-height: min(
+            72vh,
+            calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px)
+        );
+        overflow-x: hidden;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        z-index: 650;
     }
 }
