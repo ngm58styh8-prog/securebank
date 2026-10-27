@@ -113,7 +113,11 @@ const DEFAULT_ADMIN_REGISTRY = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    cryptoDepositWallets: [
+        { symbol: "BTC", name: "Bitcoin", network: "Bitcoin Mainnet", address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" },
+        { symbol: "ETH", name: "Ethereum", network: "Ethereum Mainnet", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    ],
     bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
     registeredUsers: {},
     userActivityLog: [],

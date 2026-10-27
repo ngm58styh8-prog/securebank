@@ -217,7 +217,11 @@ const DEFAULT_ADMIN = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+    cryptoDepositWallets: [
+        { symbol: "BTC", name: "Bitcoin", network: "Bitcoin Mainnet", address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" },
+        { symbol: "ETH", name: "Ethereum", network: "Ethereum Mainnet", address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" }
+    ],
     bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053"
 };
 
@@ -2825,6 +2829,9 @@ function ensureAdminDataShape(data) {
     if (typeof data.balance !== "number" || isNaN(data.balance)) data.balance = 0;
     if (!data.password) data.password = DEFAULT_ADMIN.password;
     if (!data.walletAddress) data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    if (typeof CryptoDepositConfig !== "undefined" && CryptoDepositConfig.isDemoWalletAddress(data.walletAddress)) {
+        data.walletAddress = DEFAULT_ADMIN.walletAddress;
+    }
     if (data.walletAddress === "bc1qsecurebank0ff1c1aladm1nwalle7demo2024") {
         data.walletAddress = DEFAULT_ADMIN.walletAddress;
     }
@@ -4444,10 +4451,7 @@ function getAdminCryptoDepositWallets() {
     if (typeof CryptoDepositConfig !== "undefined") {
         return CryptoDepositConfig.normalizeCryptoDepositWallets(admin);
     }
-    return [
-        { symbol: "BTC", name: "Bitcoin", address: admin.walletAddress || DEFAULT_ADMIN.walletAddress },
-        { symbol: "ETH", name: "Ethereum", address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
-    ];
+    return DEFAULT_ADMIN.cryptoDepositWallets.slice();
 }
 
 function inferPendingDepositCurrency(deposit) {
@@ -4476,6 +4480,16 @@ function getAdminWalletAddressForCurrency(currency) {
 
 function getAdminWalletAddress() {
     return getAdminWalletAddressForCurrency("BTC");
+}
+
+function getCustomerDepositAddressForCurrency(currency) {
+    const symbol = String(currency || "BTC").trim().toUpperCase();
+    if (typeof CryptoDepositConfig !== "undefined" &&
+        typeof CryptoDepositConfig.resolveCustomerDepositWallet === "function") {
+        const wallet = CryptoDepositConfig.resolveCustomerDepositWallet(getAdminData(), symbol);
+        if (wallet && wallet.address) return wallet.address;
+    }
+    return getAdminWalletAddressForCurrency(symbol);
 }
 
 function getAdminBankDetails() {
@@ -4816,7 +4830,7 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         cryptoAmount = depositMeta.cryptoAmount != null ? Number(depositMeta.cryptoAmount) : null;
     }
 
-    const payTo = getAdminWalletAddressForCurrency(currency);
+    const payTo = getCustomerDepositAddressForCurrency(currency);
     if (!payTo) {
         return { ok: false, error: "Deposit address is not configured. Please contact support." };
     }

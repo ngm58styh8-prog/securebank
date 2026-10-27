@@ -230,6 +230,10 @@
             <div id="depositPageBtcAmount" class="deposit-btc-preview-amount">—</div>
             <p class="deposit-hint">Based on current <span id="depositPageCryptoName">BTC</span> price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
         </div>
+        <p id="depositConfirmNetwork" class="deposit-hint">Network: —</p>
+        <span class="form-label">Deposit address for this payment</span>
+        <div id="depositConfirmAddress" class="admin-payto-text admin-crypto-address deposit-confirm-address hidden" aria-live="polite"></div>
+        <button type="button" class="copy-btn deposit-confirm-copy hidden" id="copyDepositConfirmBtn">Copy Deposit Address</button>
         <p id="depositConfirmInstruction" class="deposit-hint">Send the exact BTC amount above to the deposit address. Once you've completed the transfer, click 'Submit Deposit' to notify us of your payment.</p>
         <label class="form-label" for="depositTxHashInput">Transaction hash (after you send)</label>
         <input id="depositTxHashInput" type="text" class="deposit-tx-input" placeholder="Paste your on-chain transaction hash" autocomplete="off" spellcheck="false">
@@ -731,7 +735,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="js/crypto-deposit-config.js?v=dep2"></script>
+<script src="js/crypto-deposit-config.js?v=dep3"></script>
 <script src="js/storage.js?v=demo1"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-demo"></script>
