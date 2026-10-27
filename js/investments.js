@@ -7,6 +7,8 @@
     var historyEvents = [];
     var chartInstances = [];
     var countdownTimer = null;
+    var refreshInFlight = false;
+    var lastDueRefreshAt = 0;
 
     var icon = window.InvestmentAssetVisuals ? window.InvestmentAssetVisuals.iconHtml : function() { return ""; };
     var assetMeta = window.InvestmentAssetVisuals ? window.InvestmentAssetVisuals.meta : function(id, n, s) {
@@ -24,9 +26,16 @@
         try { return new Date(iso).toLocaleString(); } catch (e) { return iso; }
     }
 
+    function parseCreditTime(iso) {
+        if (!iso) return NaN;
+        var t = new Date(iso).getTime();
+        return isNaN(t) ? NaN : t;
+    }
+
     function countdownParts(iso) {
         if (!iso) return { text: "—", due: true };
-        var ms = new Date(iso).getTime() - Date.now();
+        var ms = parseCreditTime(iso) - Date.now();
+        if (isNaN(ms)) return { text: "—", due: true };
         if (ms <= 0) return { text: "Due now", due: true };
         var totalSec = Math.floor(ms / 1000);
         var h = Math.floor(totalSec / 3600);
@@ -178,15 +187,11 @@
             cum += Number(ev.amount || 0);
             pts.push(cum);
         });
-        if (pts.length < 2 && portfolio && portfolio.summary) {
-            var t = Number(portfolio.summary.totalSimulatedEarningsUsd || 0);
-            if (t > 0) return [0, t * 0.5, t];
-        }
         return pts.length >= 2 ? pts : null;
     }
 
     function statCard(id, label, value, spark, sub, nextIso) {
-        var subHtml = sub ? '<p class="inv-stat-sub">' + sub + "</p>" : "";
+        var subHtml = sub ? '<p class="inv-stat-sub" title="Scheduled calculation time">' + sub + "</p>" : "";
         var clockExtra = id === "next"
             ? '<div class="inv-stat-clock">' + statIconSvg("clock") +
                 '<span class="inv-countdown-lg inv-live-countdown" data-next-credit="' + (nextIso || "") + '">' + value + "</span></div>"
@@ -367,11 +372,20 @@
     }
 
     function tickCountdowns() {
+        var anyDue = false;
         document.querySelectorAll(".inv-live-countdown").forEach(function(el) {
             var iso = el.getAttribute("data-next-credit");
             var cd = countdownParts(iso);
             el.textContent = cd.text;
+            if (cd.due && iso) anyDue = true;
         });
+        if (anyDue && !refreshInFlight) {
+            var now = Date.now();
+            if (now - lastDueRefreshAt > 15000) {
+                lastDueRefreshAt = now;
+                refresh();
+            }
+        }
     }
 
     function loadQuotes() {
@@ -395,6 +409,8 @@
     }
 
     function refresh() {
+        if (refreshInFlight) return Promise.resolve();
+        refreshInFlight = true;
         destroyCharts();
         return Promise.all([
             fetchInvestmentPortfolio(username),
@@ -412,6 +428,8 @@
             return loadQuotes().then(function() {
                 renderAssetScroll(data.assets || []);
             });
+        }).finally(function() {
+            refreshInFlight = false;
         });
     }
 
@@ -509,5 +527,8 @@
         waitChart();
 
         countdownTimer = setInterval(tickCountdowns, 1000);
+        setInterval(function() {
+            refresh();
+        }, 60000);
     });
 })();

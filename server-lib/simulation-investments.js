@@ -8,8 +8,7 @@ const {
 const {
     ensureAdminGoldPlans,
     searchGoldInvestors,
-    processAllDailyCredits,
-    MS_CREDIT_INTERVAL
+    processAllDailyCredits
 } = require("./gold-investments");
 const { appendAdminActivityLog } = require("./admin-auth");
 const { sendSimulationEarningsEmailSafely } = require("./simulation-investment-emails");
@@ -20,7 +19,26 @@ const {
     simulatedDailyReturnFixedCents
 } = require("./decimal-money");
 
-const MS_DAY = MS_CREDIT_INTERVAL;
+function creditIntervalMs(admin) {
+    const hours = Number(
+        admin && admin.simulationSettings && admin.simulationSettings.creditIntervalHours
+    );
+    if (!hours || isNaN(hours) || hours <= 0) return 24 * 60 * 60 * 1000;
+    return hours * 60 * 60 * 1000;
+}
+
+function resolvePositionNextCreditAt(inv, admin) {
+    if (!inv) return null;
+    if (inv.nextCreditAt) return inv.nextCreditAt;
+    const interval = creditIntervalMs(admin);
+    let baseMs = Date.now();
+    if (inv.lastCreditDate) {
+        baseMs = new Date(String(inv.lastCreditDate).slice(0, 10) + "T12:00:00.000Z").getTime();
+    } else if (inv.startDate) {
+        baseMs = new Date(inv.startDate).getTime();
+    }
+    return new Date(baseMs + interval).toISOString();
+}
 
 function generateId(prefix) {
     return prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 9);
@@ -254,7 +272,7 @@ async function getAdminInvestmentOverview() {
     }).length;
 
     const upcoming = marketRows.filter(function(r) {
-        return r.nextCreditAt && new Date(r.nextCreditAt).getTime() <= Date.now() + MS_DAY;
+        return r.nextCreditAt && new Date(r.nextCreditAt).getTime() <= Date.now() + creditIntervalMs(admin);
     }).length + goldRows.length;
 
     const lastJob = (admin.simulationJobRuns || [])[0] || null;
@@ -510,7 +528,7 @@ async function getCustomerInvestmentPortfolio(email) {
             investedAmount: inv.investedAmount,
             totalSimulatedEarned: inv.totalSimulatedEarned || 0,
             dailySimulatedReturn: fromCents(planDailyReturnCents(plan, invCents)),
-            nextCreditAt: inv.nextCreditAt,
+            nextCreditAt: resolvePositionNextCreditAt(inv, admin),
             startDate: inv.startDate,
             status: inv.status
         });
@@ -530,7 +548,7 @@ async function getCustomerInvestmentPortfolio(email) {
             investedAmount: gi.investedAmount,
             totalSimulatedEarned: gi.totalEarned,
             dailySimulatedReturn: gi.dailyReturn,
-            nextCreditAt: gi.nextCreditAt,
+            nextCreditAt: gi.nextCreditAt || null,
             startDate: gi.startDate,
             status: gi.status,
             href: "gold-investment.html"
@@ -555,6 +573,8 @@ async function getCustomerInvestmentPortfolio(email) {
             activeCount: active.length,
             completedCount: completed.length,
             nextSimulationCreditAt: nextCredit,
+            creditIntervalHours: admin.simulationSettings.creditIntervalHours || 24,
+            serverTimeUtc: new Date().toISOString(),
             portfolioNotice: customerPortfolioNotice(admin.simulationSettings)
         },
         positions: positions,
@@ -679,7 +699,7 @@ async function processSimulationCreditForUser(email, options) {
 
         inv.totalSimulatedEarned = fromCents(toCents(inv.totalSimulatedEarned) + creditCents);
         inv.lastCreditDate = new Date().toISOString().slice(0, 10);
-        inv.nextCreditAt = new Date(now + MS_DAY).toISOString();
+        inv.nextCreditAt = new Date(now + creditIntervalMs(admin)).toISOString();
         if (!Array.isArray(inv.history)) inv.history = [];
         inv.history.unshift({
             date: creditIso,
