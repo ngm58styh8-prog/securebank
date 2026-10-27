@@ -174,7 +174,7 @@ module.exports = async function handler(req, res) {
 
         res.status(405).json({ ok: false, error: "Method not allowed" });
     } catch (err) {
-        const message = err && err.message ? err.message : "Simulation investment request failed.";
+        const message = err && err.message ? err.message : "Investment request failed.";
         const status = err && err.statusCode ? err.statusCode : 400;
         res.status(status).json({ ok: false, error: message });
     }

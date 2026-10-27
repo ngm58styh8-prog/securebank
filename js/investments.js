@@ -36,13 +36,13 @@
         var grid = document.getElementById("invSummaryGrid");
         if (!grid || !summary) return;
         grid.innerHTML =
-            card("Total simulated invested", money(summary.totalSimulatedInvestmentUsd)) +
-            card("Total simulated earnings", money(summary.totalSimulatedEarningsUsd)) +
+            card("Total invested", money(summary.totalSimulatedInvestmentUsd)) +
+            card("Total earnings", money(summary.totalSimulatedEarningsUsd)) +
             card("Active", summary.activeCount) +
             card("Completed", summary.completedCount) +
             card("Next credit", formatLocal(summary.nextSimulationCreditAt));
         var note = document.getElementById("invEducationalLabel");
-        if (note && summary.educationalLabel) note.textContent = summary.educationalLabel;
+        if (note && summary.portfolioNotice) note.textContent = summary.portfolioNotice;
     }
 
     function card(label, value) {
@@ -54,7 +54,7 @@
         var grid = document.getElementById("invPositionGrid");
         if (!grid) return;
         if (!positions || !positions.length) {
-            grid.innerHTML = "<p>No active simulations yet. Choose an asset below to invest.</p>";
+            grid.innerHTML = "<p>No active investments yet. Choose an asset below to invest.</p>";
             return;
         }
         grid.innerHTML = positions.filter(function(p) { return p.status === "active"; }).map(function(p) {
@@ -62,8 +62,8 @@
             return '<article class="inv-card inv-asset-card gv-glass">' +
                 "<h4>" + (p.assetSymbol || "") + " " + (p.assetName || p.assetId) + "</h4>" +
                 "<p>Invested: " + money(p.investedAmount) + "</p>" +
-                "<p>Simulated daily: " + money(p.dailySimulatedReturn) + "</p>" +
-                "<p>Total simulated earnings: " + money(p.totalSimulatedEarned) + "</p>" +
+                "<p>Daily earnings: " + money(p.dailySimulatedReturn) + "</p>" +
+                "<p>Total earnings: " + money(p.totalSimulatedEarned) + "</p>" +
                 "<p>Next credit: " + countdown(p.nextCreditAt) + " (" + formatLocal(p.nextCreditAt) + ")</p>" +
                 link + "</article>";
         }).join("");
@@ -102,7 +102,7 @@
         var pv = q && (q.priceUsd != null ? q.priceUsd : q.price);
         document.getElementById("invDialogPrice").textContent = pv != null
             ? "Current market price: " + money(pv)
-            : "Market price unavailable — simulation uses USD allocation only.";
+            : "Market price unavailable — allocation is based on USD amount.";
 
         fetchAssetSimulationPlans(assetId).then(function(r) {
             var sel = document.getElementById("invPlanSelect");
@@ -123,11 +123,11 @@
         var daily = projectedDaily(plan, amount);
         var duration = Number(plan.durationDays) || 365;
         document.getElementById("invProjectedDaily").textContent =
-            "Projected simulated daily return: " + money(daily) + " (not guaranteed).";
+            "Projected daily earnings: " + money(daily) + ". Returns are not guaranteed.";
         document.getElementById("invProjectedTotal").textContent =
-            "Projected simulated total over " + duration + " days: " + money(daily * duration) + " (estimate only).";
+            "Projected cumulative earnings over " + duration + " days: " + money(daily * duration) + " (estimate).";
         document.getElementById("invNextCredit").textContent =
-            "Simulation credits run every 24 hours (UTC storage, shown in your local time when active).";
+            "Earnings are posted every 24 hours (UTC; shown in your local time when active).";
     }
 
     function loadQuotes() {

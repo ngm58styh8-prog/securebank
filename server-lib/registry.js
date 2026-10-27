@@ -343,7 +343,7 @@ function ensureAdminRegistryShape(admin) {
             enrollmentsPaused: false,
             creditIntervalHours: 24,
             notifyOnCredit: true,
-            educationalLabel: "Simulated — educational only. Not guaranteed real-world earnings.",
+            educationalLabel: "Investment returns vary with market conditions and are not guaranteed. Past performance does not guarantee future results.",
             eligibleAssetIds: []
         };
     }

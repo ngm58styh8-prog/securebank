@@ -29,7 +29,7 @@
         if (typeof adminSimulationFetch === "function") {
             return adminSimulationFetch(action, options);
         }
-        return Promise.resolve({ ok: false, error: "Simulation API unavailable." });
+        return Promise.resolve({ ok: false, error: "Investment API unavailable." });
     }
 
     function setTab(panelId) {
@@ -46,9 +46,9 @@
         if (!el || !data || !data.overview) return;
         var o = data.overview;
         el.innerHTML =
-            statCard("Active simulations", o.totalActiveSimulations) +
-            statCard("Simulated invested", formatUsd(o.totalSimulatedInvestmentUsd)) +
-            statCard("Simulated earnings", formatUsd(o.totalSimulatedEarningsUsd)) +
+            statCard("Active investments", o.totalActiveSimulations) +
+            statCard("Total invested", formatUsd(o.totalSimulatedInvestmentUsd)) +
+            statCard("Total earnings", formatUsd(o.totalSimulatedEarningsUsd)) +
             statCard("Credits today", o.calculationsCompletedToday) +
             statCard("Upcoming calcs", o.upcomingCalculations) +
             statCard("Failed jobs", o.failedCalculationJobs);
@@ -61,6 +61,12 @@
 
     function rowCells(cells) {
         return "<tr>" + cells.map(function(c) { return "<td>" + c + "</td>"; }).join("") + "</tr>";
+    }
+
+    function labelSource(source) {
+        if (source === "market-simulation") return "Investments";
+        if (source === "gold-legacy") return "Gold";
+        return source || "—";
     }
 
     function renderInvestmentTable(bodyId, rows, columns) {
@@ -93,7 +99,7 @@
             }
             return rowCells([
                 (r.userName || r.userEmail) + "<br><small>" + r.userEmail + "</small>",
-                r.source || "—",
+                labelSource(r.source),
                 r.assetName || r.assetId,
                 r.planName || "—",
                 formatUsd(r.investedAmount),
@@ -126,7 +132,7 @@
         }
         if (!container) return;
         if (!plans || !plans.length) {
-            container.innerHTML = "<p>No simulation plans.</p>";
+            container.innerHTML = "<p>No investment plans.</p>";
             return;
         }
         container.innerHTML = plans.map(function(plan) {
@@ -154,7 +160,7 @@
         var card = document.getElementById("adminInvPlanFormCard");
         if (!card) return;
         card.style.display = "block";
-        document.getElementById("adminInvPlanFormTitle").textContent = plan ? "Edit Simulation Plan" : "Create Simulation Plan";
+        document.getElementById("adminInvPlanFormTitle").textContent = plan ? "Edit Investment Plan" : "Create Investment Plan";
         document.getElementById("adminInvPlanId").value = plan ? plan.id : "";
         if (assets && assets.length) {
             document.getElementById("adminInvPlanAsset").value = plan ? plan.assetId : assets[0].id;
@@ -182,7 +188,7 @@
             earn.innerHTML = history.map(function(row) {
                 return rowCells([
                     formatDate(row.createdAt || row.date),
-                    row.source || "—",
+                    labelSource(row.source),
                     row.userEmail || "—",
                     row.assetId || row.planId || "—",
                     formatUsd(row.amount),
@@ -356,7 +362,7 @@
                 };
                 simFetch("upsert-plan", { method: "POST", plan: plan }).then(function(r) {
                     if (r.ok) {
-                        toast("Simulation plan saved.");
+                        toast("Investment plan saved.");
                         document.getElementById("adminInvPlanFormCard").style.display = "none";
                         refreshAll();
                     } else toast(r.error || "Save failed.", true);

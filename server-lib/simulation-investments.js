@@ -57,13 +57,24 @@ const SIMULATION_ASSETS = [
     { id: "diamond", name: "Diamond", symbol: "DIAMOND", category: "diamond" }
 ];
 
+const DEFAULT_PORTFOLIO_NOTICE =
+    "Investment returns vary with market conditions and are not guaranteed. Past performance does not guarantee future results.";
+
 const DEFAULT_SIMULATION_SETTINGS = {
     enrollmentsPaused: false,
     creditIntervalHours: 24,
     notifyOnCredit: true,
-    educationalLabel: "Simulated — educational only. Not guaranteed real-world earnings.",
+    educationalLabel: DEFAULT_PORTFOLIO_NOTICE,
     eligibleAssetIds: SIMULATION_ASSETS.map(function(a) { return a.id; })
 };
+
+function customerPortfolioNotice(settings) {
+    const raw = settings && settings.educationalLabel
+        ? String(settings.educationalLabel).trim()
+        : "";
+    if (!raw || /simulat|educational/i.test(raw)) return DEFAULT_PORTFOLIO_NOTICE;
+    return raw;
+}
 
 function assetMeta(assetId) {
     return SIMULATION_ASSETS.find(function(a) { return a.id === assetId; }) || {
@@ -108,7 +119,7 @@ function createDefaultPlanForAsset(assetId) {
     return {
         id: "sim-plan-" + assetId + "-default",
         assetId: assetId,
-        name: meta.name + " Simulation 24h",
+        name: meta.name + " 24-Hour Plan",
         minInvestment: 100,
         maxInvestment: 500000,
         returnType: "percent",
@@ -261,7 +272,7 @@ async function getAdminInvestmentOverview() {
             upcomingCalculations: upcoming,
             failedCalculationJobs: failedJobs,
             lastJobRun: lastJob,
-            educationalLabel: admin.simulationSettings.educationalLabel
+            portfolioNotice: customerPortfolioNotice(admin.simulationSettings)
         },
         assets: SIMULATION_ASSETS,
         settings: admin.simulationSettings,
@@ -377,22 +388,22 @@ async function enrollInSimulationPlan(email, planId, amount) {
 
     const admin = await ensureDefaultSimulationPlans(await loadAdminRegistry());
     if (admin.simulationSettings.enrollmentsPaused) {
-        throw new Error("New simulation enrollments are temporarily paused.");
+        throw new Error("New investment enrollments are temporarily paused.");
     }
 
     const plan = (admin.simulationPlans || []).find(function(p) {
         return String(p.id) === String(planId);
     });
-    if (!plan) throw new Error("Simulation plan not found.");
-    if (plan.enabled === false) throw new Error("This simulation plan is disabled.");
-    if (plan.paused) throw new Error("This simulation plan is paused.");
+    if (!plan) throw new Error("Investment plan not found.");
+    if (plan.enabled === false) throw new Error("This investment plan is disabled.");
+    if (plan.paused) throw new Error("This investment plan is paused.");
     if (plan.enrollmentsPaused) throw new Error("Enrollments are paused for this plan.");
 
     if (amount < Number(plan.minInvestment)) {
-        throw new Error("Minimum simulation amount is $" + Number(plan.minInvestment).toFixed(2) + ".");
+        throw new Error("Minimum investment amount is $" + Number(plan.minInvestment).toFixed(2) + ".");
     }
     if (amount > Number(plan.maxInvestment)) {
-        throw new Error("Maximum simulation amount is $" + Number(plan.maxInvestment).toFixed(2) + ".");
+        throw new Error("Maximum investment amount is $" + Number(plan.maxInvestment).toFixed(2) + ".");
     }
 
     const accounts = await loadAllAccounts();
@@ -412,7 +423,7 @@ async function enrollInSimulationPlan(email, planId, amount) {
         return inv.status === "active" && inv.assetId === plan.assetId;
     });
     if (existing) {
-        throw new Error("You already have an active simulation for " + meta.name + ".");
+        throw new Error("You already have an active investment for " + meta.name + ".");
     }
 
     const planSnapshot = {
@@ -449,13 +460,13 @@ async function enrollInSimulationPlan(email, planId, amount) {
     updated.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updated.notifications.unshift({
         id: "sim-enroll-" + positionId,
-        title: "Simulation started",
-        message: "Your " + meta.name + " investment simulation started with $" +
-            amount.toFixed(2) + " (educational simulation only).",
+        title: "Investment opened",
+        message: "Your " + meta.name + " investment is active with $" +
+            amount.toFixed(2) + " allocated.",
         time: now,
         read: false,
-        type: "simulation",
-        category: "simulation",
+        type: "investment",
+        category: "investment",
         amount: amount,
         currency: "USD",
         status: "active"
@@ -544,7 +555,7 @@ async function getCustomerInvestmentPortfolio(email) {
             activeCount: active.length,
             completedCount: completed.length,
             nextSimulationCreditAt: nextCredit,
-            educationalLabel: admin.simulationSettings.educationalLabel
+            portfolioNotice: customerPortfolioNotice(admin.simulationSettings)
         },
         positions: positions,
         plans: admin.simulationPlans.filter(function(p) { return p.enabled !== false; }),
@@ -697,13 +708,13 @@ async function processSimulationCreditForUser(email, options) {
         if (admin.simulationSettings.notifyOnCredit) {
             account.notifications.unshift({
                 id: "sim-" + reference,
-                title: "Simulated earnings credited",
-                message: "Your " + (inv.assetName || inv.assetId) + " simulation credited $" +
-                    fromCents(creditCents).toFixed(2) + " (educational simulation only).",
+                title: "Investment earnings credited",
+                message: "Your " + (inv.assetName || inv.assetId) + " investment credited $" +
+                    fromCents(creditCents).toFixed(2) + " in earnings.",
                 time: new Date().toISOString(),
                 read: false,
-                type: "simulation",
-                category: "simulation"
+                type: "investment",
+                category: "investment"
             });
             if (account.notifications.length > 30) {
                 account.notifications = account.notifications.slice(0, 30);
@@ -833,7 +844,7 @@ async function getMonitoringDashboard() {
         systemHealth: {
             registry: true,
             simulationPlans: (admin.simulationPlans || []).length,
-            educationalLabel: admin.simulationSettings.educationalLabel
+            portfolioNotice: customerPortfolioNotice(admin.simulationSettings)
         }
     };
 }

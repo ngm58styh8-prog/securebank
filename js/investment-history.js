@@ -5,6 +5,18 @@
         return "$" + Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
+    function labelSource(source) {
+        if (source === "gold") return "Gold";
+        if (source === "simulation") return "Investments";
+        return source || "—";
+    }
+
+    function labelEvent(type) {
+        if (type === "simulated-credit") return "Earnings credit";
+        if (type === "gold-credit") return "Earnings credit";
+        return type || "—";
+    }
+
     function load() {
         var user = requireAuth();
         if (!user) return;
@@ -17,8 +29,8 @@
                 return;
             }
             body.innerHTML = r.events.map(function(ev) {
-                return "<tr><td>" + new Date(ev.date).toLocaleString() + "</td><td>" + ev.source +
-                    "</td><td>" + (ev.assetName || ev.assetId) + "</td><td>" + (ev.type || "—") +
+                return "<tr><td>" + new Date(ev.date).toLocaleString() + "</td><td>" + labelSource(ev.source) +
+                    "</td><td>" + (ev.assetName || ev.assetId) + "</td><td>" + labelEvent(ev.type) +
                     "</td><td>" + money(ev.amount) + "</td><td>" + (ev.reference || "—") + "</td></tr>";
             }).join("");
         });

@@ -235,7 +235,7 @@ async function processDailyCreditForUser(email, options) {
     updated.transactions = Array.isArray(updated.transactions) ? updated.transactions.slice() : [];
     updated.transactions.unshift({
         date: new Date().toLocaleString(),
-        description: "Gold Investment Simulated Daily Return — " + (ugi.planName || plan.name),
+        description: "Gold Investment Daily Earnings — " + (ugi.planName || plan.name),
         amount: dailyAmount
     });
 
@@ -257,8 +257,8 @@ async function processDailyCreditForUser(email, options) {
     updated.notifications = Array.isArray(updated.notifications) ? updated.notifications.slice() : [];
     updated.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Your Gold Investment generated today's simulated return of $" + dailyAmount.toFixed(2) + ".",
-        title: "Simulated gold return credited",
+        message: "Your Gold Investment credited $" + dailyAmount.toFixed(2) + " in earnings for today.",
+        title: "Gold investment earnings credited",
         time: new Date().toISOString(),
         read: false,
         type: "gold",

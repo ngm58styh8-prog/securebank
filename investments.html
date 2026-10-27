@@ -39,7 +39,7 @@
         <button type="button" class="gv-menu-toggle" id="sidebarToggle" aria-label="Menu">☰</button>
         <div class="gv-welcome">
             <h1>📈 Investments</h1>
-            <p>Educational simulation &amp; portfolio tracking</p>
+            <p>Portfolio overview &amp; managed investments</p>
         </div>
     </div>
     <div class="gv-header-actions profile-wrap">
@@ -57,11 +57,11 @@
 </header>
 
 <main class="gv-main container">
-    <p class="inv-sim-note" id="invEducationalLabel">Simulated figures — educational only. Not guaranteed real-world earnings.</p>
+    <p class="inv-sim-note" id="invEducationalLabel">Investment returns vary with market conditions and are not guaranteed. Past performance does not guarantee future results.</p>
 
     <section class="inv-summary-grid" id="invSummaryGrid"></section>
 
-    <h2 class="section-heading">Active Simulations</h2>
+    <h2 class="section-heading">Active Investments</h2>
     <div class="inv-position-grid" id="invPositionGrid"></div>
 
     <h2 class="section-heading">Invest Now</h2>
@@ -76,7 +76,7 @@
         <p id="invDialogPrice" class="price"></p>
         <form id="invEnrollForm">
             <input type="hidden" id="invDialogAssetId">
-            <label class="form-label" for="invPlanSelect">Simulation plan</label>
+            <label class="form-label" for="invPlanSelect">Investment plan</label>
             <select id="invPlanSelect" required></select>
             <label class="form-label" for="invAmount">Investment amount (USD)</label>
             <input id="invAmount" type="number" min="1" step="0.01" required>
@@ -85,7 +85,7 @@
             <p class="form-hint" id="invNextCredit"></p>
             <div class="modal-actions">
                 <button type="button" class="modal-cancel" id="invDialogClose">Cancel</button>
-                <button type="submit" class="modal-confirm">Start simulation</button>
+                <button type="submit" class="modal-confirm">Confirm investment</button>
             </div>
         </form>
         <p id="invEnrollError" class="form-error hidden"></p>
