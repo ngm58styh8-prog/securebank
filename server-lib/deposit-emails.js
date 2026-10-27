@@ -185,7 +185,7 @@ function buildDepositCreditedContent(deposit, account, admin) {
         subject: DEPOSIT_CREDITED_SUBJECT,
         text: payload.text,
         html: payload.html,
-        headline: "Deposit Successfully Credited"
+        headline: "Deposit Confirmation"
     };
 }
 

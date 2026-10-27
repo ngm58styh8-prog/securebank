@@ -731,6 +731,11 @@ function adminDepositActionButtons(depositId) {
         "<button type=\"button\" class=\"admin-reject-btn admin-reject-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">Reject</button>";
 }
 
+function adminDepositCardActionButtons(depositId) {
+    return "<button type=\"button\" class=\"admin-approve-btn admin-approve-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">Approve deposit</button>" +
+        "<button type=\"button\" class=\"admin-reject-btn admin-reject-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">Reject deposit</button>";
+}
+
 function adminDepositCryptoLine(d) {
     const currency = (d.currency || "BTC").toUpperCase();
     if (d.cryptoAmount) {
@@ -860,25 +865,22 @@ function renderPendingDepositsAdmin() {
             const tx = d.txHash || d.tx_hash || "—";
             const ref = d.reference || d.id;
             return "<article class=\"admin-deposit-card\" data-deposit-id=\"" + adminEscapeHtml(d.id) + "\">" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Customer</span>" +
-                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(d.userName) + " · " + adminEscapeHtml(d.userEmail) + "</span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Reference</span>" +
-                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(ref) + "</span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Asset / network</span>" +
-                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(currency) + " · " + adminEscapeHtml(network) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Customer name</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(d.userName) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Deposit amount</span>" +
+                "<span class=\"admin-deposit-card-value admin-deposit-card-value--amount\">" + formatMoney(d.amount) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Cryptocurrency</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(currency) + " · " + adminEscapeHtml(adminDepositCryptoLine(d)) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Network</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(network) + "</span></div>" +
                 "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Wallet address</span>" +
                 "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(payTo) +
                 " <button type=\"button\" class=\"admin-copy-mini admin-copy-wallet\" data-copy=\"" + adminEscapeHtml(payTo) + "\">Copy</button></span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Amount</span>" +
-                "<span class=\"admin-deposit-card-value admin-deposit-card-value--amount\">" + formatMoney(d.amount) +
-                " <span class=\"admin-email\">(" + adminDepositCryptoLine(d) + ")</span></span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Transaction hash</span>" +
-                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(tx) + "</span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Verification</span>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Transaction reference</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(ref) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Deposit status</span>" +
                 "<span class=\"admin-deposit-card-value\">" + adminDepositVerificationPill(d) + "</span></div>" +
-                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Submitted</span>" +
-                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(d.date) + "</span></div>" +
-                "<div class=\"admin-deposit-card-actions\">" + adminDepositActionButtons(d.id) + "</div>" +
+                "<div class=\"admin-deposit-card-actions\">" + adminDepositCardActionButtons(d.id) + "</div>" +
                 "</article>";
         }).join("");
     }

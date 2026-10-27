@@ -182,8 +182,8 @@ async function run() {
             reference: "GV-DEP-TEST",
             resolvedAt: new Date().toISOString()
         }, { cash: 7000, profile: { fullName: "Depositor User" } }, {});
-        assert.strictEqual(content.subject, "GlobalVest | Deposit Successfully Credited");
-        assert.ok(content.html && content.html.indexOf("VIEW TRANSACTION") !== -1);
+        assert.strictEqual(content.subject, "GlobalVest | Deposit Confirmation");
+        assert.ok(content.html && content.html.indexOf("VIEW MY ACCOUNT") !== -1);
     });
 
     console.log("\n" + passed + " deposit approval checks completed.");

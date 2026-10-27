@@ -1421,6 +1421,91 @@ body[data-theme="dark"] .pending-badge {
     }
 }
 
+.deposit-tx-input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    margin-top: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.95rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    word-break: break-all;
+}
+
+.deposit-network-meta {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.deposit-network-meta .deposit-hint {
+    margin: 4px 0;
+    line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+    .deposit-panel {
+        padding: 16px 14px;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .deposit-amount-step,
+    .deposit-continue-btn {
+        max-width: 100%;
+    }
+
+    #depositAddressBox.admin-payto-box {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    #depositPageAddress.admin-crypto-address {
+        font-size: 0.82rem;
+        padding: 12px;
+        line-height: 1.45;
+    }
+
+    .deposit-qr-wrap {
+        display: flex;
+        justify-content: center;
+    }
+
+    .deposit-qr-image {
+        max-width: min(168px, 70vw);
+        height: auto;
+    }
+
+    .copy-btn {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .deposit-crypto-select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .deposit-btc-preview-amount {
+        font-size: 1.05rem;
+        word-break: break-word;
+    }
+
+    .deposit-tx-input {
+        font-size: 0.88rem;
+    }
+}
+
 .deposit-btc-preview {
     background: rgba(247, 147, 26, 0.08);
     border: 1px solid rgba(247, 147, 26, 0.35);

@@ -58,11 +58,12 @@ function testCreditedContent() {
 
     assert.strictEqual(
         content.subject,
-        "GlobalVest | Deposit Successfully Credited",
+        "GlobalVest | Deposit Confirmation",
         "credited subject"
     );
     assert.ok(content.text.indexOf("$250.50") !== -1 || content.html.indexOf("250.50") !== -1, "credited amount");
-    assert.ok(content.html && content.html.indexOf("Deposit Successfully Credited") !== -1, "credited headline");
+    assert.ok(content.html && content.html.indexOf("Deposit Confirmation") !== -1, "credited headline");
+    assert.ok(content.html.indexOf("VIEW MY ACCOUNT") !== -1, "view account cta");
     assert.ok(content.text.indexOf("GV-DEP") !== -1 || content.html.indexOf("dep-test-001") !== -1, "reference");
 }
 

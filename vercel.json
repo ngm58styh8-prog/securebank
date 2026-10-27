@@ -17,6 +17,10 @@
     {
       "path": "/api/cron/investment-emails",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/deposit-emails",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
