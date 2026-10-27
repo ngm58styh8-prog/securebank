@@ -1804,9 +1804,22 @@ document.getElementById("walletSettingsForm").addEventListener("submit", functio
         return;
     }
 
+    const authorized = cfg && cfg.AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES;
+    const matchesProduction = authorized &&
+        btcAddress === authorized.BTC &&
+        ethAddress === authorized.ETH;
+    if (matchesProduction) {
+        const ok = confirm(
+            "Confirm that GlobalVest controls these production deposit wallets and you authorize them for customer deposits:\n\n" +
+            "BTC (Bitcoin Mainnet):\n" + btcAddress + "\n\n" +
+            "ETH (Ethereum Mainnet):\n" + ethAddress
+        );
+        if (!ok) return;
+    }
+
     const cryptoWallets = [
-        { symbol: "BTC", name: "Bitcoin", address: btcAddress },
-        { symbol: "ETH", name: "Ethereum", address: ethAddress }
+        { symbol: "BTC", name: "Bitcoin", network: "Bitcoin Mainnet", address: btcAddress },
+        { symbol: "ETH", name: "Ethereum", network: "Ethereum Mainnet", address: ethAddress }
     ];
 
     updateAdminPaymentSettings(btcAddress, document.getElementById("adminBankInput").value, cryptoWallets);

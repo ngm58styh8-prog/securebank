@@ -32,6 +32,57 @@
 
     var LEGACY_DEMO_BTC = "bc1qsecurebank0ff1c1aladm1nwalle7demo2024";
 
+    var AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES = {
+        BTC: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+        ETH: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F"
+    };
+
+    function isAuthorizedProductionAddress(symbol, address) {
+        var sym = normalizeSymbol(symbol);
+        return String(address || "").trim() === AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym];
+    }
+
+    function getNetworkIncompatibilityWarning(symbol) {
+        var sym = normalizeSymbol(symbol);
+        if (sym === "BTC") {
+            return "Send Bitcoin (BTC) on Bitcoin Mainnet only. Do not send Ethereum, ERC-20 tokens, or other assets to this address — funds sent on the wrong network may be lost.";
+        }
+        if (sym === "ETH") {
+            return "Send Ethereum (ETH) on Ethereum Mainnet only. Do not send Bitcoin or assets via BNB Chain, Polygon, Arbitrum, or other networks — incompatible transfers may be lost.";
+        }
+        return "Use only the network shown above. Sending on an incompatible network may result in permanent loss of funds.";
+    }
+
+    function resolveCustomerDepositWallet(adminOrWallets, symbol) {
+        var sym = normalizeSymbol(symbol);
+        var base = null;
+        for (var i = 0; i < DEFAULT_CRYPTO_DEPOSIT_WALLETS.length; i++) {
+            if (DEFAULT_CRYPTO_DEPOSIT_WALLETS[i].symbol === sym) {
+                base = DEFAULT_CRYPTO_DEPOSIT_WALLETS[i];
+                break;
+            }
+        }
+        if (!base) return null;
+        var addr = AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym];
+        if (!validateWalletAddress(sym, addr)) return null;
+        var fromAdmin = getWalletBySymbol(adminOrWallets, sym);
+        return Object.assign({}, base, fromAdmin || {}, {
+            symbol: sym,
+            address: addr,
+            network: (fromAdmin && fromAdmin.network) || base.network
+        });
+    }
+
+    function sanitizeWalletEntry(entry) {
+        if (!entry || !entry.symbol) return entry;
+        var sym = normalizeSymbol(entry.symbol);
+        var address = String(entry.address || "").trim();
+        if (!validateWalletAddress(sym, address) || isDemoWalletAddress(address)) {
+            address = AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES[sym] || address;
+        }
+        return Object.assign({}, entry, { address: address });
+    }
+
     function normalizeSymbol(symbol) {
         return String(symbol || "BTC").trim().toUpperCase();
     }
@@ -107,7 +158,8 @@
         }
 
         return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
-            return bySymbol[entry.symbol] || entry;
+            var merged = bySymbol[entry.symbol] || entry;
+            return sanitizeWalletEntry(merged);
         });
     }
 
@@ -189,12 +241,16 @@
     global.CryptoDepositConfig = {
         DEMO_MODE: DEMO_MODE,
         DEMO_WALLET_ADDRESSES: DEMO_WALLET_ADDRESSES,
+        AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES: AUTHORIZED_PRODUCTION_DEPOSIT_ADDRESSES,
         DEFAULT_CRYPTO_DEPOSIT_WALLETS: DEFAULT_CRYPTO_DEPOSIT_WALLETS,
         normalizeSymbol: normalizeSymbol,
         validateBtcAddress: validateBtcAddress,
         validateEthAddress: validateEthAddress,
         validateWalletAddress: validateWalletAddress,
         isDemoWalletAddress: isDemoWalletAddress,
+        isAuthorizedProductionAddress: isAuthorizedProductionAddress,
+        getNetworkIncompatibilityWarning: getNetworkIncompatibilityWarning,
+        resolveCustomerDepositWallet: resolveCustomerDepositWallet,
         normalizeCryptoDepositWallets: normalizeCryptoDepositWallets,
         getWalletBySymbol: getWalletBySymbol,
         getWalletAddressForCurrency: getWalletAddressForCurrency,

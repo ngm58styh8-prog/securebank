@@ -632,12 +632,13 @@ function getSelectedDepositCurrency() {
 function getSelectedDepositWallet() {
     const cfg = getDepositCryptoConfig();
     const symbol = getSelectedDepositCurrency();
+    const admin = typeof getAdminData === "function" ? getAdminData() : null;
+    if (cfg && typeof cfg.resolveCustomerDepositWallet === "function") {
+        return cfg.resolveCustomerDepositWallet(admin, symbol);
+    }
     if (cfg && typeof getAdminCryptoDepositWallets === "function") {
         const wallets = getAdminCryptoDepositWallets();
         return cfg.getWalletBySymbol(wallets, symbol);
-    }
-    if (cfg) {
-        return cfg.getWalletBySymbol(getAdminData(), symbol);
     }
     return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
 }
@@ -647,9 +648,16 @@ function populateDepositCryptoSelect() {
     if (!select) return;
 
     const cfg = getDepositCryptoConfig();
-    const wallets = typeof getAdminCryptoDepositWallets === "function"
-        ? getAdminCryptoDepositWallets()
-        : (cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : []);
+    const admin = typeof getAdminData === "function" ? getAdminData() : null;
+    const defaults = cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : [];
+    const wallets = defaults.map(function(entry) {
+        if (cfg && typeof cfg.resolveCustomerDepositWallet === "function") {
+            return cfg.resolveCustomerDepositWallet(admin, entry.symbol);
+        }
+        return entry;
+    }).filter(function(w) {
+        return w && w.address && cfg && cfg.validateWalletAddress(w.symbol, w.address);
+    });
     const current = getSelectedDepositCurrency();
 
     select.innerHTML = wallets.map(function(w) {
@@ -720,7 +728,21 @@ function updateDepositCryptoDisplay() {
         }
     }
 
-    return wallet && wallet.address ? wallet.address : "";
+    const warnEl = document.getElementById("depositNetworkWarning");
+    if (warnEl && wallet && cfg && typeof cfg.getNetworkIncompatibilityWarning === "function") {
+        warnEl.textContent = cfg.getNetworkIncompatibilityWarning(wallet.symbol);
+        warnEl.classList.remove("hidden");
+    } else if (warnEl) {
+        warnEl.classList.add("hidden");
+    }
+
+    const valid = wallet && cfg && cfg.validateWalletAddress(wallet.symbol, wallet.address);
+    if (addressEl && !valid) {
+        addressEl.textContent = "Deposit address is not available. Please contact support.";
+        updateDepositQrCode("");
+    }
+
+    return valid && wallet.address ? wallet.address : "";
 }
 
 function copyText(text, successMessage) {

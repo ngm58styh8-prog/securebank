@@ -4461,6 +4461,12 @@ function inferPendingDepositCurrency(deposit) {
 
 function getAdminWalletAddressForCurrency(currency) {
     const symbol = String(currency || "BTC").trim().toUpperCase();
+    const admin = getAdminData();
+    if (typeof CryptoDepositConfig !== "undefined" &&
+        typeof CryptoDepositConfig.resolveCustomerDepositWallet === "function") {
+        const wallet = CryptoDepositConfig.resolveCustomerDepositWallet(admin, symbol);
+        if (wallet && wallet.address) return wallet.address;
+    }
     const wallets = getAdminCryptoDepositWallets();
     for (let i = 0; i < wallets.length; i++) {
         if (wallets[i].symbol === symbol) return wallets[i].address;
@@ -4488,6 +4494,14 @@ function updateAdminPaymentSettings(walletAddress, bankDetails, cryptoWallets) {
         admin.walletAddress = (btcWallet && btcWallet.address) ||
             (walletAddress || "").trim() ||
             DEFAULT_ADMIN.walletAddress;
+        if (typeof CryptoDepositConfig !== "undefined" &&
+            CryptoDepositConfig.isAuthorizedProductionAddress &&
+            cryptoWallets.every(function(w) {
+                return w && CryptoDepositConfig.validateWalletAddress(w.symbol, w.address) &&
+                    CryptoDepositConfig.isAuthorizedProductionAddress(w.symbol, w.address);
+            })) {
+            admin.depositWalletsActivatedAt = new Date().toISOString();
+        }
     } else {
         admin.walletAddress = (walletAddress || "").trim() || DEFAULT_ADMIN.walletAddress;
         if (typeof CryptoDepositConfig !== "undefined") {

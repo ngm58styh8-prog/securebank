@@ -1436,6 +1436,23 @@ body[data-theme="dark"] .pending-badge {
     word-break: break-all;
 }
 
+.deposit-network-warning {
+    margin: 14px 0 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 179, 71, 0.45);
+    background: rgba(255, 179, 71, 0.1);
+    color: #ffd9a0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.deposit-network-warning.hidden {
+    display: none;
+}
+
 .deposit-network-meta {
     margin-top: 12px;
     padding-top: 10px;
