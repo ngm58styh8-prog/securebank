@@ -5,9 +5,7 @@
 (function(global) {
     "use strict";
 
-    // Demo project: deposit addresses are fixed placeholders and cannot be
-    // overridden, so the site never shows a wallet that can receive real funds.
-    var DEMO_MODE = true;
+    var DEMO_MODE = false;
     var DEMO_WALLET_ADDRESSES = {
         BTC: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
         ETH: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
@@ -17,12 +15,18 @@
         {
             symbol: "BTC",
             name: "Bitcoin",
-            address: DEMO_WALLET_ADDRESSES.BTC
+            network: "Bitcoin Mainnet",
+            address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+            minDepositUsd: 50,
+            confirmationsRequired: 3
         },
         {
             symbol: "ETH",
             name: "Ethereum",
-            address: DEMO_WALLET_ADDRESSES.ETH
+            network: "Ethereum Mainnet",
+            address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
+            minDepositUsd: 50,
+            confirmationsRequired: 12
         }
     ];
 
@@ -45,9 +49,15 @@
         return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
     }
 
+    function isDemoWalletAddress(address) {
+        var val = String(address || "").trim();
+        return val === DEMO_WALLET_ADDRESSES.BTC || val === DEMO_WALLET_ADDRESSES.ETH ||
+            val.indexOf("DEMO-") === 0 || val === LEGACY_DEMO_BTC;
+    }
+
     function validateWalletAddress(symbol, address) {
         var sym = normalizeSymbol(symbol);
-        if (DEMO_MODE && DEMO_WALLET_ADDRESSES[sym] === String(address || "").trim()) return true;
+        if (isDemoWalletAddress(address)) return false;
         if (sym === "BTC") return validateBtcAddress(address);
         if (sym === "ETH") return validateEthAddress(address);
         return String(address || "").trim().length >= 8;
@@ -62,11 +72,6 @@
     }
 
     function normalizeCryptoDepositWallets(adminOrWallets) {
-        if (DEMO_MODE) {
-            return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
-                return Object.assign({}, entry);
-            });
-        }
         var overrides = [];
         var legacyBtc = null;
 
@@ -189,6 +194,7 @@
         validateBtcAddress: validateBtcAddress,
         validateEthAddress: validateEthAddress,
         validateWalletAddress: validateWalletAddress,
+        isDemoWalletAddress: isDemoWalletAddress,
         normalizeCryptoDepositWallets: normalizeCryptoDepositWallets,
         getWalletBySymbol: getWalletBySymbol,
         getWalletAddressForCurrency: getWalletAddressForCurrency,

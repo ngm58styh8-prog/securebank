@@ -673,43 +673,215 @@ function exportInternalTransfersCsv() {
     link.click();
 }
 
+const ADMIN_DEPOSIT_VERIFIED_STATUSES = ["verified_on_chain", "verified_provider", "verified_reconciliation"];
+let adminDepositModalId = null;
+let adminDepositModalMode = "details";
+
+function adminEscapeHtml(value) {
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function findPendingDepositById(depositId) {
+    return getPendingDeposits().find(function(d) {
+        return String(d.id) === String(depositId);
+    }) || null;
+}
+
+function isAdminDepositVerified(d) {
+    if (!d) return false;
+    if (d.paymentVerifiedAt) return true;
+    const status = String(d.verificationStatus || "").toLowerCase();
+    return ADMIN_DEPOSIT_VERIFIED_STATUSES.indexOf(status) !== -1;
+}
+
+function adminDepositVerificationLabel(d) {
+    if (!d) return "Unverified";
+    if (isAdminDepositVerified(d)) {
+        const status = String(d.verificationStatus || "verified_reconciliation").toLowerCase();
+        if (status === "verified_on_chain") return "Verified (on-chain)";
+        if (status === "verified_provider") return "Verified (payment provider)";
+        return "Verified (reconciliation)";
+    }
+    return "Unverified — approval blocked";
+}
+
+function adminDepositVerificationPill(d) {
+    const verified = isAdminDepositVerified(d);
+    const cls = verified ? "admin-verification-pill admin-verification-pill--ok" : "admin-verification-pill admin-verification-pill--bad";
+    return "<span class=\"" + cls + "\">" + adminEscapeHtml(adminDepositVerificationLabel(d)) + "</span>";
+}
+
+function adminFormatWalletCell(address) {
+    const payTo = String(address || "").trim();
+    if (!payTo) return "—";
+    const short = payTo.length > 22 ? payTo.slice(0, 10) + "…" + payTo.slice(-8) : payTo;
+    return "<span class=\"admin-wallet-truncate\" title=\"" + adminEscapeHtml(payTo) + "\">" +
+        adminEscapeHtml(short) +
+        "</span> <button type=\"button\" class=\"admin-copy-mini admin-copy-wallet\" data-copy=\"" +
+        adminEscapeHtml(payTo) + "\">Copy</button>";
+}
+
+function adminDepositActionButtons(depositId) {
+    return "<button type=\"button\" class=\"admin-view-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">View details</button>" +
+        "<button type=\"button\" class=\"admin-approve-btn admin-approve-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">Approve</button>" +
+        "<button type=\"button\" class=\"admin-reject-btn admin-reject-deposit\" data-id=\"" + adminEscapeHtml(depositId) + "\">Reject</button>";
+}
+
+function adminDepositCryptoLine(d) {
+    const currency = (d.currency || "BTC").toUpperCase();
+    if (d.cryptoAmount) {
+        return formatDepositCryptoAdminAmount(d.cryptoAmount, currency);
+    }
+    if (d.btcAmount) return d.btcAmount.toFixed(8) + " BTC";
+    if (d.ethAmount) return d.ethAmount.toFixed(6) + " ETH";
+    return "—";
+}
+
+function closeDepositActionModal() {
+    const overlay = document.getElementById("depositActionModal");
+    if (overlay) overlay.classList.add("hidden");
+    adminDepositModalId = null;
+    const rejectArea = document.getElementById("depositModalRejectReason");
+    const rejectLabel = document.getElementById("depositModalRejectReasonLabel");
+    if (rejectArea) {
+        rejectArea.classList.add("hidden");
+        rejectArea.value = "";
+    }
+    if (rejectLabel) rejectLabel.classList.add("hidden");
+}
+
+function renderDepositActionModal(deposit) {
+    const body = document.getElementById("depositActionModalBody");
+    const title = document.getElementById("depositActionModalTitle");
+    const approveBtn = document.getElementById("depositModalApproveBtn");
+    const verifyBtn = document.getElementById("depositModalVerifyBtn");
+    const rejectBtn = document.getElementById("depositModalRejectBtn");
+    if (!body || !deposit) return;
+
+    const payTo = deposit.payTo || deposit.walletAddress || "";
+    const tx = deposit.txHash || deposit.tx_hash || "—";
+    const network = deposit.network || "—";
+    const ref = deposit.reference || deposit.id;
+
+    if (title) {
+        title.textContent = adminDepositModalMode === "approve"
+            ? "Confirm deposit approval"
+            : adminDepositModalMode === "reject"
+                ? "Reject deposit"
+                : "Deposit details";
+    }
+
+    body.innerHTML =
+        "<dl class=\"admin-deposit-modal-body\">" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Customer</dt><dd>" + adminEscapeHtml(deposit.userName) +
+        "<br><span class=\"admin-email\">" + adminEscapeHtml(deposit.userEmail) + "</span></dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Reference</dt><dd>" + adminEscapeHtml(ref) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Amount</dt><dd>" + adminEscapeHtml(formatMoney(deposit.amount)) +
+        " · " + adminEscapeHtml(adminDepositCryptoLine(deposit)) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Currency</dt><dd>" + adminEscapeHtml((deposit.currency || "BTC").toUpperCase()) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Network</dt><dd>" + adminEscapeHtml(network) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Wallet address</dt><dd>" + adminFormatWalletCell(payTo) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Transaction hash</dt><dd>" + adminEscapeHtml(tx) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Verification</dt><dd>" + adminDepositVerificationPill(deposit) + "</dd></div>" +
+        "<div class=\"admin-deposit-modal-row\"><dt>Submitted</dt><dd>" + adminEscapeHtml(deposit.date || deposit.requestedAt || "—") + "</dd></div>" +
+        "</dl>";
+
+    if (verifyBtn) {
+        verifyBtn.classList.toggle("hidden", isAdminDepositVerified(deposit));
+    }
+    if (approveBtn) {
+        approveBtn.disabled = !isAdminDepositVerified(deposit);
+        approveBtn.title = isAdminDepositVerified(deposit)
+            ? ""
+            : "Verify payment evidence before approving.";
+    }
+    if (rejectBtn) rejectBtn.disabled = false;
+}
+
+function openDepositActionModal(depositId, mode) {
+    const deposit = findPendingDepositById(depositId);
+    if (!deposit) {
+        adminNotify("Deposit not found. Click Repair registry to refresh.", "info");
+        return;
+    }
+    adminDepositModalId = depositId;
+    adminDepositModalMode = mode || "details";
+    renderDepositActionModal(deposit);
+    const overlay = document.getElementById("depositActionModal");
+    if (overlay) overlay.classList.remove("hidden");
+}
+
 function renderPendingDepositsAdmin() {
     const pending = getPendingDeposits();
     const countEl = document.getElementById("pendingDepositCount");
     const tbody = document.getElementById("pendingDepositsBody");
+    const cards = document.getElementById("pendingDepositsCards");
+    const emptyMsg = "No pending deposit requests. User deposits sync from accounts on the server — click <strong>Repair registry</strong> to refresh.";
 
     if (countEl) countEl.textContent = String(pending.length);
-    if (!tbody) return;
 
     if (!pending.length) {
-        tbody.innerHTML = '<tr><td colspan="6">No pending deposit requests. User deposits sync from accounts on the server — click <strong>Repair registry</strong> to refresh.</td></tr>';
+        if (tbody) tbody.innerHTML = "<tr><td colspan=\"9\">" + emptyMsg + "</td></tr>";
+        if (cards) cards.innerHTML = "<p class=\"admin-sub\">" + emptyMsg + "</p>";
         return;
     }
 
-    tbody.innerHTML = pending.map(function(d) {
-        const payTo = d.payTo || d.walletAddress || "";
-        const payToShort = payTo.length > 40 ? payTo.slice(0, 40) + "…" : payTo;
-        const currency = (d.currency || "BTC").toUpperCase();
-        let cryptoCol = "—";
-        if (d.cryptoAmount) {
-            cryptoCol = formatDepositCryptoAdminAmount(d.cryptoAmount, currency);
-        } else if (d.btcAmount) {
-            cryptoCol = d.btcAmount.toFixed(8) + " BTC";
-        } else if (d.ethAmount) {
-            cryptoCol = d.ethAmount.toFixed(6) + " ETH";
-        }
-        return "<tr>" +
-            "<td>" + d.date + "</td>" +
-            "<td>" + d.userName + "<br><span class=\"admin-email\">" + d.userEmail + "</span></td>" +
-            "<td>" + currency + "</td>" +
-            "<td class=\"admin-payto-cell\" title=\"" + payTo + "\">" + payToShort + "</td>" +
-            "<td class=\"pl-positive\">" + formatMoney(d.amount) + "<br><span class=\"admin-email\">" + cryptoCol + "</span></td>" +
-            "<td class=\"admin-row-actions\">" +
-            "<button type=\"button\" class=\"admin-approve-btn admin-approve-deposit\" data-id=\"" + d.id + "\">Approve</button>" +
-            "<button type=\"button\" class=\"admin-reject-btn admin-reject-deposit\" data-id=\"" + d.id + "\">Reject</button>" +
-            "</td>" +
-            "</tr>";
-    }).join("");
+    if (tbody) {
+        tbody.innerHTML = pending.map(function(d) {
+            const payTo = d.payTo || d.walletAddress || "";
+            const currency = (d.currency || "BTC").toUpperCase();
+            const network = d.network || "—";
+            const tx = d.txHash || d.tx_hash || "—";
+            const ref = d.reference || d.id;
+            const cryptoCol = adminDepositCryptoLine(d);
+            return "<tr>" +
+                "<td>" + adminEscapeHtml(d.date) + "</td>" +
+                "<td>" + adminEscapeHtml(d.userName) + "<br><span class=\"admin-email\">" + adminEscapeHtml(d.userEmail) + "</span></td>" +
+                "<td>" + adminEscapeHtml(ref) + "</td>" +
+                "<td>" + adminEscapeHtml(currency) + "<br><span class=\"admin-email\">" + adminEscapeHtml(network) + "</span></td>" +
+                "<td class=\"admin-payto-cell\">" + adminFormatWalletCell(payTo) + "</td>" +
+                "<td class=\"pl-positive\">" + formatMoney(d.amount) + "<br><span class=\"admin-email\">" + cryptoCol + "</span></td>" +
+                "<td class=\"admin-tx-cell\">" + adminEscapeHtml(tx) + "</td>" +
+                "<td>" + adminDepositVerificationPill(d) + "</td>" +
+                "<td class=\"admin-row-actions\">" + adminDepositActionButtons(d.id) + "</td>" +
+                "</tr>";
+        }).join("");
+    }
+
+    if (cards) {
+        cards.innerHTML = pending.map(function(d) {
+            const payTo = d.payTo || d.walletAddress || "";
+            const currency = (d.currency || "BTC").toUpperCase();
+            const network = d.network || "—";
+            const tx = d.txHash || d.tx_hash || "—";
+            const ref = d.reference || d.id;
+            return "<article class=\"admin-deposit-card\" data-deposit-id=\"" + adminEscapeHtml(d.id) + "\">" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Customer</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(d.userName) + " · " + adminEscapeHtml(d.userEmail) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Reference</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(ref) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Asset / network</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(currency) + " · " + adminEscapeHtml(network) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Wallet address</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(payTo) +
+                " <button type=\"button\" class=\"admin-copy-mini admin-copy-wallet\" data-copy=\"" + adminEscapeHtml(payTo) + "\">Copy</button></span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Amount</span>" +
+                "<span class=\"admin-deposit-card-value admin-deposit-card-value--amount\">" + formatMoney(d.amount) +
+                " <span class=\"admin-email\">(" + adminDepositCryptoLine(d) + ")</span></span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Transaction hash</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(tx) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Verification</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminDepositVerificationPill(d) + "</span></div>" +
+                "<div class=\"admin-deposit-card-row\"><span class=\"admin-deposit-card-label\">Submitted</span>" +
+                "<span class=\"admin-deposit-card-value\">" + adminEscapeHtml(d.date) + "</span></div>" +
+                "<div class=\"admin-deposit-card-actions\">" + adminDepositActionButtons(d.id) + "</div>" +
+                "</article>";
+        }).join("");
+    }
 }
 
 function formatDepositCryptoAdminAmount(amount, symbol) {
@@ -1455,54 +1627,165 @@ document.getElementById("pendingTransfersBody").addEventListener("click", functi
     }
 });
 
-document.getElementById("pendingDepositsBody").addEventListener("click", function(e) {
-    const approveBtn = e.target.closest(".admin-approve-deposit");
-    const rejectBtn = e.target.closest(".admin-reject-deposit");
-
-    if (approveBtn) {
-        const btn = approveBtn;
-        btn.disabled = true;
-        const approveHandler = typeof approveDepositAsync === "function"
-            ? approveDepositAsync(approveBtn.dataset.id)
-            : Promise.resolve(approveDeposit(approveBtn.dataset.id));
-
-        approveHandler.then(function(result) {
-            btn.disabled = false;
-            if (!result.ok) {
-                adminNotify(result.error || "Could not approve deposit.", "info");
-                return;
-            }
-            adminNotify("Deposit approved — account credited.");
-            renderDashboard({ skipReconcile: true });
-        }).catch(function(err) {
-            btn.disabled = false;
-            adminNotify(err.message || "Could not approve deposit.", "info");
-        });
+function handlePendingDepositPanelClick(e) {
+    const copyBtn = e.target.closest(".admin-copy-wallet");
+    if (copyBtn && copyBtn.dataset.copy) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(copyBtn.dataset.copy).then(function() {
+                adminNotify("Address copied.");
+            });
+        } else {
+            adminNotify(copyBtn.dataset.copy, "info");
+        }
         return;
     }
 
-    if (rejectBtn) {
-        const reason = prompt("Rejection reason (optional):");
-        if (reason === null) return;
-        const rejectHandler = typeof rejectDepositAsync === "function"
-            ? rejectDepositAsync(rejectBtn.dataset.id, reason.trim())
-            : Promise.resolve(rejectDeposit(rejectBtn.dataset.id, reason.trim()));
-
-        rejectBtn.disabled = true;
-        rejectHandler.then(function(result) {
-            rejectBtn.disabled = false;
-            if (!result.ok) {
-                adminNotify(result.error || "Could not reject deposit.", "info");
-                return;
-            }
-            adminNotify("Deposit rejected.");
-            renderDashboard({ skipReconcile: true });
-        }).catch(function(err) {
-            rejectBtn.disabled = false;
-            adminNotify(err.message || "Could not reject deposit.", "info");
-        });
+    const viewBtn = e.target.closest(".admin-view-deposit");
+    if (viewBtn) {
+        openDepositActionModal(viewBtn.dataset.id, "details");
+        return;
     }
+
+    const approveBtn = e.target.closest(".admin-approve-deposit");
+    if (approveBtn) {
+        openDepositActionModal(approveBtn.dataset.id, "approve");
+        return;
+    }
+
+    const rejectBtn = e.target.closest(".admin-reject-deposit");
+    if (rejectBtn) {
+        openDepositActionModal(rejectBtn.dataset.id, "reject");
+        const rejectArea = document.getElementById("depositModalRejectReason");
+        const rejectLabel = document.getElementById("depositModalRejectReasonLabel");
+        if (rejectArea) rejectArea.classList.remove("hidden");
+        if (rejectLabel) rejectLabel.classList.remove("hidden");
+    }
+}
+
+const pendingDepositsBodyEl = document.getElementById("pendingDepositsBody");
+if (pendingDepositsBodyEl) {
+    pendingDepositsBodyEl.addEventListener("click", handlePendingDepositPanelClick);
+}
+const pendingDepositsCardsEl = document.getElementById("pendingDepositsCards");
+if (pendingDepositsCardsEl) {
+    pendingDepositsCardsEl.addEventListener("click", handlePendingDepositPanelClick);
+}
+
+function runDepositModalApprove() {
+    if (!adminDepositModalId) return;
+    const deposit = findPendingDepositById(adminDepositModalId);
+    if (!deposit || !isAdminDepositVerified(deposit)) {
+        adminNotify("Verify payment before approving.", "info");
+        return;
+    }
+    const approveBtn = document.getElementById("depositModalApproveBtn");
+    if (approveBtn) approveBtn.disabled = true;
+    const approveHandler = typeof approveDepositAsync === "function"
+        ? approveDepositAsync(adminDepositModalId)
+        : Promise.resolve(approveDeposit(adminDepositModalId));
+
+    approveHandler.then(function(result) {
+        if (approveBtn) approveBtn.disabled = false;
+        if (!result.ok) {
+            adminNotify(result.error || "Could not approve deposit.", "info");
+            return;
+        }
+        closeDepositActionModal();
+        adminNotify("Deposit approved successfully — account credited.");
+        renderDashboard({ skipReconcile: true });
+    }).catch(function(err) {
+        if (approveBtn) approveBtn.disabled = false;
+        adminNotify(err.message || "Could not approve deposit.", "info");
+    });
+}
+
+function runDepositModalReject() {
+    if (!adminDepositModalId) return;
+    const reasonEl = document.getElementById("depositModalRejectReason");
+    const reason = reasonEl ? String(reasonEl.value || "").trim() : "";
+    if (!reason) {
+        adminNotify("A rejection reason is required.", "info");
+        if (reasonEl) reasonEl.focus();
+        return;
+    }
+    const rejectBtn = document.getElementById("depositModalRejectBtn");
+    if (rejectBtn) rejectBtn.disabled = true;
+    const rejectHandler = typeof rejectDepositAsync === "function"
+        ? rejectDepositAsync(adminDepositModalId, reason)
+        : Promise.resolve(rejectDeposit(adminDepositModalId, reason));
+
+    rejectHandler.then(function(result) {
+        if (rejectBtn) rejectBtn.disabled = false;
+        if (!result.ok) {
+            adminNotify(result.error || "Could not reject deposit.", "info");
+            return;
+        }
+        closeDepositActionModal();
+        adminNotify("Deposit rejected.");
+        renderDashboard({ skipReconcile: true });
+    }).catch(function(err) {
+        if (rejectBtn) rejectBtn.disabled = false;
+        adminNotify(err.message || "Could not reject deposit.", "info");
+    });
+}
+
+function runDepositModalVerify() {
+    if (!adminDepositModalId) return;
+    const deposit = findPendingDepositById(adminDepositModalId);
+    if (!deposit) return;
+    let txHash = deposit.txHash || deposit.tx_hash || "";
+    if (!String(txHash).trim()) {
+        const entered = prompt("Enter on-chain transaction hash (required to verify):");
+        if (entered === null) return;
+        txHash = String(entered).trim();
+        if (!txHash) {
+            adminNotify("Transaction hash is required for verification.", "info");
+            return;
+        }
+    }
+    const verifyBtn = document.getElementById("depositModalVerifyBtn");
+    if (verifyBtn) verifyBtn.disabled = true;
+    const verifyHandler = typeof verifyDepositOnServer === "function"
+        ? verifyDepositOnServer(adminDepositModalId, {
+            verificationSource: "verified_on_chain",
+            txHash: txHash
+        })
+        : Promise.resolve({ ok: false, error: "Server verification unavailable." });
+
+    verifyHandler.then(function(result) {
+        if (verifyBtn) verifyBtn.disabled = false;
+        if (!result.ok) {
+            adminNotify(result.error || "Could not verify deposit.", "info");
+            return;
+        }
+        adminNotify("Payment marked as verified.");
+        const reopenId = adminDepositModalId;
+        const reopenMode = adminDepositModalMode;
+        if (typeof refreshUnifiedRegistry === "function") {
+            refreshUnifiedRegistry({ repairDeposits: true }).finally(function() {
+                renderDashboard({ skipReconcile: true });
+                if (reopenId) openDepositActionModal(reopenId, reopenMode);
+            });
+        } else {
+            renderDashboard({ skipReconcile: true });
+            if (reopenId) openDepositActionModal(reopenId, reopenMode);
+        }
+    }).catch(function(err) {
+        if (verifyBtn) verifyBtn.disabled = false;
+        adminNotify(err.message || "Could not verify deposit.", "info");
+    });
+}
+
+["depositActionModalClose", "depositActionModalCancel"].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", closeDepositActionModal);
 });
+const depositModalApprove = document.getElementById("depositModalApproveBtn");
+if (depositModalApprove) depositModalApprove.addEventListener("click", runDepositModalApprove);
+const depositModalReject = document.getElementById("depositModalRejectBtn");
+if (depositModalReject) depositModalReject.addEventListener("click", runDepositModalReject);
+const depositModalVerify = document.getElementById("depositModalVerifyBtn");
+if (depositModalVerify) depositModalVerify.addEventListener("click", runDepositModalVerify);
 
 document.getElementById("walletSettingsForm").addEventListener("submit", function(e) {
     e.preventDefault();
@@ -1521,7 +1804,7 @@ document.getElementById("walletSettingsForm").addEventListener("submit", functio
 
     const cryptoWallets = [
         { symbol: "BTC", name: "Bitcoin", address: btcAddress },
-        { symbol: "ETH", name: "Ethereum", address: ethAddress || "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
+        { symbol: "ETH", name: "Ethereum", address: ethAddress }
     ];
 
     updateAdminPaymentSettings(btcAddress, document.getElementById("adminBankInput").value, cryptoWallets);

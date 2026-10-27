@@ -636,12 +636,8 @@ function getSelectedDepositWallet() {
         const wallets = getAdminCryptoDepositWallets();
         return cfg.getWalletBySymbol(wallets, symbol);
     }
-    if (symbol === "ETH") {
-        return {
-            symbol: "ETH",
-            name: "Ethereum",
-            address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
-        };
+    if (cfg) {
+        return cfg.getWalletBySymbol(getAdminData(), symbol);
     }
     return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
 }
@@ -706,6 +702,24 @@ function updateDepositCryptoDisplay() {
 
     updateDepositConfirmInstruction();
     updateDepositQrCode(wallet && wallet.address ? wallet.address : "");
+
+    const networkEl = document.getElementById("depositNetworkLabel");
+    const minEl = document.getElementById("depositMinLabel");
+    const confEl = document.getElementById("depositConfirmationsLabel");
+    if (wallet) {
+        if (networkEl) {
+            networkEl.textContent = "Network: " + (wallet.network || (wallet.symbol === "ETH" ? "Ethereum Mainnet" : "Bitcoin Mainnet"));
+        }
+        if (minEl) {
+            const minUsd = wallet.minDepositUsd != null ? wallet.minDepositUsd : 50;
+            minEl.textContent = "Minimum deposit: $" + Number(minUsd).toFixed(2) + " USD equivalent";
+        }
+        if (confEl) {
+            const conf = wallet.confirmationsRequired != null ? wallet.confirmationsRequired : (wallet.symbol === "ETH" ? 12 : 3);
+            confEl.textContent = "Network confirmations required: " + conf;
+        }
+    }
+
     return wallet && wallet.address ? wallet.address : "";
 }
 
@@ -923,7 +937,19 @@ function submitDepositFromPanel() {
         loadMarketPrices().then(updateDepositPagePreview).catch(updateDepositPagePreview);
         return;
     }
-    const depositMeta = { currency: symbol, cryptoAmount: cryptoAmount };
+    const txInput = document.getElementById("depositTxHashInput");
+    const txHash = txInput ? String(txInput.value || "").trim() : "";
+    const depositMeta = {
+        currency: symbol,
+        cryptoAmount: cryptoAmount,
+        network: wallet.network,
+        txHash: txHash
+    };
+    const minUsd = wallet.minDepositUsd != null ? Number(wallet.minDepositUsd) : 50;
+    if (minUsd > 0 && amount < minUsd) {
+        alert("Minimum deposit is $" + minUsd.toFixed(2) + " for " + symbol + ".");
+        return;
+    }
     const submitHandler = typeof submitDepositRequestAsync === "function"
         ? submitDepositRequestAsync(username, amount, "crypto", depositMeta)
         : Promise.resolve(submitDepositRequest(username, amount, "crypto", depositMeta));

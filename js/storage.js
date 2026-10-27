@@ -2908,18 +2908,54 @@ function appendPendingDepositOnServer(deposit, options) {
         });
 }
 
+function verifyDepositOnServer(depositId, options) {
+    options = options || {};
+    if (!isServerSyncAvailable()) {
+        return Promise.resolve({ ok: false, offline: true });
+    }
+    const creds = getAdminApiCredentials();
+    return registryFetch("/api/admin-data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(Object.assign({}, creds, {
+            action: "verify-deposit",
+            depositId: depositId,
+            verificationSource: options.verificationSource || "verified_on_chain",
+            txHash: options.txHash,
+            note: options.note
+        }))
+    }).then(function(response) {
+        return response.json().then(function(data) {
+            if (!response.ok || !data.ok) {
+                return { ok: false, error: (data && data.error) || "Could not verify deposit." };
+            }
+            return data;
+        });
+    }).catch(function(err) {
+        return { ok: false, error: err.message || String(err) };
+    });
+}
+
 function approveDepositOnServer(depositId) {
     if (!isServerSyncAvailable()) {
         return Promise.resolve({ ok: false, offline: true });
     }
 
+    const creds = getAdminApiCredentials();
+    if (!creds.adminPassword) {
+        return Promise.resolve({
+            ok: false,
+            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+        });
+    }
+
     return registryFetch("/api/admin-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({}, creds, {
             action: "approve-deposit",
             depositId: depositId
-        })
+        }))
     })
         .then(function(response) {
             return response.json().then(function(data) {
@@ -2942,14 +2978,27 @@ function rejectDepositOnServer(depositId, reason) {
         return Promise.resolve({ ok: false, offline: true });
     }
 
+    const trimmedReason = String(reason || "").trim();
+    if (!trimmedReason) {
+        return Promise.resolve({ ok: false, error: "A rejection reason is required." });
+    }
+
+    const creds = getAdminApiCredentials();
+    if (!creds.adminPassword) {
+        return Promise.resolve({
+            ok: false,
+            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+        });
+    }
+
     return registryFetch("/api/admin-data", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+        body: JSON.stringify(Object.assign({}, creds, {
             action: "reject-deposit",
             depositId: depositId,
-            reason: reason || ""
-        })
+            reason: trimmedReason
+        }))
     })
         .then(function(response) {
             return response.json().then(function(data) {
@@ -4773,8 +4822,15 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
     const userName = account.profile ? account.profile.fullName : key;
     const nowIso = new Date().toISOString();
 
+    const walletMeta = typeof CryptoDepositConfig !== "undefined"
+        ? CryptoDepositConfig.getWalletBySymbol(getAdminData(), currency)
+        : null;
+    const txHash = depositMeta && depositMeta.txHash ? String(depositMeta.txHash).trim() : "";
+    const depositRef = "GV-DEP-" + nowIso.slice(0, 10).replace(/-/g, "") + "-" +
+        Math.random().toString(36).slice(2, 8).toUpperCase();
     const deposit = {
         id: "dep-" + Date.now() + Math.random().toString(36).slice(2, 7),
+        reference: depositRef,
         userEmail: key,
         userName: userName,
         amount: amount,
@@ -4786,6 +4842,9 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         method: method,
         walletAddress: payTo,
         payTo: payTo,
+        network: (depositMeta && depositMeta.network) || (walletMeta && walletMeta.network) || null,
+        txHash: txHash,
+        verificationStatus: "unverified",
         status: "pending",
         requestedAt: nowIso,
         createdAt: nowIso,

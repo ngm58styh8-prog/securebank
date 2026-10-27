@@ -23,8 +23,16 @@ const {
 const {
     normalizeDepositCurrencyFields,
     validateWalletAddress,
-    normalizeCryptoDepositWallets
+    normalizeCryptoDepositWallets,
+    getWalletBySymbol,
+    isDemoWalletAddress
 } = require("./crypto-deposit-config");
+const {
+    isDepositPaymentVerified,
+    assertCanApproveDeposit,
+    buildVerificationPatch
+} = require("./deposit-verification");
+const crypto = require("crypto");
 const {
     sendWithdrawalReceivedEmailSafely,
     sendWithdrawalProcessedEmailSafely,
@@ -568,6 +576,19 @@ async function saveAdminRegistry(admin) {
     return { email: admin.email };
 }
 
+function generateDepositReference(date) {
+    const d = date ? new Date(date) : new Date();
+    const stamp = d.toISOString().slice(0, 10).replace(/-/g, "");
+    return "GV-DEP-" + stamp + "-" + crypto.randomBytes(4).toString("hex").toUpperCase();
+}
+
+function networkForCurrency(currency) {
+    const wallet = getWalletBySymbol(null, currency);
+    return wallet && wallet.network
+        ? wallet.network
+        : (String(currency).toUpperCase() === "ETH" ? "Ethereum Mainnet" : "Bitcoin Mainnet");
+}
+
 function normalizePendingDeposit(deposit) {
     if (!deposit || typeof deposit !== "object") {
         throw new Error("Missing or invalid deposit payload.");
@@ -583,17 +604,44 @@ function normalizePendingDeposit(deposit) {
         throw new Error("Missing or invalid deposit amount.");
     }
 
-    return {
+    const currencyFields = normalizeDepositCurrencyFields(deposit);
+    const currency = currencyFields.currency || "BTC";
+    const requestedAt = deposit.requestedAt || new Date().toISOString();
+
+    return Object.assign({
         id: String(deposit.id || ("dep-" + Date.now())),
         userEmail: key,
         userName: String(deposit.userName || key),
         amount: amount,
         method: deposit.method || "crypto",
         status: deposit.status || "pending",
-        requestedAt: deposit.requestedAt || new Date().toISOString(),
+        requestedAt: requestedAt,
         date: deposit.date || new Date().toLocaleString(),
-        ...normalizeDepositCurrencyFields(deposit)
-    };
+        reference: deposit.reference || generateDepositReference(requestedAt),
+        network: deposit.network || networkForCurrency(currency),
+        txHash: deposit.txHash || deposit.tx_hash || "",
+        verificationStatus: deposit.verificationStatus || "unverified",
+        paymentVerifiedAt: deposit.paymentVerifiedAt || null,
+        verifiedByAdmin: deposit.verifiedByAdmin || null,
+        simulated: !!deposit.simulated
+    }, currencyFields);
+}
+
+async function verifyDepositPayment(depositId, options) {
+    options = options || {};
+    const admin = await ensureAdminRegistry();
+    const deposit = findPendingDepositInAdmin(admin, depositId);
+    if (!deposit) throw new Error("Deposit request not found.");
+    if (deposit.status && deposit.status !== "pending") {
+        throw new Error("Deposit is already " + deposit.status + ".");
+    }
+    Object.assign(deposit, buildVerificationPatch(options));
+    if (options.txHash) deposit.txHash = String(options.txHash).trim();
+    await saveAdminRegistry(admin);
+    try {
+        await logCryptoDepositRecord(deposit);
+    } catch (e) { /* ignore */ }
+    return { ok: true, deposit: deposit };
 }
 
 async function logCryptoDepositRecord(deposit) {
@@ -612,6 +660,10 @@ async function logCryptoDepositRecord(deposit) {
             crypto_amount: fields.cryptoAmount,
             status: deposit.status || "pending",
             tx_hash: deposit.txHash || deposit.tx_hash || null,
+            reference: deposit.reference || null,
+            network: deposit.network || networkForCurrency(fields.currency),
+            verification_status: deposit.verificationStatus || "unverified",
+            verified_at: deposit.paymentVerifiedAt || null,
             created_at: deposit.requestedAt || now,
             updated_at: now
         }, { onConflict: "id" });
@@ -847,7 +899,8 @@ function recordAdminDepositPayment(admin, deposit) {
     });
 }
 
-async function approvePendingDeposit(depositId) {
+async function approvePendingDeposit(depositId, options) {
+    options = options || {};
     const admin = await ensureAdminRegistry();
     const deposit = findPendingDepositInAdmin(admin, depositId);
     if (!deposit) {
@@ -859,9 +912,12 @@ async function approvePendingDeposit(depositId) {
             alreadyResolved: true,
             status: deposit.status,
             email: deposit.userEmail,
+            depositId: deposit.id,
             emailSent: !!(deposit.approvedEmailSentAt || deposit.rejectedEmailSentAt)
         };
     }
+
+    assertCanApproveDeposit(deposit);
 
     const key = normalizeRegistryEmail(deposit.userEmail);
     const accounts = await loadAllAccounts();
@@ -873,23 +929,52 @@ async function approvePendingDeposit(depositId) {
     const balanceBefore = Number(account.cash || 0);
     const depositAmount = Number(deposit.amount);
     const balanceAfter = balanceBefore + depositAmount;
+    const creditedAt = new Date().toISOString();
+    const adminActor = options.adminEmail || options.adminActor || "admin";
+
+    deposit.status = "processing";
+    deposit.processingAt = creditedAt;
+    deposit.approvedByAdmin = adminActor;
+    await saveAdminRegistry(admin);
 
     console.log("[registry] deposit approval started", {
         userEmail: key,
         depositId: deposit.id,
+        reference: deposit.reference,
         balanceBefore: balanceBefore,
         depositAmount: depositAmount,
         balanceAfter: balanceAfter,
+        verificationStatus: deposit.verificationStatus,
         table: ACCOUNTS_TABLE
     });
 
+    const ledgerEntry = {
+        id: "dled-" + Date.now() + "-" + crypto.randomBytes(3).toString("hex"),
+        depositId: deposit.id,
+        reference: deposit.reference,
+        amount: depositAmount,
+        currency: deposit.currency || "USD",
+        balanceBefore: balanceBefore,
+        balanceAfter: balanceAfter,
+        creditedAt: creditedAt,
+        txHash: deposit.txHash || null,
+        method: deposit.method || "crypto",
+        adminActor: adminActor
+    };
+
     const updatedAccount = Object.assign({}, account);
     updatedAccount.cash = balanceAfter;
+    if (!Array.isArray(updatedAccount.depositLedger)) updatedAccount.depositLedger = [];
+    updatedAccount.depositLedger.unshift(ledgerEntry);
+    if (updatedAccount.depositLedger.length > 200) {
+        updatedAccount.depositLedger = updatedAccount.depositLedger.slice(0, 200);
+    }
     updatedAccount.transactions = Array.isArray(account.transactions) ? account.transactions.slice() : [];
     updatedAccount.transactions.unshift({
         date: new Date().toLocaleString(),
-        description: "Deposit Credited (" + deposit.method + ")",
-        amount: depositAmount
+        description: "Deposit Credited (" + deposit.method + ") — Ref " + (deposit.reference || deposit.id),
+        amount: depositAmount,
+        reference: deposit.reference || deposit.id
     });
     if (Array.isArray(updatedAccount.pendingDeposits)) {
         updatedAccount.pendingDeposits = updatedAccount.pendingDeposits.filter(function(item) {
@@ -899,15 +984,17 @@ async function approvePendingDeposit(depositId) {
     updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Deposit of $" + depositAmount.toFixed(2) + " was credited to your balance",
+        message: "Deposit of $" + depositAmount.toFixed(2) + " was credited to your balance.",
         title: "Deposit credited",
-        time: new Date().toISOString(),
+        time: creditedAt,
         read: false,
         type: "deposit",
         category: "deposit",
         amount: depositAmount,
         currency: "USD",
-        status: "completed"
+        status: "completed",
+        reference: deposit.reference || deposit.id,
+        href: "dashboard.html"
     });
     if (updatedAccount.notifications.length > 30) {
         updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
@@ -921,6 +1008,9 @@ async function approvePendingDeposit(depositId) {
             source: "approvePendingDeposit"
         });
     } catch (err) {
+        deposit.status = "pending";
+        deposit.processingAt = null;
+        await saveAdminRegistry(admin);
         console.error("[registry] deposit approval balance update failed", {
             userEmail: key,
             depositId: deposit.id,
@@ -932,7 +1022,9 @@ async function approvePendingDeposit(depositId) {
     }
 
     deposit.status = "approved";
-    deposit.resolvedAt = new Date().toISOString();
+    deposit.resolvedAt = creditedAt;
+    deposit.ledgerEntryId = ledgerEntry.id;
+    deposit.creditedBalanceAfter = saved.account.cash;
     recordAdminDepositPayment(admin, deposit);
 
     admin.userActivityLog.unshift({
@@ -941,14 +1033,16 @@ async function approvePendingDeposit(depositId) {
         userEmail: deposit.userEmail,
         userName: deposit.userName || deposit.userEmail,
         type: "deposit",
-        description: "Deposit credited",
-        amount: depositAmount
+        description: "Deposit credited — Ref " + (deposit.reference || deposit.id),
+        amount: depositAmount,
+        adminActor: adminActor
     });
     if (admin.userActivityLog.length > 500) {
         admin.userActivityLog = admin.userActivityLog.slice(0, 500);
     }
 
     try {
+        await logCryptoDepositRecord(deposit);
         await saveAdminRegistry(admin);
     } catch (err) {
         console.error("[registry] deposit approval admin save failed — rolling back balance", {
@@ -998,7 +1092,8 @@ async function approvePendingDeposit(depositId) {
     };
 }
 
-async function rejectPendingDeposit(depositId, reason) {
+async function rejectPendingDeposit(depositId, reason, options) {
+    options = options || {};
     const admin = await ensureAdminRegistry();
     const deposit = findPendingDepositInAdmin(admin, depositId);
     if (!deposit) {
@@ -1015,12 +1110,15 @@ async function rejectPendingDeposit(depositId, reason) {
     }
 
     const key = normalizeRegistryEmail(deposit.userEmail);
-    const rejectionReason = String(reason || "Payment could not be confirmed").trim() ||
-        "Payment could not be confirmed";
+    const rejectionReason = String(reason || "").trim();
+    if (!rejectionReason) {
+        throw new Error("A rejection reason is required.");
+    }
 
     deposit.status = "rejected";
     deposit.resolvedAt = new Date().toISOString();
     deposit.rejectReason = rejectionReason;
+    deposit.rejectedByAdmin = options && options.adminEmail ? options.adminEmail : null;
 
     let account = null;
     try {
@@ -1552,6 +1650,8 @@ module.exports = {
     appendPendingDeposit,
     approvePendingDeposit,
     rejectPendingDeposit,
+    verifyDepositPayment,
+    generateDepositReference,
     appendPendingTransfer,
     approvePendingTransfer,
     rejectPendingTransfer

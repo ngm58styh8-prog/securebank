@@ -1,9 +1,17 @@
 const { sendTransactionalEmail } = require("./resend");
 const {
-    buildTransactionalEmailContent,
     getSupportEmail,
-    BRAND_NAME
+    getSiteUrl,
+    BRAND_NAME,
+    buildTransactionalHeaders,
+    buildTransactionalEmailContent
 } = require("./email-deliverability");
+const {
+    SUBJECT: DEPOSIT_CREDITED_SUBJECT,
+    SENDER_DISPLAY_NAME,
+    buildDepositCreditedEmail
+} = require("./deposit-credited-template");
+const { isDemoWalletAddress } = require("./crypto-deposit-config");
 const {
     formatDepositCurrencyLabel,
     normalizeDepositCurrencyFields
@@ -150,31 +158,34 @@ function buildDepositAdminNotificationContent(deposit, account, admin) {
     };
 }
 
+function getDepositFromAddress() {
+    const domain = "globalvestbank.com";
+    const configured = String(process.env.DEPOSIT_EMAIL_FROM || "").trim();
+    if (configured && configured.indexOf("@" + domain) > 0) return configured;
+    return SENDER_DISPLAY_NAME + " <accounts@" + domain + ">";
+}
+
 function buildDepositCreditedContent(deposit, account, admin) {
     const userEmail = deposit.userEmail;
-    const siteName = getSiteName(admin);
     const fullName = getUserDisplayName(account, userEmail);
-    const supportEmail = getSupportEmail();
-    const methodLabel = formatDepositMethod(deposit.method, deposit);
-    const amount = Number(deposit.amount);
-    const balance = Number(account && account.cash != null ? account.cash : 0);
-    const creditedAt = formatDateTime(deposit.resolvedAt || new Date().toISOString());
-
-    const subject = siteName + " — Deposit Credited ($" + amount.toFixed(2) + ")";
-    const body = "Hi " + fullName + ",\n\n" +
-        "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
-        " has been credited to your account.\n\n" +
-        "Amount credited: $" + amount.toFixed(2) + "\n" +
-        "Updated cash balance: $" + balance.toFixed(2) + "\n" +
-        "Date: " + creditedAt + "\n\n" +
-        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
-        "If you did not make this deposit, contact us immediately at " + supportEmail + ".\n\n" +
-        "Thank you,\n" + siteName;
-
+    const fields = getDepositCurrencyFields(deposit);
+    const wallet = fields.walletAddress || deposit.payTo || "";
+    const payload = buildDepositCreditedEmail({
+        customerName: fullName,
+        amount: deposit.amount,
+        currency: fields.currency,
+        reference: deposit.reference || deposit.id,
+        paymentMethod: formatDepositMethod(deposit.method, deposit),
+        creditedAt: deposit.resolvedAt || new Date().toISOString(),
+        balanceAfter: account && account.cash != null ? account.cash : deposit.creditedBalanceAfter,
+        viewUrl: getSiteUrl() + "/dashboard.html",
+        simulated: !!deposit.simulated || isDemoWalletAddress(wallet)
+    });
     return {
-        subject: subject,
-        body: body,
-        headline: "Deposit Credited"
+        subject: DEPOSIT_CREDITED_SUBJECT,
+        text: payload.text,
+        html: payload.html,
+        headline: "Deposit Successfully Credited"
     };
 }
 
@@ -228,23 +239,38 @@ async function sendDepositEmail(type, deposit, account, admin, buildContent, sen
     logEmailAttempt(type, to, context);
 
     try {
-        const emailContent = buildTransactionalEmailContent(
-            content.subject,
-            content.body,
-            to,
-            {
-                category: "deposit-" + type,
-                headline: content.headline
-            }
-        );
+        const idempotencyKey = context.depositId + ":deposit_" + type;
+        let subject = content.subject;
+        let text = content.text || content.body;
+        let html = content.html;
+        let headers = buildTransactionalHeaders(to, idempotencyKey);
+        let tags = [
+            { name: "category", value: "deposit_" + type },
+            { name: "deposit_id", value: String(context.depositId || "") }
+        ];
+
+        if (!html) {
+            const wrapped = buildTransactionalEmailContent(subject, text, to, {
+                category: "deposit_" + type,
+                headline: content.headline || subject,
+                referenceId: idempotencyKey
+            });
+            subject = wrapped.subject;
+            text = wrapped.text;
+            html = wrapped.html;
+            headers = wrapped.headers;
+            tags = wrapped.tags;
+        }
 
         const data = await sendTransactionalEmail({
             to: to,
-            subject: emailContent.subject,
-            text: emailContent.text,
-            html: emailContent.html,
-            headers: emailContent.headers,
-            tags: emailContent.tags
+            from: type === "credited" ? getDepositFromAddress() : undefined,
+            subject: subject,
+            text: text,
+            html: html,
+            headers: headers,
+            tags: tags,
+            idempotencyKey: idempotencyKey
         });
 
         logEmailSuccess(type, to, data, context);
