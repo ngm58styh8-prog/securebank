@@ -339,7 +339,7 @@
             row("Status", position.status || "Active") +
             row("Accumulated Earnings", money(position.totalSimulatedEarned)) +
             row("Next Calculation", formatLocal(position.nextCreditAt)) +
-            row("Reference", position.id || "—") +
+            row("Reference", position.reference || position.id || "—") +
             "</dl>" +
             '<div class="inv-manage-history"><strong>Earnings history</strong>' + histHtml + "</div>";
 
@@ -408,6 +408,23 @@
         if (content) content.classList.toggle("hidden", !show);
     }
 
+    var linkedInvestmentHandled = false;
+
+    // Deep link from confirmation emails and notifications: investments.html?investment=<id or reference>
+    function openLinkedInvestment(positions) {
+        if (linkedInvestmentHandled) return;
+        var wanted = "";
+        try {
+            wanted = new URLSearchParams(window.location.search).get("investment") || "";
+        } catch (e) { wanted = ""; }
+        if (!wanted) return;
+        linkedInvestmentHandled = true;
+        var match = (positions || []).find(function(p) {
+            return String(p.id) === wanted || String(p.reference || "") === wanted;
+        });
+        if (match) openManage(match);
+    }
+
     function refresh() {
         if (refreshInFlight) return Promise.resolve();
         refreshInFlight = true;
@@ -425,6 +442,7 @@
             }
             renderSummary(data.summary);
             renderPositions(data.positions);
+            openLinkedInvestment(data.positions);
             return loadQuotes().then(function() {
                 renderAssetScroll(data.assets || []);
             });

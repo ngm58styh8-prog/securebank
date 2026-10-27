@@ -20,7 +20,9 @@ function applyDemoDisclaimer(options) {
 function getResendClient() {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
-        throw new Error("Resend is not configured. Set RESEND_API_KEY.");
+        const configError = new Error("Resend is not configured. Set RESEND_API_KEY.");
+        configError.code = "not_configured";
+        throw configError;
     }
     if (!resendClient) {
         resendClient = new Resend(apiKey);
@@ -61,13 +63,29 @@ async function sendTransactionalEmail(options) {
         tags: options.tags || []
     };
 
-    const { data, error } = await resend.emails.send(payload);
+    const sendOptions = options.idempotencyKey
+        ? { idempotencyKey: String(options.idempotencyKey) }
+        : undefined;
+
+    let result;
+    try {
+        result = await resend.emails.send(payload, sendOptions);
+    } catch (networkErr) {
+        const wrapped = new Error(networkErr && networkErr.message ? networkErr.message : "Network error sending email.");
+        wrapped.code = "network_error";
+        throw wrapped;
+    }
+    const data = result.data;
+    const error = result.error;
 
     if (error) {
         console.error("[resend] failed", Object.assign({}, logMeta, {
             error: error.message || "Failed to send email via Resend."
         }));
-        throw new Error(error.message || "Failed to send email via Resend.");
+        const sendError = new Error(error.message || "Failed to send email via Resend.");
+        sendError.code = error.name || "provider_error";
+        sendError.statusCode = error.statusCode || null;
+        throw sendError;
     }
 
     console.log("[resend] sent", Object.assign({}, logMeta, {

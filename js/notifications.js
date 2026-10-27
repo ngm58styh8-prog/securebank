@@ -391,6 +391,12 @@
         });
     }
 
+    // Only same-site relative page links are allowed, never external URLs or javascript: links.
+    function safeNotificationHref(value) {
+        const href = String(value || "").trim();
+        return /^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(href) ? href : "";
+    }
+
     function renderNotificationItem(n, index) {
         const status = n.status || "completed";
         const statusLabel = STATUS_LABELS[status] || status;
@@ -402,10 +408,13 @@
         const investClass = isInvestmentNotification(n) ? " notif-item-invest" : "";
         const txClass = isTransactionNotification(n) ? " notif-item-tx" : "";
         const delay = Math.min(index * 35, 280);
+        const href = safeNotificationHref(n.href);
+        const hrefAttr = href ? ' data-notif-href="' + escapeHtml(href) + '"' : "";
+        const linkClass = href ? " notif-item-link" : "";
 
         return (
-            '<article class="notif-item ' + (n.read ? "read" : "unread") + adminClass + investClass + txClass +
-            '" data-notif-id="' + escapeHtml(String(n.id)) + '" style="--notif-delay:' + delay + 'ms">' +
+            '<article class="notif-item ' + (n.read ? "read" : "unread") + adminClass + investClass + txClass + linkClass +
+            '" data-notif-id="' + escapeHtml(String(n.id)) + '"' + hrefAttr + ' style="--notif-delay:' + delay + 'ms">' +
             '<div class="notif-item-main">' +
             '<div class="notif-type-icon" aria-hidden="true">' + getCategoryIcon(n) + "</div>" +
             '<div class="notif-item-body">' +
@@ -414,6 +423,7 @@
             (!n.read ? '<span class="notif-unread-dot" aria-hidden="true"></span>' : "") +
             "</div>" +
             '<p class="notif-item-message">' + escapeHtml(message) + "</p>" +
+            (href ? '<p class="notif-item-open"><a href="' + escapeHtml(href) + '">View investment &rarr;</a></p>' : "") +
             '<div class="notif-item-meta">' +
             '<span class="notif-time">' + escapeHtml(time) + "</span>" +
             '<span class="notif-status notif-status-' + escapeHtml(status) + '">' + escapeHtml(statusLabel) + "</span>" +
@@ -675,6 +685,11 @@
                     : (item ? item.dataset.notifId : null);
                 if (id) {
                     markNotificationReadForUser(getSessionEmail(), id);
+                }
+                const linkItem = !readBtn ? e.target.closest(".notif-item[data-notif-href]") : null;
+                if (linkItem) {
+                    const target = safeNotificationHref(linkItem.getAttribute("data-notif-href"));
+                    if (target) window.location.href = target;
                 }
             });
         }

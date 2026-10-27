@@ -704,3 +704,22 @@ body.dashboard-premium .gv-market-status {
         width: min(460px, calc(100vw - 48px));
     }
 }
+
+.notif-item-link {
+    cursor: pointer;
+}
+
+.notif-item-open {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+}
+
+.notif-item-open a {
+    color: #00e89b;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.notif-item-open a:hover {
+    text-decoration: underline;
+}

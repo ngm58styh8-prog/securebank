@@ -2639,18 +2639,40 @@ function syncCurrentUserToServer(email) {
     syncAccountToServer(email, account, "login");
 }
 
+function safeNextPage(value) {
+    const page = String(value || "").trim();
+    return /^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(page) && page.indexOf("login.html") !== 0
+        ? page
+        : "";
+}
+
+// Lets deep links (e.g. investment emails) survive the login redirect. Only same-site .html pages are accepted.
+function loginUrlWithNext() {
+    const current = (window.location.pathname.split("/").pop() || "") + window.location.search;
+    const next = window.location.search ? safeNextPage(current) : "";
+    return "login.html" + (next ? "?next=" + encodeURIComponent(next) : "");
+}
+
+function postLoginDestination() {
+    let next = "";
+    try {
+        next = safeNextPage(new URLSearchParams(window.location.search).get("next"));
+    } catch (e) { next = ""; }
+    return next || "dashboard.html";
+}
+
 function requireAuth() {
     repairAccountsStorage();
     let session = getSession();
     const email = session && (session.email || session.username);
     if (!email) {
-        window.location.href = "login.html";
+        window.location.href = loginUrlWithNext();
         return null;
     }
     const account = getAccount(email);
     if (!account || !isCompleteAccount(account)) {
         clearSession();
-        window.location.href = "login.html";
+        window.location.href = loginUrlWithNext();
         return null;
     }
 

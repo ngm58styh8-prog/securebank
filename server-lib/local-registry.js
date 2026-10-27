@@ -2,8 +2,9 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.join(__dirname, "..");
-const ACCOUNTS_PATH = path.join(ROOT, "data", "accounts.json");
-const ADMIN_PATH = path.join(ROOT, "data", "admin.json");
+const DATA_DIR = process.env.GLOBALVEST_DATA_DIR || path.join(ROOT, "data");
+const ACCOUNTS_PATH = path.join(DATA_DIR, "accounts.json");
+const ADMIN_PATH = path.join(DATA_DIR, "admin.json");
 
 function ensureDataDir() {
     const dir = path.dirname(ACCOUNTS_PATH);

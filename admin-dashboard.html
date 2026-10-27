@@ -569,6 +569,51 @@
 </div>
 </section>
 
+<section id="section-investment-emails" class="admin-panel-section">
+<h2 class="section-title">&#9993; Investment Email Notifications</h2>
+<p class="section-desc">Delivery status of automated investment confirmation emails. Status is updated by the email provider's delivery events.</p>
+
+<div id="adminInvEmailStats" class="admin-overview-grid"></div>
+<p id="adminInvEmailConfig" class="form-hint"></p>
+
+<div class="card admin-adjust-card">
+    <div class="toolbar-row">
+        <input type="search" id="adminInvEmailSearch" class="wallet-search" placeholder="Search customer, email, asset or reference&hellip;" style="flex:1;">
+        <select id="adminInvEmailStatus" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="queued">Queued</option>
+            <option value="sent">Sent</option>
+            <option value="delivered">Delivered</option>
+            <option value="deferred">Deferred</option>
+            <option value="failed">Failed</option>
+            <option value="bounced">Bounced</option>
+            <option value="complained">Complained</option>
+        </select>
+        <button type="button" class="deposit-btn" id="adminInvEmailRefresh">Refresh</button>
+        <button type="button" class="withdraw-btn" id="adminInvEmailProcess">Process queue now</button>
+    </div>
+    <div class="table-scroll">
+        <table id="adminInvEmailTable">
+            <thead>
+                <tr>
+                    <th>Customer Name</th>
+                    <th>Customer Email</th>
+                    <th>Investment Asset</th>
+                    <th>Investment Reference</th>
+                    <th>Email Type</th>
+                    <th>Email Status</th>
+                    <th>Sent Date</th>
+                    <th>Delivery Date</th>
+                    <th>Failure Reason</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="adminInvEmailBody"><tr><td colspan="10">Loading&hellip;</td></tr></tbody>
+        </table>
+    </div>
+</div>
+</section>
+
 <section id="section-support" class="admin-panel-section">
 <h2 class="section-title">💬 Support & Reports</h2>
 <div class="card admin-filter-card">
@@ -834,6 +879,7 @@
 <script src="js/admin-dashboard.js?v=demo1"></script>
 <script src="js/admin-gold.js"></script>
 <script src="js/admin-investments.js?v=1"></script>
+<script src="js/admin-investment-emails.js"></script>
 <script src="js/admin-premium.js"></script>
 </body>
 </html>

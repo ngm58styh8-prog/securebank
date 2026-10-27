@@ -6,6 +6,10 @@ const {
     saveAdminRegistry
 } = require("./registry");
 const { getSupabaseServiceRoleClient } = require("./supabase");
+const {
+    generateInvestmentReference,
+    enqueueInvestmentConfirmation
+} = require("./investment-confirmation-emails");
 
 const GOLD_PAYOUTS_TABLE = "gold_payouts";
 const DEFAULT_DAILY_RETURN = 1500;
@@ -346,6 +350,7 @@ async function enrollInGoldPlan(email, planId, amount) {
 
     const investmentId = generateId("ginv");
     const now = new Date().toISOString();
+    const reference = generateInvestmentReference(now);
 
     const updated = Object.assign({}, account);
     updated.cash = Number(account.cash || 0) - amount;
@@ -354,6 +359,7 @@ async function enrollInGoldPlan(email, planId, amount) {
         planId: plan.id,
         planName: plan.name,
         investmentId: investmentId,
+        reference: reference,
         investedAmount: amount,
         balance: amount,
         totalEarned: 0,
@@ -377,8 +383,8 @@ async function enrollInGoldPlan(email, planId, amount) {
     updated.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updated.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Gold Investment activated with $" + amount.toFixed(2) + " in " + plan.name + ".",
-        title: "Gold Investment started",
+        message: "Your Gold investment has been successfully created.",
+        title: "Investment Confirmed",
         time: now,
         read: false,
         type: "gold",
@@ -386,7 +392,8 @@ async function enrollInGoldPlan(email, planId, amount) {
         amount: amount,
         currency: "USD",
         status: "completed",
-        reference: investmentId
+        reference: reference,
+        href: "investments.html?investment=" + encodeURIComponent(investmentId)
     });
 
     const saved = await upsertAccount(key, updated, {
@@ -395,6 +402,27 @@ async function enrollInGoldPlan(email, planId, amount) {
         eventType: "gold-enroll",
         source: "enrollInGoldPlan"
     });
+
+    // Email is queued only after the enrollment (and balance debit) is committed; failures never affect the investment.
+    const committedGi = saved && saved.account && saved.account.goldInvestment;
+    if (committedGi && committedGi.investmentId === investmentId && committedGi.status === "active") {
+        await enqueueInvestmentConfirmation({
+            investmentId: investmentId,
+            reference: reference,
+            email: key,
+            customerName: account.profile ? account.profile.fullName : null,
+            emailVerified: account.emailVerified === false ? false : true,
+            assetId: "gold",
+            assetName: "Gold",
+            planName: plan.name,
+            amount: amount,
+            durationDays: plan.durationDays,
+            dailyReturn: Number(plan.dailyReturn) || DEFAULT_DAILY_RETURN,
+            startDate: now,
+            simulated: true,
+            paymentStatus: "completed"
+        });
+    }
 
     if (!Array.isArray(admin.goldInvestors)) admin.goldInvestors = [];
     const existingIdx = admin.goldInvestors.findIndex(function(e) {
@@ -406,6 +434,7 @@ async function enrollInGoldPlan(email, planId, amount) {
         planId: plan.id,
         planName: plan.name,
         investmentId: investmentId,
+        reference: reference,
         investedAmount: amount,
         startDate: now,
         status: "active"

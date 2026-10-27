@@ -13,6 +13,10 @@
     {
       "path": "/api/cron/investment-credits",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/investment-emails",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

@@ -11,6 +11,10 @@ const {
     processAllDailyCredits
 } = require("./gold-investments");
 const { appendAdminActivityLog } = require("./admin-auth");
+const {
+    generateInvestmentReference,
+    enqueueInvestmentConfirmation
+} = require("./investment-confirmation-emails");
 const { sendSimulationEarningsEmailSafely } = require("./simulation-investment-emails");
 const {
     toCents,
@@ -431,6 +435,7 @@ async function enrollInSimulationPlan(email, planId, amount) {
     const meta = assetMeta(plan.assetId);
     const now = new Date().toISOString();
     const positionId = generateId("simpos");
+    const reference = generateInvestmentReference(now);
 
     const updated = Object.assign({}, account);
     updated.simulationInvestments = Array.isArray(account.simulationInvestments)
@@ -463,6 +468,7 @@ async function enrollInSimulationPlan(email, planId, amount) {
         assetSymbol: meta.symbol,
         planId: plan.id,
         planName: plan.name,
+        reference: reference,
         investedAmount: amount,
         totalSimulatedEarned: 0,
         startDate: now,
@@ -478,22 +484,47 @@ async function enrollInSimulationPlan(email, planId, amount) {
     updated.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
     updated.notifications.unshift({
         id: "sim-enroll-" + positionId,
-        title: "Investment opened",
-        message: "Your " + meta.name + " investment is active with $" +
-            amount.toFixed(2) + " allocated.",
+        title: "Investment Confirmed",
+        message: "Your " + meta.name + " investment has been successfully created.",
         time: now,
         read: false,
         type: "investment",
         category: "investment",
         amount: amount,
         currency: "USD",
-        status: "active"
+        status: "active",
+        reference: reference,
+        href: "investments.html?investment=" + encodeURIComponent(positionId)
     });
 
     const saved = await upsertAccount(key, updated, {
         simulationAuthoritative: true,
         source: "simulation-enroll"
     });
+
+    // Email is queued only after the position is committed; a failure here never affects the investment.
+    const committed = saved && saved.account && (saved.account.simulationInvestments || []).some(function(inv) {
+        return inv && inv.id === positionId && inv.status === "active";
+    });
+    if (committed) {
+        const investedCents = toCents(amount);
+        await enqueueInvestmentConfirmation({
+            investmentId: positionId,
+            reference: reference,
+            email: key,
+            customerName: account.profile ? account.profile.fullName : null,
+            emailVerified: account.emailVerified === false ? false : true,
+            assetId: plan.assetId,
+            assetName: meta.name,
+            planName: plan.name,
+            amount: amount,
+            durationDays: plan.durationDays,
+            dailyReturn: fromCents(planDailyReturnCents(planSnapshot, investedCents)),
+            startDate: now,
+            simulated: true,
+            paymentStatus: "completed"
+        });
+    }
 
     return { ok: true, position: updated.simulationInvestments[0], account: saved.account };
 }
@@ -525,6 +556,7 @@ async function getCustomerInvestmentPortfolio(email) {
             assetSymbol: inv.assetSymbol || assetMeta(inv.assetId).symbol,
             category: categoryOfAsset(inv.assetId),
             planName: inv.planName,
+            reference: inv.reference || null,
             investedAmount: inv.investedAmount,
             totalSimulatedEarned: inv.totalSimulatedEarned || 0,
             dailySimulatedReturn: fromCents(planDailyReturnCents(plan, invCents)),
@@ -545,6 +577,7 @@ async function getCustomerInvestmentPortfolio(email) {
             assetSymbol: "XAU",
             category: "commodity",
             planName: gi.planName,
+            reference: gi.reference || null,
             investedAmount: gi.investedAmount,
             totalSimulatedEarned: gi.totalEarned,
             dailySimulatedReturn: gi.dailyReturn,

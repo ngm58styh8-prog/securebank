@@ -177,3 +177,44 @@ SMTP must be configured and the app must run via `./start.sh`.
 3. Restart `./start.sh`.
 
 Deposit and withdrawal emails are also saved to the user's Profile inbox in the app.
+
+## Investment confirmation emails
+
+When a customer successfully opens an investment (Gold plan or any market-asset plan), the server commits the investment first and then queues a **GlobalVest | Investment Confirmation** email through the existing Resend integration (`server-lib/resend.js`). Nothing is sent for pending or failed purchases, or to unverified customer emails.
+
+| Piece | Where |
+|-------|-------|
+| Queue, retries, idempotency, webhooks | `server-lib/investment-confirmation-emails.js` |
+| HTML + plain-text template | `server-lib/investment-confirmation-template.js` |
+| Table | `supabase/migrations/008_investment_email_notifications.sql` |
+| Retry worker (Vercel cron, every 5 min) | `api/cron/investment-emails.js` |
+| Provider webhook | `api/resend-webhook.js` |
+| Admin API | `api/investment-emails.js` |
+| Admin screen | Admin dashboard → **Investment Emails** |
+
+How it behaves:
+
+- Idempotency key is `investment_id:investment_confirmation`; a second call for the same investment never creates a second email or a second investment.
+- First attempt happens inline. Temporary errors (5xx, rate limit, network) are retried after 1, 5, 15 and 60 minutes (5 attempts total). Permanent errors fail immediately.
+- When retries are exhausted the row becomes **Failed**, the failure reason is stored, and an alert is emailed to `INVESTMENT_EMAIL_ADMIN_ALERT_TO` (if set).
+- Admins can retry **Failed** rows from the dashboard. A retry re-uses the same record and never touches the investment.
+- Resend webhooks (`email.sent`, `email.delivered`, `email.delivery_delayed`, `email.bounced`, `email.complained`, `email.failed`) move the status to Sent / Delivered / Deferred / Bounced / Failed. Signatures are verified (Svix HMAC, 5-minute tolerance) and late events never downgrade a status.
+- Duration, hourly, total and total-value figures come from the plan stored with the investment (`hourly = daily / 24`, `total = daily x durationDays`). They are labelled simulated, not guaranteed.
+
+Required configuration (Vercel → Environment Variables):
+
+| Variable | Purpose |
+|----------|---------|
+| `RESEND_API_KEY` | Already set |
+| `INVESTMENT_EMAIL_FROM` | Optional. Defaults to `GlobalVest Investments <investments@globalvestbank.com>`; must be on the verified Resend domain or it falls back to the default sender |
+| `RESEND_WEBHOOK_SECRET` | `whsec_...` from Resend → Webhooks (endpoint `https://globalvestbank.com/api/resend-webhook`) |
+| `INVESTMENT_EMAIL_ADMIN_ALERT_TO` | Comma-separated alert inboxes |
+| `CRON_SECRET` | Lets Vercel cron authenticate to `/api/cron/*` |
+
+Tests (stubbed provider, temp data directory, no real email):
+
+```bash
+npm run test:investment-emails
+```
+
+Verifying real delivery: place a test investment with an account whose email you control, then confirm the row in **Investment Emails** moves to **Delivered** (that status only comes from Resend's `email.delivered` webhook), and check the received message's headers for `spf=pass`, `dkim=pass`, `dmarc=pass`.

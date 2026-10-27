@@ -32,7 +32,7 @@ document.addEventListener("DOMContentLoaded", function() {
     if (sessionEmail && getAccount(sessionEmail)) {
         const existingAccount = getAccount(sessionEmail);
         if (typeof isDeviceSessionValid !== "function" || isDeviceSessionValid(session, existingAccount)) {
-            window.location.href = "dashboard.html";
+            window.location.href = postLoginDestination();
             return;
         }
         clearSession();
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function() {
         sessionStorage.setItem("securebank_new_signup", pendingSignupEmail === email ? "1" : "");
         pendingLoginEmail = null;
         pendingSignupEmail = null;
-        window.location.href = "dashboard.html";
+        window.location.href = postLoginDestination();
     }
 
     function beginLoginFlow(email) {

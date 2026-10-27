@@ -11,3 +11,4 @@ admin-panel/node_modules/
 admin-v2/
 .vercel
 .env*
+data/investment-emails.json
