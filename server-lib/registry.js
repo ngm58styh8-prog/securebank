@@ -465,6 +465,8 @@ async function registerUserAccount(email, account, options) {
                 action: action,
                 amount: amount,
                 note: adj.note || "",
+                reference: adj.reference || "",
+                completedAt: adj.completedAt || new Date().toISOString(),
                 admin: admin
             });
         }
@@ -900,17 +902,20 @@ async function approvePendingDeposit(depositId) {
         });
     }
     updatedAccount.notifications = Array.isArray(account.notifications) ? account.notifications.slice() : [];
+    const depositReference = deposit.reference || deposit.id || "";
     updatedAccount.notifications.unshift({
         id: Date.now() + Math.random(),
-        message: "Deposit of $" + depositAmount.toFixed(2) + " was credited to your balance",
-        title: "Deposit credited",
+        message: "$" + depositAmount.toFixed(2) + " has been credited to your account.",
+        title: "Deposit Successful",
         time: new Date().toISOString(),
         read: false,
         type: "deposit",
         category: "deposit",
         amount: depositAmount,
         currency: "USD",
-        status: "completed"
+        status: "completed",
+        reference: depositReference,
+        href: "/dashboard"
     });
     if (updatedAccount.notifications.length > 30) {
         updatedAccount.notifications = updatedAccount.notifications.slice(0, 30);
@@ -1176,7 +1181,7 @@ async function mirrorPendingTransferOnUserAccount(transfer) {
     updated.notifications.unshift({
         id: Date.now() + Math.random(),
         message: "Withdrawal request of $" + Number(transfer.amount).toFixed(2) +
-            " to " + transfer.destination + " submitted — awaiting admin approval",
+            " to " + transfer.destination + " submitted — pending review",
         title: "Withdrawal submitted",
         time: new Date().toISOString(),
         read: false,

@@ -1082,11 +1082,12 @@ function renderDashboard(options) {
             const positive = isPositivePayment(p.type);
             const typeClass = positive ? "pl-positive" : "pl-negative";
             const sign = positive ? "+" : "−";
+            const ref = p.reference ? `<br><span class="admin-email">${p.reference}</span>` : "";
             return `<tr>
                 <td>${p.date}</td>
                 <td>${p.userName}<br><span class="admin-email">${p.userEmail}</span></td>
                 <td class="${typeClass}">${formatPaymentType(p.type)}</td>
-                <td>${p.method}</td>
+                <td>${p.method}${ref}</td>
                 <td class="${typeClass}">${sign}${formatMoney(p.amount)}</td>
             </tr>`;
         }).join("");
@@ -1114,21 +1115,35 @@ function renderDashboard(options) {
 }
 
 function runAdjustment(email, action, amount, note) {
+    if (runAdjustment._pending) {
+        adminNotify("Please wait — a balance adjustment is already in progress.", "info");
+        return Promise.resolve(false);
+    }
+    runAdjustment._pending = true;
+
     const handler = typeof adminAdjustUserBalanceAsync === "function"
         ? adminAdjustUserBalanceAsync(email, action, amount, note)
         : Promise.resolve(adminAdjustUserBalance(email, action, amount, note));
 
     return handler.then(function(result) {
+        runAdjustment._pending = false;
         if (!result.ok) {
-            alert(result.error || "Could not update account balance.");
+            adminNotify(result.error || "Could not update account balance.", "error");
             return false;
         }
 
         const label = action === "credit" ? "credited" : "debited";
-        alert(
-            (result.userName || email) + " was " + label + " $" +
-            parseFloat(amount).toFixed(2) + ". New balance: " + formatMoney(result.newBalance)
-        );
+        let msg = (result.userName || email) + " was " + label + " $" +
+            parseFloat(amount).toFixed(2) + ". New balance: " + formatMoney(result.newBalance);
+        if (result.reference) {
+            msg += " Ref: " + result.reference;
+        }
+        if (action === "credit") {
+            msg += result.emailSent === false
+                ? " (Balance saved; confirmation email could not be sent — check Resend configuration.)"
+                : " Confirmation email queued.";
+        }
+        adminNotify(msg, "success");
 
         if (monitorEmail === normalizeEmail(email)) {
             openMonitorModal(email);
@@ -1136,7 +1151,8 @@ function runAdjustment(email, action, amount, note) {
         renderDashboard({ skipReconcile: true });
         return true;
     }).catch(function(err) {
-        alert(err.message || "Could not update account balance.");
+        runAdjustment._pending = false;
+        adminNotify(err.message || "Could not update account balance.", "error");
         return false;
     });
 }

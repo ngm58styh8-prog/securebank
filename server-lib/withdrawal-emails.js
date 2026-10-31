@@ -96,7 +96,7 @@ function buildWithdrawalReceivedContent(transfer, account, admin) {
     const body = "Hi " + fullName + ",\n\n" +
         "We received your withdrawal request for $" + amount.toFixed(2) + " via " + methodLabel +
         " to " + destination + ".\n\n" +
-        "Status: Pending admin approval\n" +
+        "Status: Pending review\n" +
         "Submitted: " + submittedAt + "\n\n" +
         "You will receive another email once your withdrawal is processed.\n\n" +
         "If you did not submit this request, contact us immediately at " + supportEmail + ".\n\n" +

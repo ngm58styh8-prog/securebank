@@ -1087,7 +1087,7 @@ function sendWithdrawalSubmittedEmail(account, userEmail, amount, destination, m
     const body = "Hi " + meta.fullName + ",\n\n" +
         "We received your withdrawal request for $" + amount.toFixed(2) + " via " + methodLabel +
         " to " + (destination || "your linked account") + ".\n\n" +
-        "Status: Pending admin approval\n" +
+        "Status: Pending review\n" +
         "Submitted: " + new Date().toLocaleString() + "\n\n" +
         "You will receive another email once your withdrawal is processed.\n\n" +
         "If you did not submit this request, contact us immediately at " + meta.supportEmail + ".\n\n" +
@@ -1110,32 +1110,42 @@ function sendWithdrawalApprovedEmail(account, userEmail, amount, destination, me
     return dispatchAccountEmail(account, userEmail, subject, body, "withdrawal");
 }
 
-function sendAdminBalanceAdjustmentEmail(account, userEmail, action, amount, note) {
+function sendAdminBalanceAdjustmentEmail(account, userEmail, action, amount, note, reference) {
     const meta = getTransactionEmailMeta(account, userEmail);
     const isCredit = action === "credit";
     const noteText = note ? String(note).trim() : "";
-    const subject = meta.siteName + " — Account " + (isCredit ? "credited" : "debited") +
-        " $" + amount.toFixed(2);
+    const ref = reference || generateLedgerReference(isCredit ? "GV-DEP" : "GV-ADJ");
+    const firstName = String(meta.fullName || "Customer").trim().split(/\s+/)[0] || "Customer";
+
+    if (isCredit) {
+        const subject = "GlobalVest Bank | Deposit Confirmation";
+        const body =
+            "GLOBALVEST BANK\n\nDEPOSIT CONFIRMATION\n\nDear " + firstName + ",\n\n" +
+            "We are pleased to confirm that your deposit has been successfully credited to your account.\n\n" +
+            "TRANSACTION DETAILS\n\nDeposit Amount:\n$" + amount.toFixed(2) + "\n\n" +
+            "Currency:\nUSD\n\nTransaction Reference:\n" + ref + "\n\n" +
+            "Deposit Source:\n" + (noteText || "Verified deposit") + "\n\n" +
+            "Transaction Date:\n" + new Date().toLocaleString() + "\n\n" +
+            "Transaction Status:\nCompleted\n\n" +
+            "Updated Available Balance:\n$" + Number(account.cash).toFixed(2) + "\n\n" +
+            "Your updated account balance is available in your GlobalVest Bank dashboard.\n\n" +
+            "If you do not recognize this transaction, please contact our official support team at " +
+            meta.supportEmail + ".\n\nThank you for choosing GlobalVest Bank.\n\n" +
+            meta.siteName + "\nCustomer Support";
+        return dispatchAccountEmail(account, userEmail, subject, body, "admin-credit");
+    }
+
+    const subject = meta.siteName + " — Account debited $" + amount.toFixed(2);
     const body = "Hi " + meta.fullName + ",\n\n" +
-        (isCredit
-            ? "An administrator credited your GlobalVest account.\n\n"
-            : "An administrator debited your GlobalVest account.\n\n") +
+        "A verified adjustment was applied to your account.\n\n" +
         "Amount: $" + amount.toFixed(2) + "\n" +
-        (noteText ? "Note: " + noteText + "\n" : "") +
-        "Updated cash balance: $" + Number(account.cash).toFixed(2) + "\n" +
+        (noteText ? "Reason: " + noteText + "\n" : "") +
+        "Transaction Reference: " + ref + "\n" +
+        "Updated available balance: $" + Number(account.cash).toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
-        "Log in to view your transaction history.\n\n" +
-        (isCredit
-            ? ""
-            : "If you did not expect this debit, contact " + meta.supportEmail + " immediately.\n\n") +
+        "If you did not expect this debit, contact " + meta.supportEmail + " immediately.\n\n" +
         "Thank you,\n" + meta.siteName;
-    return dispatchAccountEmail(
-        account,
-        userEmail,
-        subject,
-        body,
-        isCredit ? "admin-credit" : "admin-debit"
-    );
+    return dispatchAccountEmail(account, userEmail, subject, body, "admin-debit");
 }
 
 function sendWithdrawalRejectedEmail(account, userEmail, amount, destination, reason) {
@@ -3494,71 +3504,177 @@ function getAllUserActivity(filterEmail, limit) {
     return activities.slice(0, limit);
 }
 
+function roundMoney(value) {
+    return Math.round(Number(value) * 100) / 100;
+}
+
+function generateLedgerReference(prefix) {
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    const rand = Math.random().toString(36).slice(2, 10).toUpperCase();
+    return (prefix || "GV-TXN") + "-" + stamp + "-" + rand;
+}
+
+function findRecentDuplicateAdminPayment(admin, key, action, amount) {
+    if (!admin || !Array.isArray(admin.payments)) return null;
+    const type = action === "credit" ? "admin-credit" : "admin-debit";
+    const now = Date.now();
+    for (let i = 0; i < admin.payments.length && i < 8; i++) {
+        const p = admin.payments[i];
+        if (!p || normalizeEmail(p.userEmail) !== key || p.type !== type) continue;
+        if (roundMoney(p.amount) !== roundMoney(amount)) continue;
+        const at = p.createdAt ? new Date(p.createdAt).getTime() : NaN;
+        if (!isNaN(at) && now - at < 4000) return p;
+    }
+    return null;
+}
+
+function snapshotAdminAdjustState(key, account) {
+    const admin = getAdminData();
+    return {
+        accountCash: roundMoney(account.cash || 0),
+        accountTx: JSON.parse(JSON.stringify(account.transactions || [])),
+        accountNotifs: JSON.parse(JSON.stringify(account.notifications || [])),
+        adminBalance: roundMoney(admin.balance || 0),
+        adminPayments: JSON.parse(JSON.stringify(admin.payments || []))
+    };
+}
+
+function restoreAdminAdjustState(key, account, snap) {
+    if (!snap) return;
+    account.cash = snap.accountCash;
+    account.transactions = snap.accountTx;
+    account.notifications = snap.accountNotifs;
+    const admin = getAdminData();
+    admin.balance = snap.adminBalance;
+    admin.payments = snap.adminPayments;
+    localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
+    saveAccount(key, account, { skipServerSync: true });
+}
+
 function adminAdjustUserBalance(userEmail, action, amount, note) {
     const key = normalizeEmail(userEmail);
     const account = getRegistryAccount(key);
     if (!account) {
         return { ok: false, error: "User not found." };
     }
-    amount = parseFloat(amount);
+    amount = roundMoney(parseFloat(amount));
     if (!amount || amount <= 0) {
         return { ok: false, error: "Enter a valid amount." };
     }
-    if (action === "debit" && account.cash < amount) {
+    if (action === "debit" && roundMoney(account.cash || 0) < amount) {
         return { ok: false, error: "User has insufficient cash for this debit." };
     }
 
-    applyAdminBalanceAdjustment(key, account, action, amount, note);
-    return { ok: true, email: key, newBalance: account.cash };
+    const admin = getAdminData();
+    if (findRecentDuplicateAdminPayment(admin, key, action, amount)) {
+        return { ok: false, error: "Duplicate submission ignored. This adjustment was just processed." };
+    }
+
+    const applied = applyAdminBalanceAdjustment(key, account, action, amount, note);
+    return {
+        ok: true,
+        email: key,
+        newBalance: account.cash,
+        reference: applied.reference
+    };
 }
 
 function applyAdminBalanceAdjustment(key, account, action, amount, note) {
     const admin = getAdminData();
     const userName = account.profile ? account.profile.fullName : key;
     const noteText = note ? String(note).trim() : "";
-    const label = action === "credit" ? "Admin Credit" : "Admin Debit";
+    const label = action === "credit" ? "Deposit Credit" : "Account Debit";
     const description = noteText ? label + " — " + noteText : label;
+    const reference = generateLedgerReference(action === "credit" ? "GV-DEP" : "GV-ADJ");
+    const completedAt = new Date().toISOString();
+    amount = roundMoney(amount);
 
     if (action === "credit") {
-        account.cash = (account.cash || 0) + amount;
-        admin.balance = (admin.balance || 0) - amount;
+        account.cash = roundMoney((account.cash || 0) + amount);
+        admin.balance = roundMoney((admin.balance || 0) - amount);
     } else {
-        account.cash = (account.cash || 0) - amount;
-        admin.balance = (admin.balance || 0) + amount;
+        account.cash = roundMoney((account.cash || 0) - amount);
+        admin.balance = roundMoney((admin.balance || 0) + amount);
     }
 
     if (!Array.isArray(account.transactions)) account.transactions = [];
     account.transactions.unshift({
         date: new Date().toLocaleString(),
         description: description,
-        amount: action === "credit" ? amount : -amount
+        amount: action === "credit" ? amount : -amount,
+        reference: reference,
+        type: action === "credit" ? "admin-credit" : "admin-debit",
+        status: "completed"
     });
 
     ensureNotifications(account);
-    pushAccountNotification(account, action === "credit"
-        ? "Your account was credited $" + amount.toFixed(2)
-        : "Your account was debited $" + amount.toFixed(2),
-        { type: "admin", fromAdmin: true, title: "From Admin" }
-    );
+    if (action === "credit") {
+        pushAccountNotification(account,
+            "$" + amount.toFixed(2) + " has been credited to your account.",
+            {
+                type: "deposit",
+                title: "Deposit Successful",
+                amount: amount,
+                currency: "USD",
+                status: "completed",
+                reference: reference,
+                href: "/dashboard"
+            }
+        );
+    } else {
+        pushAccountNotification(account,
+            "$" + amount.toFixed(2) + " was debited from your account.",
+            {
+                type: "admin",
+                fromAdmin: true,
+                title: "Account adjustment",
+                amount: amount,
+                currency: "USD",
+                status: "completed",
+                reference: reference
+            }
+        );
+    }
 
-    account.serverSyncedAt = new Date().toISOString();
+    account.serverSyncedAt = completedAt;
 
     if (!Array.isArray(admin.payments)) admin.payments = [];
+    const creds = typeof getAdminApiCredentials === "function" ? getAdminApiCredentials() : {};
     admin.payments.unshift({
-        id: Date.now() + Math.random(),
+        id: "pay-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
         userEmail: key,
         userName: userName,
         type: action === "credit" ? "admin-credit" : "admin-debit",
         amount: amount,
-        method: noteText || "Admin adjustment",
+        currency: "USD",
+        method: noteText || (action === "credit" ? "Verified deposit" : "Authorized debit"),
+        reference: reference,
+        status: "completed",
+        createdBy: creds.adminEmail || admin.email || "admin",
+        createdAt: completedAt,
         date: new Date().toLocaleString()
     });
     if (admin.payments.length > 200) {
         admin.payments = admin.payments.slice(0, 200);
     }
 
+    if (!Array.isArray(admin.userActivityLog)) admin.userActivityLog = [];
+    admin.userActivityLog.unshift({
+        id: Date.now() + Math.random(),
+        date: new Date().toLocaleString(),
+        userEmail: key,
+        userName: userName,
+        type: action === "credit" ? "admin-credit" : "admin-debit",
+        description: (action === "credit" ? "Account credited" : "Account debited") + " — " + reference,
+        amount: action === "credit" ? amount : -amount
+    });
+    if (admin.userActivityLog.length > 500) {
+        admin.userActivityLog = admin.userActivityLog.slice(0, 500);
+    }
+
     localStorage.setItem(ADMIN_DATA_KEY, JSON.stringify(admin));
     saveAccount(key, account, { skipServerSync: true });
+    return { reference: reference, completedAt: completedAt };
 }
 
 function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
@@ -3567,23 +3683,35 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
     if (!account) {
         return Promise.resolve({ ok: false, error: "User not found." });
     }
-    amount = parseFloat(amount);
+    amount = roundMoney(parseFloat(amount));
     if (!amount || amount <= 0) {
         return Promise.resolve({ ok: false, error: "Enter a valid amount." });
     }
-    if (action === "debit" && (account.cash || 0) < amount) {
+    if (action === "debit" && roundMoney(account.cash || 0) < amount) {
         return Promise.resolve({ ok: false, error: "User has insufficient cash for this debit." });
     }
 
-    const userName = account.profile ? account.profile.fullName : key;
-    applyAdminBalanceAdjustment(key, account, action, amount, note);
+    const adminCheck = getAdminData();
+    if (findRecentDuplicateAdminPayment(adminCheck, key, action, amount)) {
+        return Promise.resolve({
+            ok: false,
+            error: "Duplicate submission ignored. This adjustment was just processed."
+        });
+    }
 
+    const userName = account.profile ? account.profile.fullName : key;
+    const noteText = note ? String(note).trim() : "";
+    const snap = snapshotAdminAdjustState(key, account);
+    const applied = applyAdminBalanceAdjustment(key, account, action, amount, note);
     const admin = getAdminData();
+
     const adjustmentMeta = {
         adjustment: {
             action: action,
             amount: amount,
-            note: noteText
+            note: noteText,
+            reference: applied.reference,
+            completedAt: applied.completedAt
         }
     };
 
@@ -3603,16 +3731,20 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
                 throw new Error((adminResult && adminResult.error) || "Failed to save admin registry.");
             }
 
-            const cache = Object.assign({}, getServerAccountsCache());
-            cache[key] = account;
-            setServerAccountsCache(cache);
-
-            const accounts = getAllAccounts();
-            accounts[key] = account;
-            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-            notifyAccountsChanged();
+            if (accountResult.account) {
+                applyServerAccountLocally(key, accountResult.account);
+            } else {
+                const cache = Object.assign({}, getServerAccountsCache());
+                cache[key] = account;
+                setServerAccountsCache(cache);
+                const accounts = getAllAccounts();
+                accounts[key] = account;
+                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+                notifyAccountsChanged();
+            }
             syncAdminRegisteredUsers(getAdminData());
 
+            const emailSent = accountResult.adjustEmailSent === true;
             const resultPayload = {
                 ok: true,
                 email: key,
@@ -3620,20 +3752,28 @@ function adminAdjustUserBalanceAsync(userEmail, action, amount, note) {
                 action: action,
                 amount: amount,
                 newBalance: account.cash,
-                emailSent: accountResult.adjustEmailSent === true
+                reference: applied.reference,
+                emailSent: emailSent
             };
 
             if (accountResult.offline) {
-                return sendAdminBalanceAdjustmentEmail(account, key, action, amount, noteText)
-                    .then(function(emailResult) {
-                        resultPayload.emailSent = !!(emailResult && emailResult.ok);
-                        return resultPayload;
-                    });
+                return sendAdminBalanceAdjustmentEmail(
+                    account,
+                    key,
+                    action,
+                    amount,
+                    noteText,
+                    applied.reference
+                ).then(function(emailResult) {
+                    resultPayload.emailSent = !!(emailResult && emailResult.ok);
+                    return resultPayload;
+                });
             }
 
             return resultPayload;
         })
         .catch(function(err) {
+            restoreAdminAdjustState(key, account, snap);
             return { ok: false, error: err.message || String(err) };
         });
 }
@@ -3981,7 +4121,7 @@ function submitTransferRequest(userEmail, amount, destination, method) {
         amount: 0
     });
     pushAccountNotification(account,
-        "Withdrawal request of $" + amount.toFixed(2) + " to " + dest + " submitted — awaiting admin approval",
+        "Withdrawal request of $" + amount.toFixed(2) + " to " + dest + " submitted — pending review",
         {
             type: "withdrawal",
             title: "Withdrawal submitted",
@@ -4993,10 +5133,12 @@ function resolveDepositOnAccount(userEmail, depositId, message, options) {
     pushAccountNotification(account, message, {
         type: "deposit",
         title: options.title ||
-            (options.status === "failed" ? "Deposit declined" : "Deposit credited"),
+            (options.status === "failed" ? "Deposit declined" : "Deposit Successful"),
         amount: options.amount != null ? options.amount : null,
         currency: options.currency || "USD",
-        status: options.status || "completed"
+        status: options.status || "completed",
+        reference: options.reference || null,
+        href: options.href || null
     });
 
     saveAccount(userEmail, account, { skipServerSync: options.skipServerSync === true });
@@ -5035,13 +5177,16 @@ function approveDeposit(depositId) {
     resolveDepositOnAccount(
         key,
         depositId,
-        "Deposit of $" + deposit.amount.toFixed(2) + " was credited to your balance",
+        "$" + deposit.amount.toFixed(2) + " has been credited to your account.",
         {
             account: account,
             skipServerSync: true,
             amount: deposit.amount,
             currency: "USD",
-            status: "completed"
+            status: "completed",
+            title: "Deposit Successful",
+            reference: deposit.reference || deposit.id,
+            href: "/dashboard"
         }
     );
 

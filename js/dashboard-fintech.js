@@ -243,7 +243,7 @@
             rows.push({
                 type: "withdrawal", title: "Withdrawal Request", party: t.destination || "",
                 amount: -Math.abs(Number(t.amount) || 0), status: "pending", date: t.date || "",
-                note: "Awaiting admin approval. Funds are not debited until approved.", live: true
+                note: "Your withdrawal is being reviewed. Funds are not debited until confirmed.", live: true
             });
         });
         (ctx.pendingDeposits || []).forEach(function(d) {
@@ -254,7 +254,7 @@
             rows.push({
                 type: "deposit", title: cur + " Deposit", party: d.payTo || "",
                 amount: Math.abs(Number(d.amount) || 0), status: "pending", date: d.date || "",
-                note: cryptoText + "Awaiting blockchain confirmation and admin approval. Not credited yet.", live: true
+                note: cryptoText + "Awaiting blockchain confirmation and verification. Not credited yet.", live: true
             });
         });
 

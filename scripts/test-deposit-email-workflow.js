@@ -58,12 +58,13 @@ function testCreditedContent() {
 
     assert.strictEqual(
         content.subject,
-        "GlobalVest — Deposit Credited ($250.50)",
+        "GlobalVest Bank | Deposit Confirmation",
         "credited subject"
     );
-    assert.ok(content.body.indexOf("Amount credited: $250.50") !== -1, "credited amount");
-    assert.ok(content.body.indexOf("Updated cash balance: $1250.75") !== -1, "credited balance");
-    assert.ok(content.body.indexOf("Date:") !== -1, "credited date");
+    assert.ok(content.body.indexOf("$250.50") !== -1, "credited amount");
+    assert.ok(content.body.indexOf("$1250.75") !== -1, "credited balance");
+    assert.ok(content.body.indexOf("Transaction Status") !== -1, "status block");
+    assert.ok(content.body.indexOf("Completed") !== -1, "completed status");
 }
 
 function testDeclinedContent() {

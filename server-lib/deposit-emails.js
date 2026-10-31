@@ -61,6 +61,55 @@ function getUserDisplayName(account, userEmail) {
     return userEmail;
 }
 
+function getCustomerFirstName(account, userEmail) {
+    const full = getUserDisplayName(account, userEmail);
+    const part = String(full || "").trim().split(/\s+/)[0];
+    return part || "Customer";
+}
+
+function buildDepositConfirmationContent(options) {
+    options = options || {};
+    const userEmail = String(options.userEmail || "").trim().toLowerCase();
+    const account = options.account || {};
+    const admin = options.admin || {};
+    const siteName = getSiteName(admin);
+    const supportEmail = getSupportEmail();
+    const firstName = getCustomerFirstName(account, userEmail);
+    const amount = Number(options.amount);
+    const balance = Number(options.balance != null ? options.balance : account.cash);
+    const currency = String(options.currency || "USD").trim().toUpperCase();
+    const reference = String(options.reference || options.transactionReference || "").trim();
+    const completedAt = formatDateTime(options.completedAt || new Date().toISOString());
+    const depositSource = String(options.depositSource || options.method || "Verified deposit").trim();
+
+    const subject = "GlobalVest Bank | Deposit Confirmation";
+    const body =
+        "GLOBALVEST BANK\n\n" +
+        "DEPOSIT CONFIRMATION\n\n" +
+        "Dear " + firstName + ",\n\n" +
+        "We are pleased to confirm that your deposit has been successfully credited to your account.\n\n" +
+        "TRANSACTION DETAILS\n\n" +
+        "Deposit Amount:\n$" + amount.toFixed(2) + "\n\n" +
+        "Currency:\n" + currency + "\n\n" +
+        "Transaction Reference:\n" + (reference || "—") + "\n\n" +
+        "Deposit Source:\n" + depositSource + "\n\n" +
+        "Transaction Date:\n" + completedAt + "\n\n" +
+        "Transaction Status:\nCompleted\n\n" +
+        "Updated Available Balance:\n$" + balance.toFixed(2) + "\n\n" +
+        "Your updated account balance is available in your GlobalVest Bank dashboard.\n\n" +
+        "If you do not recognize this transaction, please contact our official support team at " +
+        supportEmail + ".\n\n" +
+        "Thank you for choosing GlobalVest Bank.\n\n" +
+        siteName + "\nCustomer Support";
+
+    return {
+        subject: subject,
+        body: body,
+        headline: "Deposit Confirmation",
+        category: "deposit-confirmation"
+    };
+}
+
 function getSiteName(admin) {
     if (admin && admin.websiteSettings && admin.websiteSettings.siteName) {
         return admin.websiteSettings.siteName;
@@ -151,31 +200,19 @@ function buildDepositAdminNotificationContent(deposit, account, admin) {
 }
 
 function buildDepositCreditedContent(deposit, account, admin) {
-    const userEmail = deposit.userEmail;
-    const siteName = getSiteName(admin);
-    const fullName = getUserDisplayName(account, userEmail);
-    const supportEmail = getSupportEmail();
     const methodLabel = formatDepositMethod(deposit.method, deposit);
-    const amount = Number(deposit.amount);
-    const balance = Number(account && account.cash != null ? account.cash : 0);
-    const creditedAt = formatDateTime(deposit.resolvedAt || new Date().toISOString());
-
-    const subject = siteName + " — Deposit Credited ($" + amount.toFixed(2) + ")";
-    const body = "Hi " + fullName + ",\n\n" +
-        "Your deposit of $" + amount.toFixed(2) + " via " + methodLabel +
-        " has been credited to your account.\n\n" +
-        "Amount credited: $" + amount.toFixed(2) + "\n" +
-        "Updated cash balance: $" + balance.toFixed(2) + "\n" +
-        "Date: " + creditedAt + "\n\n" +
-        "Log in to GlobalVest to view your updated balance and transaction history.\n\n" +
-        "If you did not make this deposit, contact us immediately at " + supportEmail + ".\n\n" +
-        "Thank you,\n" + siteName;
-
-    return {
-        subject: subject,
-        body: body,
-        headline: "Deposit Credited"
-    };
+    const reference = deposit.reference || deposit.id || "";
+    return buildDepositConfirmationContent({
+        userEmail: deposit.userEmail,
+        account: account,
+        admin: admin,
+        amount: Number(deposit.amount),
+        balance: Number(account && account.cash != null ? account.cash : 0),
+        currency: "USD",
+        reference: reference,
+        depositSource: methodLabel,
+        completedAt: deposit.resolvedAt || new Date().toISOString()
+    });
 }
 
 function buildDepositDeclinedContent(deposit, account, admin, reason) {
@@ -369,6 +406,7 @@ module.exports = {
     formatDateTime,
     buildDepositReceivedContent,
     buildDepositAdminNotificationContent,
+    buildDepositConfirmationContent,
     buildDepositCreditedContent,
     buildDepositDeclinedContent,
     sendDepositReceivedEmailSafely,

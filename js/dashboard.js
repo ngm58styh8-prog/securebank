@@ -1164,9 +1164,9 @@ function confirmModal(e) {
         reloadAccountFromRegistry();
         closeModal();
         if (typeof showToast === "function") {
-            showToast("Withdrawal submitted for admin approval.");
+            showToast("Withdrawal submitted — your request is being reviewed.");
         } else {
-            alert("Withdrawal submitted for admin approval.");
+            alert("Withdrawal submitted — your request is being reviewed.");
         }
     });
 }

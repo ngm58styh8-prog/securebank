@@ -4,6 +4,7 @@ const {
     getSupportEmail,
     BRAND_NAME
 } = require("./email-deliverability");
+const { buildDepositConfirmationContent } = require("./deposit-emails");
 
 const LOG_PREFIX = "[admin-adjust-email]";
 
@@ -34,30 +35,46 @@ function buildAdminAdjustContent(options) {
     const fullName = getDisplayName(account, userEmail);
     const balance = Number(account.cash);
     const isCredit = action === "credit";
+    const reference = String(options.reference || options.transactionReference || "").trim();
 
-    const subject = siteName + " — Account " + (isCredit ? "credited" : "debited") +
-        " $" + amount.toFixed(2);
+    if (isCredit) {
+        const depositContent = buildDepositConfirmationContent({
+            userEmail: userEmail,
+            account: account,
+            admin: admin,
+            amount: amount,
+            balance: balance,
+            currency: "USD",
+            reference: reference,
+            depositSource: note || "Verified account credit",
+            completedAt: options.completedAt || new Date().toISOString()
+        });
+        return {
+            subject: depositContent.subject,
+            body: depositContent.body,
+            category: "admin-credit",
+            headline: depositContent.headline
+        };
+    }
 
+    const subject = siteName + " — Account debited $" + amount.toFixed(2);
     const body =
         "Hi " + fullName + ",\n\n" +
-        (isCredit
-            ? "An administrator credited your GlobalVest account.\n\n"
-            : "An administrator debited your GlobalVest account.\n\n") +
+        "A verified adjustment was applied to your GlobalVest account.\n\n" +
         "Amount: $" + amount.toFixed(2) + "\n" +
-        (note ? "Note: " + note + "\n" : "") +
-        "Updated cash balance: $" + balance.toFixed(2) + "\n" +
+        (note ? "Reason: " + note + "\n" : "") +
+        (reference ? "Transaction Reference: " + reference + "\n" : "") +
+        "Updated available balance: $" + balance.toFixed(2) + "\n" +
         "Date: " + new Date().toLocaleString() + "\n\n" +
         "Log in to view your transaction history.\n\n" +
-        (isCredit
-            ? ""
-            : "If you did not expect this debit, contact " + supportEmail + " immediately.\n\n") +
+        "If you did not expect this debit, contact " + supportEmail + " immediately.\n\n" +
         "Thank you,\n" + siteName;
 
     return {
         subject: subject,
         body: body,
-        category: isCredit ? "admin-credit" : "admin-debit",
-        headline: isCredit ? "Account credited" : "Account debited"
+        category: "admin-debit",
+        headline: "Account debited"
     };
 }
 
@@ -74,6 +91,9 @@ async function sendAdminAdjustEmailSafely(options) {
     }
 
     const content = buildAdminAdjustContent(options);
+    const referenceTag = options.reference
+        ? String(options.reference).replace(/[^a-z0-9_-]/gi, "")
+        : ("gv-admin-adjust-" + userEmail.replace(/[^a-z0-9@._-]/gi, ""));
     const wrapped = buildTransactionalEmailContent(
         content.subject,
         content.body,
@@ -81,7 +101,7 @@ async function sendAdminAdjustEmailSafely(options) {
         {
             category: content.category,
             headline: content.headline,
-            referenceId: "gv-admin-adjust-" + userEmail.replace(/[^a-z0-9@._-]/gi, "")
+            referenceId: referenceTag
         }
     );
 

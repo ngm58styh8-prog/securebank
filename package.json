@@ -21,7 +21,8 @@
     "test:password-reset": "node scripts/test-password-reset.js",
     "check:registry": "node scripts/check-registry.js",
     "supabase:push": "node scripts/supabase-db-push.mjs",
-    "test:investment-emails": "node scripts/test-investment-confirmation-emails.js"
+    "test:investment-emails": "node scripts/test-investment-confirmation-emails.js",
+    "test:admin-adjust": "node scripts/test-admin-adjust-email.js && node scripts/test-admin-adjust-balance.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",

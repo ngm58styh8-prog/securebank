@@ -10,10 +10,11 @@ const content = buildAdminAdjustContent({
     admin: { websiteSettings: { siteName: "GlobalVest Bank" } }
 });
 
-assert.ok(content.subject.indexOf("credited") !== -1, "credit subject");
+assert.strictEqual(content.subject, "GlobalVest Bank | Deposit Confirmation");
 assert.ok(content.body.indexOf("$25.00") !== -1, "amount in body");
 assert.ok(content.body.indexOf("Welcome bonus") !== -1, "note in body");
 assert.ok(content.body.indexOf("$500.00") !== -1, "balance in body");
+assert.ok(content.body.indexOf("Dear Jane,") !== -1, "first name greeting");
 assert.strictEqual(content.category, "admin-credit");
 
 console.log("admin adjust email tests: passed");
