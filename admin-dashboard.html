@@ -644,27 +644,36 @@
 </section>
 
 <section id="section-settings-payments" class="admin-panel-section">
-<h2 class="section-title">Admin Wallet & Payment Settings</h2>
+<h2 class="section-title">Cryptocurrency Deposit Management</h2>
+<p class="section-desc">Configure deposit wallets, verify ownership, and enable live customer deposits. Never store private keys or seed phrases.</p>
 <div class="card admin-adjust-card">
     <form id="walletSettingsForm" class="admin-adjust-form">
         <div class="admin-form-row">
-            <label class="form-label" for="adminWalletInput">Bitcoin (BTC) Deposit Address</label>
-            <input id="adminWalletInput" type="text" placeholder="DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS" required>
-            <p class="admin-sub">Shown when users deposit Bitcoin — Legacy, SegWit, and Bech32 supported.</p>
+            <label class="form-label" for="adminWalletInput">Bitcoin (BTC) — Bitcoin Mainnet</label>
+            <input id="adminWalletInput" type="text" placeholder="1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2" required autocomplete="off">
+            <label class="radio-option"><input type="checkbox" id="adminBtcVerified"> Wallet ownership verified</label>
+            <label class="radio-option"><input type="checkbox" id="adminBtcEnabled"> Enable BTC deposits for customers</label>
+            <p class="admin-sub">Legacy, SegWit, and Bech32 supported. Enable only after verification.</p>
         </div>
         <div class="admin-form-row">
-            <label class="form-label" for="adminEthWalletInput">Ethereum (ETH) Deposit Address</label>
-            <input id="adminEthWalletInput" type="text" placeholder="DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" required>
-            <p class="admin-sub">Shown when users deposit Ethereum — must start with 0x followed by 40 hex characters.</p>
+            <label class="form-label" for="adminEthWalletInput">Ethereum (ETH) — Ethereum Mainnet</label>
+            <input id="adminEthWalletInput" type="text" placeholder="0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F" required autocomplete="off">
+            <label class="radio-option"><input type="checkbox" id="adminEthVerified"> Wallet ownership verified</label>
+            <label class="radio-option"><input type="checkbox" id="adminEthEnabled"> Enable ETH deposits for customers</label>
+            <p class="admin-sub">Must be a valid 0x address (40 hex characters).</p>
         </div>
         <div class="admin-form-row">
             <label class="form-label" for="adminBankInput">Bank Account Details</label>
             <input id="adminBankInput" type="text" placeholder="Bank name, routing, account number">
             <p class="admin-sub">Shown to users paying by bank transfer.</p>
         </div>
-        <button type="submit" class="admin-credit-btn wallet-save-btn">Save Settings</button>
+        <button type="submit" class="admin-credit-btn wallet-save-btn">Save Cryptocurrency Settings</button>
     </form>
 </div>
+<h3 class="section-heading">Address change audit log</h3>
+<div class="table-scroll"><table><thead><tr>
+    <th>Date</th><th>Action</th><th>Asset</th><th>Details</th><th>Admin</th>
+</tr></thead><tbody id="cryptoDepositAuditBody"></tbody></table></div>
 </section>
 
 <section id="section-approvals" class="admin-panel-section">

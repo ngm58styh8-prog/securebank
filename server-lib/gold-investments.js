@@ -393,7 +393,8 @@ async function enrollInGoldPlan(email, planId, amount) {
         currency: "USD",
         status: "completed",
         reference: reference,
-        href: "investments.html?investment=" + encodeURIComponent(investmentId)
+        href: "gold-investment.html",
+        investmentId: investmentId
     });
 
     const saved = await upsertAccount(key, updated, {
@@ -443,11 +444,30 @@ async function enrollInGoldPlan(email, planId, amount) {
     else admin.goldInvestors.unshift(investorEntry);
     await saveAdminRegistry(admin);
 
+    const durationDays = Number(plan.durationDays) || 365;
+    const dailyUsd = Number(plan.dailyReturn) || DEFAULT_DAILY_RETURN;
+    const emailResult = await sendInvestmentPurchaseConfirmation({
+        to: key,
+        customerName: (account.profile && account.profile.fullName) || key,
+        investmentId: investmentId,
+        investmentReference: investmentId,
+        assetName: "Gold Investment",
+        planName: plan.name,
+        amount: amount,
+        durationDays: durationDays,
+        dailyReturnUsd: dailyUsd,
+        startDate: now,
+        isSimulated: false,
+        viewPath: "/gold-investment.html",
+        notificationType: NOTIFICATION_TYPE_PURCHASE
+    });
+
     return {
         ok: true,
         account: saved.account,
         goldInvestment: saved.account.goldInvestment,
-        plan: plan
+        plan: plan,
+        purchaseEmail: emailResult
     };
 }
 

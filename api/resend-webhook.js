@@ -48,7 +48,6 @@ module.exports = Object.assign(async function handler(req, res) {
         res.status(200).json(result);
     } catch (err) {
         console.error("[resend-webhook] failed", err && err.message ? err.message : err);
-        // Non-2xx makes Resend retry the delivery event.
         res.status(500).json({ ok: false, error: "Webhook processing failed." });
     }
 }, { config: { api: { bodyParser: false } } });

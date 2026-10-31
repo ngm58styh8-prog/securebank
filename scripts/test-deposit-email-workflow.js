@@ -14,7 +14,7 @@ const sampleDeposit = {
     userName: "Test Customer",
     amount: 250.5,
     method: "crypto",
-    payTo: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    payTo: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
     status: "pending",
     requestedAt: "2026-07-08T03:00:00.000Z",
     date: "Jul 7, 2026, 8:00:00 PM"

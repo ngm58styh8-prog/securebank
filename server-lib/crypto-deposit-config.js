@@ -1,37 +1,42 @@
 /**
  * Cryptocurrency deposit wallet configuration (server).
- * Add future assets by extending DEFAULT_CRYPTO_DEPOSIT_WALLETS only.
+ * Keep js/crypto-deposit-config.js in sync.
  */
-// Demo project: deposit addresses are fixed placeholders and cannot be
-// overridden, so the site never shows a wallet that can receive real funds.
-const DEMO_MODE = true;
-const DEMO_WALLET_ADDRESSES = {
-    BTC: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
-    ETH: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
+const CRYPTO_DEPOSIT_CONFIG = {
+    BTC: {
+        name: "Bitcoin",
+        symbol: "BTC",
+        network: "Bitcoin Mainnet",
+        address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
+        enabled: false,
+        verified: false
+    },
+    ETH: {
+        name: "Ethereum",
+        symbol: "ETH",
+        network: "Ethereum Mainnet",
+        address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
+        enabled: false,
+        verified: false
+    }
 };
 
-const DEFAULT_CRYPTO_DEPOSIT_WALLETS = [
-    {
-        symbol: "BTC",
-        name: "Bitcoin",
-        address: DEMO_WALLET_ADDRESSES.BTC
-    },
-    {
-        symbol: "ETH",
-        name: "Ethereum",
-        address: DEMO_WALLET_ADDRESSES.ETH
-    }
-];
-
 const LEGACY_DEMO_BTC = "bc1qsecurebank0ff1c1aladm1nwalle7demo2024";
+const DEMO_PLACEHOLDER_RE = /DEMO-|DO-NOT-SEND-FUNDS/i;
 
 function normalizeSymbol(symbol) {
     return String(symbol || "BTC").trim().toUpperCase();
 }
 
+function isDemoPlaceholderAddress(address) {
+    const value = String(address || "").trim();
+    if (!value) return true;
+    return DEMO_PLACEHOLDER_RE.test(value);
+}
+
 function validateBtcAddress(address) {
     const value = String(address || "").trim();
-    if (!value) return false;
+    if (!value || isDemoPlaceholderAddress(value)) return false;
     if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(value)) return true;
     if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(value)) return true;
     if (/^bc1[a-z0-9]{25,90}$/i.test(value)) return true;
@@ -39,31 +44,59 @@ function validateBtcAddress(address) {
 }
 
 function validateEthAddress(address) {
-    return /^0x[a-fA-F0-9]{40}$/.test(String(address || "").trim());
+    const value = String(address || "").trim();
+    if (!value || isDemoPlaceholderAddress(value)) return false;
+    return /^0x[a-fA-F0-9]{40}$/.test(value);
 }
 
 function validateWalletAddress(symbol, address) {
     const sym = normalizeSymbol(symbol);
-    if (DEMO_MODE && DEMO_WALLET_ADDRESSES[sym] === String(address || "").trim()) return true;
     if (sym === "BTC") return validateBtcAddress(address);
     if (sym === "ETH") return validateEthAddress(address);
-    return String(address || "").trim().length >= 8;
+    return String(address || "").trim().length >= 8 && !isDemoPlaceholderAddress(address);
+}
+
+function configEntryToWallet(entry, symbol) {
+    const sym = normalizeSymbol(symbol);
+    const base = entry || CRYPTO_DEPOSIT_CONFIG[sym];
+    if (!base) return null;
+    return {
+        symbol: sym,
+        name: base.name || sym,
+        network: base.network || sym,
+        address: String(base.address || "").trim(),
+        enabled: !!base.enabled,
+        verified: !!base.verified
+    };
+}
+
+function getDefaultCryptoDepositWallets() {
+    return Object.keys(CRYPTO_DEPOSIT_CONFIG).map(function(sym) {
+        return configEntryToWallet(CRYPTO_DEPOSIT_CONFIG[sym], sym);
+    });
 }
 
 function mergeWalletEntry(defaultEntry, overrideEntry) {
     const merged = Object.assign({}, defaultEntry, overrideEntry || {});
     merged.symbol = normalizeSymbol(merged.symbol || defaultEntry.symbol);
     merged.name = String(merged.name || defaultEntry.name || merged.symbol).trim();
+    merged.network = String(merged.network || defaultEntry.network || merged.symbol).trim();
     merged.address = String(merged.address || defaultEntry.address || "").trim();
+    if (isDemoPlaceholderAddress(merged.address)) {
+        merged.address = String(defaultEntry.address || "").trim();
+    }
+    merged.enabled = !!merged.enabled;
+    merged.verified = !!merged.verified;
     return merged;
 }
 
 function normalizeCryptoDepositWallets(adminOrWallets) {
-    if (DEMO_MODE) {
-        return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
-            return Object.assign({}, entry);
-        });
-    }
+    const defaults = getDefaultCryptoDepositWallets();
+    const bySymbol = {};
+    defaults.forEach(function(entry) {
+        bySymbol[entry.symbol] = mergeWalletEntry(entry, null);
+    });
+
     let overrides = [];
     let legacyBtc = null;
 
@@ -76,29 +109,25 @@ function normalizeCryptoDepositWallets(adminOrWallets) {
         legacyBtc = adminOrWallets.walletAddress;
     }
 
-    const bySymbol = {};
-    DEFAULT_CRYPTO_DEPOSIT_WALLETS.forEach(function(entry) {
-        bySymbol[entry.symbol] = mergeWalletEntry(entry, null);
-    });
-
     overrides.forEach(function(entry) {
         if (!entry || !entry.symbol) return;
         const sym = normalizeSymbol(entry.symbol);
-        const base = bySymbol[sym] || { symbol: sym, name: sym, address: "" };
+        const base = bySymbol[sym] || configEntryToWallet(CRYPTO_DEPOSIT_CONFIG[sym], sym);
+        if (!base) return;
         bySymbol[sym] = mergeWalletEntry(base, entry);
     });
 
     if (legacyBtc && String(legacyBtc).trim()) {
         const btc = String(legacyBtc).trim();
-        if (btc !== LEGACY_DEMO_BTC) {
-            bySymbol.BTC = mergeWalletEntry(bySymbol.BTC || DEFAULT_CRYPTO_DEPOSIT_WALLETS[0], {
+        if (btc !== LEGACY_DEMO_BTC && !isDemoPlaceholderAddress(btc)) {
+            bySymbol.BTC = mergeWalletEntry(bySymbol.BTC || defaults[0], {
                 symbol: "BTC",
                 address: btc
             });
         }
     }
 
-    return DEFAULT_CRYPTO_DEPOSIT_WALLETS.map(function(entry) {
+    return defaults.map(function(entry) {
         return bySymbol[entry.symbol] || entry;
     });
 }
@@ -114,6 +143,29 @@ function getWalletBySymbol(adminOrWallets, symbol) {
 function getWalletAddressForCurrency(adminOrWallets, symbol) {
     const wallet = getWalletBySymbol(adminOrWallets, symbol);
     return wallet && wallet.address ? wallet.address : "";
+}
+
+function isWalletDepositLive(wallet) {
+    if (!wallet || !wallet.address) return false;
+    if (isDemoPlaceholderAddress(wallet.address)) return false;
+    if (!validateWalletAddress(wallet.symbol, wallet.address)) return false;
+    return !!wallet.enabled && !!wallet.verified;
+}
+
+function getCustomerDisplayAddress(wallet) {
+    if (!wallet) return "";
+    const addr = String(wallet.address || "").trim();
+    if (!addr || isDemoPlaceholderAddress(addr)) return "";
+    if (!validateWalletAddress(wallet.symbol, addr)) return "";
+    return addr;
+}
+
+function getQrCodePayload(symbol, address) {
+    const addr = String(address || "").trim();
+    if (!addr) return "";
+    const sym = normalizeSymbol(symbol);
+    if (sym === "BTC") return "bitcoin:" + addr;
+    return addr;
 }
 
 function getDepositSendLabel(symbol, name) {
@@ -166,16 +218,19 @@ function normalizeDepositCurrencyFields(deposit) {
 }
 
 module.exports = {
-    DEMO_MODE,
-    DEMO_WALLET_ADDRESSES,
-    DEFAULT_CRYPTO_DEPOSIT_WALLETS,
+    CRYPTO_DEPOSIT_CONFIG,
+    getDefaultCryptoDepositWallets,
     normalizeSymbol,
     validateBtcAddress,
     validateEthAddress,
     validateWalletAddress,
+    isDemoPlaceholderAddress,
     normalizeCryptoDepositWallets,
     getWalletBySymbol,
     getWalletAddressForCurrency,
+    isWalletDepositLive,
+    getCustomerDisplayAddress,
+    getQrCodePayload,
     getDepositSendLabel,
     formatDepositCurrencyLabel,
     inferDepositCurrency,

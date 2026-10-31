@@ -12,3 +12,4 @@ admin-v2/
 .vercel
 .env*
 data/investment-emails.json
+.tools/

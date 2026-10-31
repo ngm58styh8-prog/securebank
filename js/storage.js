@@ -217,7 +217,7 @@ const DEFAULT_ADMIN = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
     bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053"
 };
 
@@ -2838,10 +2838,12 @@ function ensureAdminDataShape(data) {
     if (!data.internalTransfers) data.internalTransfers = [];
     if (!data.sendMoneyAuditLog) data.sendMoneyAuditLog = [];
     if (!data.processedSendMoneyKeys) data.processedSendMoneyKeys = {};
+    if (!Array.isArray(data.cryptoDepositAuditLog)) data.cryptoDepositAuditLog = [];
     if (typeof CryptoDepositConfig !== "undefined") {
         data.cryptoDepositWallets = CryptoDepositConfig.normalizeCryptoDepositWallets(data);
-        if (data.cryptoDepositWallets[0] && data.cryptoDepositWallets[0].address) {
-            data.walletAddress = data.cryptoDepositWallets[0].address;
+        const btcWallet = data.cryptoDepositWallets.find(function(w) { return w.symbol === "BTC"; });
+        if (btcWallet && btcWallet.address) {
+            data.walletAddress = btcWallet.address;
         }
     }
     return data;
@@ -4395,10 +4397,27 @@ function getAdminCryptoDepositWallets() {
     if (typeof CryptoDepositConfig !== "undefined") {
         return CryptoDepositConfig.normalizeCryptoDepositWallets(admin);
     }
-    return [
-        { symbol: "BTC", name: "Bitcoin", address: admin.walletAddress || DEFAULT_ADMIN.walletAddress },
-        { symbol: "ETH", name: "Ethereum", address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
-    ];
+    return [];
+}
+
+function getAdminCryptoDepositWallet(symbol) {
+    const sym = String(symbol || "BTC").trim().toUpperCase();
+    const wallets = getAdminCryptoDepositWallets();
+    return wallets.find(function(w) { return w.symbol === sym; }) || null;
+}
+
+function appendCryptoDepositAuditLog(entry, adminRef) {
+    const admin = adminRef || getAdminData();
+    if (!Array.isArray(admin.cryptoDepositAuditLog)) admin.cryptoDepositAuditLog = [];
+    admin.cryptoDepositAuditLog.unshift(Object.assign({
+        id: "crypto-audit-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6),
+        at: new Date().toISOString()
+    }, entry || {}));
+    if (admin.cryptoDepositAuditLog.length > 200) {
+        admin.cryptoDepositAuditLog = admin.cryptoDepositAuditLog.slice(0, 200);
+    }
+    if (!adminRef) saveAdminData(admin);
+    return admin;
 }
 
 function inferPendingDepositCurrency(deposit) {
@@ -4427,18 +4446,47 @@ function getAdminBankDetails() {
     return getAdminData().bankDetails || DEFAULT_ADMIN.bankDetails;
 }
 
-function updateAdminPaymentSettings(walletAddress, bankDetails, cryptoWallets) {
+function updateAdminPaymentSettings(walletAddress, bankDetails, cryptoWallets, auditMeta) {
     const admin = getAdminData();
     admin.bankDetails = (bankDetails || "").trim() || DEFAULT_ADMIN.bankDetails;
+    const prior = getAdminCryptoDepositWallets();
 
     if (Array.isArray(cryptoWallets) && cryptoWallets.length) {
-        admin.cryptoDepositWallets = cryptoWallets;
-        const btcWallet = cryptoWallets.find(function(entry) {
+        admin.cryptoDepositWallets = typeof CryptoDepositConfig !== "undefined"
+            ? CryptoDepositConfig.normalizeCryptoDepositWallets(cryptoWallets)
+            : cryptoWallets;
+        const btcWallet = admin.cryptoDepositWallets.find(function(entry) {
             return entry.symbol === "BTC";
         });
         admin.walletAddress = (btcWallet && btcWallet.address) ||
             (walletAddress || "").trim() ||
             DEFAULT_ADMIN.walletAddress;
+
+        cryptoWallets.forEach(function(next) {
+            if (!next || !next.symbol) return;
+            const sym = String(next.symbol).trim().toUpperCase();
+            const old = prior.find(function(w) { return w.symbol === sym; });
+            if (old && old.address !== next.address) {
+                appendCryptoDepositAuditLog({
+                    action: "address_update",
+                    symbol: sym,
+                    previousAddress: old.address,
+                    newAddress: next.address,
+                    adminEmail: auditMeta && auditMeta.adminEmail ? auditMeta.adminEmail : admin.email
+                }, admin);
+            }
+            if (old && (!!old.enabled !== !!next.enabled || !!old.verified !== !!next.verified)) {
+                appendCryptoDepositAuditLog({
+                    action: "status_update",
+                    symbol: sym,
+                    previousEnabled: !!old.enabled,
+                    enabled: !!next.enabled,
+                    previousVerified: !!old.verified,
+                    verified: !!next.verified,
+                    adminEmail: auditMeta && auditMeta.adminEmail ? auditMeta.adminEmail : admin.email
+                }, admin);
+            }
+        });
     } else {
         admin.walletAddress = (walletAddress || "").trim() || DEFAULT_ADMIN.walletAddress;
         if (typeof CryptoDepositConfig !== "undefined") {
@@ -4753,9 +4801,21 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         cryptoAmount = depositMeta.cryptoAmount != null ? Number(depositMeta.cryptoAmount) : null;
     }
 
-    const payTo = getAdminWalletAddressForCurrency(currency);
+    const walletConfig = getAdminCryptoDepositWallet(currency);
+    if (typeof CryptoDepositConfig !== "undefined") {
+        if (!walletConfig || !CryptoDepositConfig.isWalletDepositLive(walletConfig)) {
+            return {
+                ok: false,
+                error: currency + " deposits are not available yet. Wallet verification is required before live deposits can be accepted."
+            };
+        }
+    }
+
+    const payTo = walletConfig && walletConfig.address
+        ? walletConfig.address
+        : getAdminWalletAddressForCurrency(currency);
     if (!payTo) {
-        return { ok: false, error: "Deposit address is not configured. Please contact support." };
+        return { ok: false, error: "Deposit address currently unavailable." };
     }
 
     if (typeof CryptoDepositConfig !== "undefined" &&
@@ -5793,7 +5853,9 @@ function adminSimulationFetch(action, options) {
             email: options.email,
             force: options.force,
             delete: options.delete,
-            planId: options.planId
+            planId: options.planId,
+            logId: options.logId,
+            limit: options.limit
         });
         return registryFetch("/api/simulation-investments", {
             method: "POST",

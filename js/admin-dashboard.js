@@ -739,7 +739,41 @@ function loadWalletSettings() {
     if (ethWalletInput) {
         ethWalletInput.value = (ethWallet && ethWallet.address) || "";
     }
+    const btcVerified = document.getElementById("adminBtcVerified");
+    const btcEnabled = document.getElementById("adminBtcEnabled");
+    const ethVerified = document.getElementById("adminEthVerified");
+    const ethEnabled = document.getElementById("adminEthEnabled");
+    if (btcVerified) btcVerified.checked = !!(btcWallet && btcWallet.verified);
+    if (btcEnabled) btcEnabled.checked = !!(btcWallet && btcWallet.enabled);
+    if (ethVerified) ethVerified.checked = !!(ethWallet && ethWallet.verified);
+    if (ethEnabled) ethEnabled.checked = !!(ethWallet && ethWallet.enabled);
     if (bankInput) bankInput.value = admin.bankDetails || "";
+    renderCryptoDepositAuditLog();
+}
+
+function renderCryptoDepositAuditLog() {
+    const tbody = document.getElementById("cryptoDepositAuditBody");
+    if (!tbody) return;
+    const admin = getAdminData();
+    const log = Array.isArray(admin.cryptoDepositAuditLog) ? admin.cryptoDepositAuditLog : [];
+    if (!log.length) {
+        tbody.innerHTML = "<tr><td colspan=\"5\">No wallet configuration changes logged yet.</td></tr>";
+        return;
+    }
+    tbody.innerHTML = log.slice(0, 50).map(function(entry) {
+        let details = "—";
+        if (entry.action === "address_update") {
+            details = (entry.previousAddress || "—") + " → " + (entry.newAddress || "—");
+        } else if (entry.action === "status_update") {
+            details = "enabled: " + entry.previousEnabled + "→" + entry.enabled +
+                ", verified: " + entry.previousVerified + "→" + entry.verified;
+        }
+        return "<tr><td>" + (entry.at ? new Date(entry.at).toLocaleString() : "—") +
+            "</td><td>" + (entry.action || "—") +
+            "</td><td>" + (entry.symbol || "—") +
+            "</td><td class=\"admin-payto-cell\">" + details +
+            "</td><td>" + (entry.adminEmail || "—") + "</td></tr>";
+    }).join("");
 }
 
 function loadWebsiteSettingsForm() {
@@ -1509,23 +1543,65 @@ document.getElementById("walletSettingsForm").addEventListener("submit", functio
     const btcAddress = document.getElementById("adminWalletInput").value.trim();
     const ethAddress = document.getElementById("adminEthWalletInput").value.trim();
     const cfg = typeof CryptoDepositConfig !== "undefined" ? CryptoDepositConfig : null;
+    const btcVerified = document.getElementById("adminBtcVerified");
+    const btcEnabled = document.getElementById("adminBtcEnabled");
+    const ethVerified = document.getElementById("adminEthVerified");
+    const ethEnabled = document.getElementById("adminEthEnabled");
 
     if (cfg && !cfg.validateWalletAddress("BTC", btcAddress)) {
         alert("Enter a valid Bitcoin deposit address.");
         return;
     }
-    if (cfg && ethAddress && !cfg.validateWalletAddress("ETH", ethAddress)) {
+    if (cfg && !cfg.validateWalletAddress("ETH", ethAddress)) {
         alert("Enter a valid Ethereum deposit address (0x + 40 hex characters).");
         return;
     }
 
+    const btcEn = btcEnabled && btcEnabled.checked;
+    const ethEn = ethEnabled && ethEnabled.checked;
+    const btcVer = btcVerified && btcVerified.checked;
+    const ethVer = ethVerified && ethVerified.checked;
+
+    if (btcEn && !btcVer) {
+        alert("Verify Bitcoin wallet ownership before enabling BTC deposits.");
+        return;
+    }
+    if (ethEn && !ethVer) {
+        alert("Verify Ethereum wallet ownership before enabling ETH deposits.");
+        return;
+    }
+
+    const defaults = cfg ? cfg.getDefaultCryptoDepositWallets() : [];
+    const btcDefault = defaults.find(function(w) { return w.symbol === "BTC"; });
+    const ethDefault = defaults.find(function(w) { return w.symbol === "ETH"; });
+
     const cryptoWallets = [
-        { symbol: "BTC", name: "Bitcoin", address: btcAddress },
-        { symbol: "ETH", name: "Ethereum", address: ethAddress || "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS" }
+        {
+            symbol: "BTC",
+            name: "Bitcoin",
+            network: btcDefault ? btcDefault.network : "Bitcoin Mainnet",
+            address: btcAddress,
+            verified: btcVer,
+            enabled: btcEn
+        },
+        {
+            symbol: "ETH",
+            name: "Ethereum",
+            network: ethDefault ? ethDefault.network : "Ethereum Mainnet",
+            address: ethAddress,
+            verified: ethVer,
+            enabled: ethEn
+        }
     ];
 
-    updateAdminPaymentSettings(btcAddress, document.getElementById("adminBankInput").value, cryptoWallets);
-    alert("Admin wallet and bank settings saved.");
+    const creds = typeof getAdminApiCredentials === "function" ? getAdminApiCredentials() : {};
+    updateAdminPaymentSettings(
+        btcAddress,
+        document.getElementById("adminBankInput").value,
+        cryptoWallets,
+        { adminEmail: creds.adminEmail || getAdminData().email }
+    );
+    alert("Cryptocurrency deposit settings saved.");
     renderDashboard();
 });
 

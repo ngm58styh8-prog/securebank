@@ -636,14 +636,13 @@ function getSelectedDepositWallet() {
         const wallets = getAdminCryptoDepositWallets();
         return cfg.getWalletBySymbol(wallets, symbol);
     }
-    if (symbol === "ETH") {
-        return {
-            symbol: "ETH",
-            name: "Ethereum",
-            address: "DEMO-ETH-ADDRESS-DO-NOT-SEND-FUNDS"
-        };
-    }
-    return { symbol: "BTC", name: "Bitcoin", address: getAdminWalletAddress() };
+    return null;
+}
+
+function isSelectedDepositWalletLive() {
+    const cfg = getDepositCryptoConfig();
+    const wallet = getSelectedDepositWallet();
+    return !!(cfg && wallet && cfg.isWalletDepositLive(wallet));
 }
 
 function populateDepositCryptoSelect() {
@@ -653,7 +652,7 @@ function populateDepositCryptoSelect() {
     const cfg = getDepositCryptoConfig();
     const wallets = typeof getAdminCryptoDepositWallets === "function"
         ? getAdminCryptoDepositWallets()
-        : (cfg ? cfg.DEFAULT_CRYPTO_DEPOSIT_WALLETS : []);
+        : (cfg && cfg.getDefaultCryptoDepositWallets ? cfg.getDefaultCryptoDepositWallets() : []);
     const current = getSelectedDepositCurrency();
 
     select.innerHTML = wallets.map(function(w) {
@@ -666,19 +665,26 @@ function populateDepositCryptoSelect() {
     }).join("");
 }
 
-function updateDepositQrCode(address) {
+function updateDepositQrCode(wallet, live) {
     const qr = document.getElementById("depositQrImage");
+    const qrWrap = document.querySelector(".deposit-qr-wrap");
     if (!qr) return;
 
-    if (!address) {
+    if (!live || !wallet || !wallet.address) {
         qr.classList.add("hidden");
         qr.removeAttribute("src");
+        if (qrWrap) qrWrap.classList.add("deposit-qr-disabled");
         return;
     }
 
-    qr.src = "https://api.qrserver.com/v1/create-qr-code/?size=168x168&data=" +
-        encodeURIComponent(address);
+    const cfg = getDepositCryptoConfig();
+    const payload = cfg
+        ? cfg.getQrCodePayload(wallet.symbol, wallet.address)
+        : wallet.address;
+    qr.src = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=" +
+        encodeURIComponent(payload);
     qr.classList.remove("hidden");
+    if (qrWrap) qrWrap.classList.remove("deposit-qr-disabled");
 }
 
 function updateDepositCryptoDisplay() {
@@ -687,37 +693,70 @@ function updateDepositCryptoDisplay() {
     const labelEl = document.getElementById("depositCryptoPayLabel");
     const addressEl = document.getElementById("depositPageAddress");
     const cryptoNameEl = document.getElementById("depositPageCryptoName");
+    const networkEl = document.getElementById("depositCryptoNetwork");
+    const statusEl = document.getElementById("depositCryptoStatus");
+    const copyBtn = document.getElementById("copyDepositPageBtn");
+    const live = isSelectedDepositWalletLive();
+    const displayAddress = cfg && wallet
+        ? cfg.getCustomerDisplayAddress(wallet)
+        : (wallet && wallet.address ? wallet.address : "");
 
     if (labelEl && wallet) {
-        labelEl.textContent = cfg
-            ? cfg.getDepositSendLabel(wallet.symbol, wallet.name)
-            : "Send " + wallet.name + " (" + wallet.symbol + ") to:";
+        labelEl.textContent = wallet.name + " (" + wallet.symbol + ")";
+    }
+
+    if (networkEl) {
+        networkEl.textContent = wallet && wallet.network ? wallet.network : "—";
     }
 
     if (addressEl) {
-        addressEl.textContent = wallet && wallet.address
-            ? wallet.address
-            : "Deposit address not configured — contact support.";
+        addressEl.textContent = displayAddress || "Deposit address currently unavailable.";
     }
 
     if (cryptoNameEl && wallet) {
         cryptoNameEl.textContent = wallet.symbol;
     }
 
+    if (statusEl) {
+        if (live) {
+            statusEl.classList.add("hidden");
+            statusEl.textContent = "";
+        } else {
+            statusEl.classList.remove("hidden");
+            statusEl.textContent = displayAddress
+                ? "Deposits for this asset are pending administrator wallet verification. Do not send funds until deposits are enabled."
+                : "Deposit address currently unavailable.";
+        }
+    }
+
+    if (copyBtn) {
+        copyBtn.disabled = !live;
+        copyBtn.setAttribute("aria-disabled", live ? "false" : "true");
+    }
+
     updateDepositConfirmInstruction();
-    updateDepositQrCode(wallet && wallet.address ? wallet.address : "");
-    return wallet && wallet.address ? wallet.address : "";
+    updateDepositQrCode(wallet, live);
+    return live && displayAddress ? displayAddress : "";
+}
+
+async function copyDepositAddress(address) {
+    if (!address) {
+        return { success: false, message: "Unable to copy address" };
+    }
+    try {
+        await navigator.clipboard.writeText(address);
+        return { success: true, message: "Address Copied Successfully" };
+    } catch (error) {
+        console.error("Copy failed:", error);
+        return { success: false, message: "Unable to copy address" };
+    }
 }
 
 function copyText(text, successMessage) {
     if (!text) return;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(function() {
-            alert(successMessage || "Copied to clipboard.");
-        });
-    } else {
-        alert(text);
-    }
+    copyDepositAddress(text).then(function(result) {
+        alert(result.message || successMessage || "Copied to clipboard.");
+    });
 }
 
 function getDepositBtcAmount(usdAmount) {
@@ -878,14 +917,21 @@ function continueDepositFlow() {
         return;
     }
 
-    const address = populateDepositPageAddress();
-    if (!address) {
-        alert("Deposit address is not configured yet. Please contact support.");
+    populateDepositPageAddress();
+
+    if (!isSelectedDepositWalletLive()) {
+        alert("Cryptocurrency deposits for this asset are not enabled yet. An administrator must verify wallet ownership before you can deposit.");
         return;
     }
 
     const wallet = getSelectedDepositWallet();
     const cfg = getDepositCryptoConfig();
+    const address = cfg && wallet ? cfg.getCustomerDisplayAddress(wallet) : "";
+    if (!address) {
+        alert("Deposit address currently unavailable.");
+        return;
+    }
+
     if (wallet && cfg && !cfg.validateWalletAddress(wallet.symbol, wallet.address)) {
         alert("Configured " + wallet.symbol + " deposit address is invalid. Please contact support.");
         return;
@@ -904,14 +950,19 @@ function submitDepositFromPanel() {
         return;
     }
 
-    const wallet = getSelectedDepositWallet();
-    if (!wallet || !wallet.address) {
-        alert("Deposit address is not configured. Please contact support.");
+    if (!isSelectedDepositWalletLive()) {
+        alert("Cryptocurrency deposits for this asset are not enabled yet.");
         return;
     }
 
+    const wallet = getSelectedDepositWallet();
     const cfg = getDepositCryptoConfig();
-    if (cfg && !cfg.validateWalletAddress(wallet.symbol, wallet.address)) {
+    if (!wallet || !cfg || !cfg.getCustomerDisplayAddress(wallet)) {
+        alert("Deposit address currently unavailable.");
+        return;
+    }
+
+    if (!cfg.validateWalletAddress(wallet.symbol, wallet.address)) {
         alert("Configured " + wallet.symbol + " deposit address is invalid. Please contact support.");
         return;
     }
@@ -1151,8 +1202,16 @@ function initUI() {
     bindClick("depositBackBtn", hideDepositConfirmSection);
     bindClick("depositPanelCloseBtn", closeDepositPanel);
     bindClick("copyDepositPageBtn", function() {
+        if (!isSelectedDepositWalletLive()) {
+            alert("Copy is unavailable until wallet ownership is verified and deposits are enabled.");
+            return;
+        }
+        const cfg = getDepositCryptoConfig();
         const wallet = getSelectedDepositWallet();
-        copyText(wallet && wallet.address ? wallet.address : "", "Deposit address copied to clipboard.");
+        const address = cfg && wallet ? cfg.getCustomerDisplayAddress(wallet) : "";
+        copyDepositAddress(address).then(function(result) {
+            alert(result.message);
+        });
     });
     const depositCryptoSelect = document.getElementById("depositCryptoSelect");
     if (depositCryptoSelect) {

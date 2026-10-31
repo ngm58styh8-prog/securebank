@@ -105,7 +105,7 @@ const DEFAULT_ADMIN_REGISTRY = {
     payments: [],
     pendingTransfers: [],
     pendingDeposits: [],
-    walletAddress: "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    walletAddress: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
     bankDetails: "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
     registeredUsers: {},
     userActivityLog: [],
@@ -350,6 +350,9 @@ function ensureAdminRegistryShape(admin) {
     if (!Array.isArray(admin.simulationPlans)) admin.simulationPlans = [];
     if (!Array.isArray(admin.simulationCreditLog)) admin.simulationCreditLog = [];
     if (!Array.isArray(admin.simulationJobRuns)) admin.simulationJobRuns = [];
+    if (!Array.isArray(admin.investmentEmailLog)) admin.investmentEmailLog = [];
+    if (!Array.isArray(admin.investmentEmailQueue)) admin.investmentEmailQueue = [];
+    if (!Array.isArray(admin.cryptoDepositAuditLog)) admin.cryptoDepositAuditLog = [];
     admin.cryptoDepositWallets = normalizeCryptoDepositWallets(admin);
     if (admin.cryptoDepositWallets[0] && admin.cryptoDepositWallets[0].address) {
         admin.walletAddress = admin.cryptoDepositWallets[0].address;

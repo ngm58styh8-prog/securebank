@@ -679,12 +679,22 @@
                     return;
                 }
                 const readBtn = e.target.closest(".notif-read-btn");
-                const item = e.target.closest(".notif-item.unread");
+                const item = e.target.closest(".notif-item");
                 const id = readBtn
                     ? readBtn.dataset.notifId
                     : (item ? item.dataset.notifId : null);
                 if (id) {
-                    markNotificationReadForUser(getSessionEmail(), id);
+                    const email = getSessionEmail();
+                    const account = getAccountForBell(email);
+                    const notif = account && Array.isArray(account.notifications)
+                        ? account.notifications.find(function(n) {
+                            return String(n.id) === String(id);
+                        })
+                        : null;
+                    markNotificationReadForUser(email, id);
+                    if (notif && notif.href && item && !readBtn) {
+                        window.location.href = notif.href;
+                    }
                 }
                 const linkItem = !readBtn ? e.target.closest(".notif-item[data-notif-href]") : null;
                 if (linkItem) {

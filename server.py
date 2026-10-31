@@ -83,7 +83,7 @@ DEFAULT_ADMIN_REGISTRY = {
     "payments": [],
     "pendingTransfers": [],
     "pendingDeposits": [],
-    "walletAddress": "DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS",
+    "walletAddress": "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
     "bankDetails": "GlobalVest Admin · Routing: 021000021 · Account: 8847291053",
     "registeredUsers": {},
     "userActivityLog": [],

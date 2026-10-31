@@ -193,10 +193,10 @@
 
 <section id="depositPanel" class="deposit-panel card gv-glass hidden" aria-labelledby="depositPanelTitle">
     <div class="deposit-panel-header">
-        <h3 id="depositPanelTitle">💰 Deposit Funds</h3>
+        <h3 id="depositPanelTitle">Deposit Cryptocurrency</h3>
         <button type="button" class="deposit-panel-close" id="depositPanelCloseBtn" aria-label="Close deposit">✕</button>
     </div>
-    <p class="deposit-panel-desc">Cryptocurrency deposits — select Bitcoin (BTC) or Ethereum (ETH).</p>
+    <p class="deposit-panel-desc">Deposit cryptocurrency — Bitcoin (BTC) or Ethereum (ETH). Funds are credited only after blockchain confirmation and admin approval.</p>
 
     <div class="deposit-amount-step">
         <label class="form-label" for="depositAmountInput">Deposit Amount (USD)</label>
@@ -206,16 +206,26 @@
     </div>
 
     <div id="depositAddressBox" class="admin-payto-box deposit-btc-banner hidden">
-        <label class="form-label" for="depositCryptoSelect">Cryptocurrency</label>
+        <label class="form-label" for="depositCryptoSelect">Select Cryptocurrency</label>
         <select id="depositCryptoSelect" class="deposit-crypto-select wallet-filter" aria-label="Select cryptocurrency"></select>
 
+        <span class="form-label">Network</span>
+        <p id="depositCryptoNetwork" class="deposit-network-value">—</p>
+
         <span class="form-label">Deposit Address</span>
-        <p id="depositCryptoPayLabel" class="crypto-pay-label">Send Bitcoin (BTC) to:</p>
+        <p id="depositCryptoPayLabel" class="crypto-pay-label">Bitcoin (BTC)</p>
         <div id="depositPageAddress" class="admin-payto-text admin-crypto-address">Loading deposit address…</div>
-        <div class="deposit-qr-wrap">
-            <img id="depositQrImage" class="deposit-qr-image hidden" alt="Deposit address QR code" width="168" height="168">
+        <p id="depositCryptoStatus" class="deposit-verification-notice hidden" role="status"></p>
+
+        <div class="deposit-qr-wrap deposit-qr-disabled">
+            <img id="depositQrImage" class="deposit-qr-image hidden" alt="Deposit address QR code" width="200" height="200">
+            <p class="deposit-qr-placeholder">QR code available after wallet verification</p>
         </div>
-        <button type="button" class="copy-btn" id="copyDepositPageBtn">Copy Deposit Address</button>
+        <button type="button" class="copy-btn" id="copyDepositPageBtn" disabled>Copy Deposit Address</button>
+
+        <div class="deposit-network-info">
+            <p class="deposit-hint"><strong>Network information:</strong> Send only on the network shown above. Sending on the wrong network may result in permanent loss of funds.</p>
+        </div>
     </div>
 
     <div id="depositConfirmSection" class="deposit-confirm-section hidden">
