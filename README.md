@@ -8,9 +8,9 @@ Demo online banking app (static frontend + local Python server).
 ./start.sh
 ```
 
-- User site: http://localhost:8765/index.html (landing)
-- Sign in: http://localhost:8765/login.html
-- Admin login: http://localhost:8765/admin.html (direct URL only — not linked from the user site)
+- User site: http://localhost:8765/ (landing)
+- Sign in: http://localhost:8765/login
+- Admin login: http://localhost:8765/admin (direct URL only — not linked from the user site)
 
 **Important:** Run the app with `./start.sh` so accounts sync to the server registry at `data/accounts.json`. Registration and admin both read from this shared registry (plus browser cache). Do not open HTML files directly via `file://`.
 
@@ -33,7 +33,7 @@ On the **new host**, copy the project and backup folder, then:
 ./start.sh
 ```
 
-Open http://localhost:8765/admin.html — all users and admin data load from the restored server files.
+Open http://localhost:8765/admin — all users and admin data load from the restored server files.
 
 ## Email verification (Resend + Supabase on Vercel)
 
@@ -128,13 +128,13 @@ API routes (server-only — `RESEND_API_KEY` never sent to browser):
 
 ## Admin panel
 
-Open the admin console at **`/admin.html`** (not linked from the public user site).
+Open the admin console at **`/admin`** (not linked from the public user site).
 
 **Credentials:** `admin@globalvest.com` / `admin123`
 
-Local: `./start.sh` → http://localhost:8765/admin.html
+Local: `./start.sh` → http://localhost:8765/admin
 
-Production: https://globalvestbank.com/admin.html (also https://securebank-1.vercel.app/admin.html — same shared registry)
+Production: https://globalvestbank.com/admin (also https://securebank-1.vercel.app/admin — same shared registry)
 
 Open admin on **globalvestbank.com** so it reads the same Supabase registry as user signups. On login the panel auto-syncs server accounts; use **Repair registry** to refresh manually.
 

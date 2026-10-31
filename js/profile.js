@@ -192,7 +192,7 @@ function saveProfile(e) {
 
 function logout() {
     clearSession();
-    window.location.href = "login.html";
+    window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
 }
 
 initPageNav("profile");

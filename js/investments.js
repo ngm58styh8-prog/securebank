@@ -270,7 +270,7 @@
         scroll.innerHTML = assets.map(function(a) {
             var m = assetMeta(a.id, a.name, a.symbol);
             if (a.id === "gold") {
-                return '<a class="inv-asset-chip" role="listitem" href="gold-investment.html">' +
+                return '<a class="inv-asset-chip" role="listitem" href="/gold-investment">' +
                     icon("gold", 40, m.label, m.symbol) +
                     '<div class="inv-asset-chip-name">Gold</div><div class="inv-asset-chip-sym">XAU</div></a>';
             }
@@ -456,14 +456,14 @@
         if (logoutBtn) {
             logoutBtn.addEventListener("click", function() {
                 clearSession();
-                window.location.href = "login.html";
+                window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
             });
         }
         var sidebarLogout = document.getElementById("gvSidebarLogout");
         if (sidebarLogout) {
             sidebarLogout.addEventListener("click", function() {
                 clearSession();
-                window.location.href = "login.html";
+                window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
             });
         }
         if (typeof initNotificationBell === "function") initNotificationBell();

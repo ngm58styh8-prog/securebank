@@ -1117,7 +1117,7 @@ function toggleDropdown(id) {
 
 function logout() {
     clearSession();
-    window.location.href = "login.html";
+    window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
 }
 
 function initCharts() {
@@ -1265,31 +1265,31 @@ function initUI() {
     bindClick("themeToggle", toggleTheme);
     bindClick("logoutBtn", logout);
     bindClick("viewProfileBtn", function() {
-        window.location.href = "profile.html";
+        window.location.href = "/profile";
     });
     bindClick("exchangeBtn", function() {
-        window.location.href = "exchange.html";
+        window.location.href = "/exchange";
     });
     bindClick("supportBtn", function() {
-        window.location.href = "support.html";
+        window.location.href = "/support";
     });
     bindClick("settingsBtn", function() {
-        window.location.href = "settings.html";
+        window.location.href = "/settings";
     });
     bindClick("walletBtn", function() {
-        window.location.href = "wallet.html";
+        window.location.href = "/wallet";
     });
 
     const verificationBtn = document.getElementById("verificationProfileBtn");
     if (verificationBtn) {
         verificationBtn.addEventListener("click", function() {
-            window.location.href = "profile.html";
+            window.location.href = "/profile";
         });
     }
     const securityBtn = document.getElementById("securityProfileBtn");
     if (securityBtn) {
         securityBtn.addEventListener("click", function() {
-            window.location.href = "settings.html";
+            window.location.href = "/settings";
         });
     }
 

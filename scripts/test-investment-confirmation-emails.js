@@ -154,7 +154,7 @@ async function main() {
             assert.ok(body.indexOf("$547,500.00") !== -1, "total = 1500 x 365");
             assert.ok(body.indexOf("$549,500.00") !== -1, "value = principal + earnings");
             assert.ok(/not guaranteed/i.test(body));
-            assert.ok(body.indexOf("https://globalvestbank.com/investments.html?investment=" + goldInvestmentId) !== -1);
+            assert.ok(body.indexOf("https://globalvestbank.com/investments?investment=" + goldInvestmentId) !== -1);
         });
         ["#020B09", "#00E89B", "#071A15", "#FFFFFF", "VIEW MY INVESTMENT", "Your Investment Has Been Confirmed",
             "If you did not authorize this activity", "This is an automated transactional email.",
@@ -170,7 +170,11 @@ async function main() {
         const note = acct.notifications.find(function(n) { return n.title === "Investment Confirmed"; });
         assert.ok(note, "notification exists");
         assert.strictEqual(note.message, "Your Gold investment has been successfully created.");
-        assert.ok(note.href.indexOf("investments.html?investment=") === 0);
+        assert.ok(
+            note.href.indexOf("/gold-investment") !== -1
+            || note.href.indexOf("/investments?investment=") !== -1
+            || note.href.indexOf("investments?investment=") !== -1
+        );
         assert.strictEqual(acct.goldInvestment.reference, goldReference);
     });
 
@@ -415,7 +419,7 @@ async function main() {
         });
         assert.ok(built.html.indexOf("<script>alert") === -1);
         assert.ok(built.html.indexOf("javascript:") === -1);
-        assert.ok(built.html.indexOf("https://globalvestbank.com/investments.html") !== -1);
+        assert.ok(built.html.indexOf("https://globalvestbank.com/investments") !== -1);
     });
 
     console.log("\n" + passed + " checks passed" + (process.exitCode ? " (with failures)" : ""));

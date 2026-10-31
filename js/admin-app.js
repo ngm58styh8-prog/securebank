@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", function() {
     const backLink = document.querySelector(".admin-back a");
-    if (backLink) backLink.href = getLocalServerUrl("index.html");
+    if (backLink) backLink.href = getLocalServerUrl("index");
 
     const form = document.getElementById("adminLoginForm");
     if (!form) return;
@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function goToDashboard() {
-        window.location.href = "admin-dashboard.html";
+        window.location.href = "/admin-dashboard";
     }
 
     const session = getAdminSession();

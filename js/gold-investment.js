@@ -296,7 +296,7 @@
         if (logoutBtn) {
             logoutBtn.addEventListener("click", function() {
                 clearSession();
-                window.location.href = "login.html";
+                window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
             });
         }
         if (typeof initNotificationBell === "function") initNotificationBell();

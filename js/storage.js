@@ -782,7 +782,10 @@ function bindSessionToCurrentDevice(email, account, sessionToken, options) {
 function forceLogoutForRevokedDevice(reason) {
     clearSession();
     const query = reason ? ("?reason=" + encodeURIComponent(reason)) : "";
-    window.location.href = "login.html" + query;
+    const login = typeof AppPaths !== "undefined"
+        ? AppPaths.toCleanPath("login") + query
+        : "login.html" + query;
+    window.location.href = login;
 }
 
 function removeKnownDevice(email, fingerprint) {
@@ -2640,25 +2643,35 @@ function syncCurrentUserToServer(email) {
 }
 
 function safeNextPage(value) {
-    const page = String(value || "").trim();
-    return /^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(page) && page.indexOf("login.html") !== 0
-        ? page
-        : "";
+    const page = String(value || "").trim().replace(/^\//, "");
+    if (typeof AppPaths !== "undefined" && AppPaths.isSafeInternalNext(page)) {
+        return page;
+    }
+    const legacy = /^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(page) && page.indexOf("login.html") !== 0;
+    if (legacy) {
+        return page.replace(/\.html(?=\?|$)/i, "");
+    }
+    return "";
 }
 
-// Lets deep links (e.g. investment emails) survive the login redirect. Only same-site .html pages are accepted.
 function loginUrlWithNext() {
+    if (typeof AppPaths !== "undefined") {
+        return AppPaths.loginUrlWithNextFromLocation();
+    }
     const current = (window.location.pathname.split("/").pop() || "") + window.location.search;
-    const next = window.location.search ? safeNextPage(current) : "";
+    const next = safeNextPage(current);
     return "login.html" + (next ? "?next=" + encodeURIComponent(next) : "");
 }
 
 function postLoginDestination() {
+    if (typeof AppPaths !== "undefined") {
+        return AppPaths.postLoginDestinationFromSearch();
+    }
     let next = "";
     try {
         next = safeNextPage(new URLSearchParams(window.location.search).get("next"));
     } catch (e) { next = ""; }
-    return next || "dashboard.html";
+    return next ? (next.charAt(0) === "/" ? next : "/" + next) : "/dashboard";
 }
 
 function requireAuth() {
@@ -2867,8 +2880,10 @@ function getAdminData() {
 
 function isAdminPanelPage() {
     if (typeof window === "undefined") return false;
-    const page = window.location.pathname.split("/").pop() || "";
-    return page === "admin-dashboard.html" || page === "admin.html";
+    const page = typeof AppPaths !== "undefined"
+        ? AppPaths.pathnameSlug()
+        : (window.location.pathname.split("/").pop() || "").replace(/\.html$/i, "");
+    return page === "admin-dashboard" || page === "admin";
 }
 
 function saveAdminData(data, options) {
@@ -3189,7 +3204,9 @@ function requireAdminAuth() {
     const session = getAdminSession();
     const admin = getAdminData();
     if (!isAdminSessionValid(session, admin)) {
-        window.location.href = "admin.html";
+        window.location.href = typeof AppPaths !== "undefined"
+            ? AppPaths.toCleanPath("admin")
+            : "/admin";
         return null;
     }
     if (session && normalizeEmail(session.email) !== normalizeEmail(admin.email)) {
@@ -5837,7 +5854,7 @@ function adminSimulationFetch(action, options) {
     if (!creds.adminPassword) {
         return Promise.resolve({
             ok: false,
-            error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+            error: "Admin session needs password for server APIs. Log out and sign in again at /admin."
         });
     }
 

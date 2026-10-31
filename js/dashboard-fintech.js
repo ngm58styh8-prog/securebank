@@ -326,7 +326,7 @@
             '<button type="button" class="gv-ft-modal-close" id="ftTxModalClose" aria-label="Close">✕</button>' +
             '<h3 id="ftTxModalTitle">Transaction details</h3>' +
             '<dl class="gv-ft-detail" id="ftTxModalBody"></dl>' +
-            '<a class="gv-ft-grow-btn" href="wallet.html#transactions">Open full history →</a>' +
+            '<a class="gv-ft-grow-btn" href="/wallet#transactions">Open full history →</a>' +
             '</div>';
         document.body.appendChild(modal);
         modal.addEventListener("click", function(e) {
@@ -603,7 +603,7 @@
         btn.addEventListener("click", function(e) {
             e.preventDefault();
             if (typeof logout === "function") logout();
-            else window.location.href = "login.html";
+            else window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
         });
     }
 

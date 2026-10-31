@@ -255,14 +255,14 @@ document.getElementById("currencySelect").addEventListener("change", updateBalan
 document.getElementById("sendMoneyForm").addEventListener("submit", handleSubmit);
 
 document.getElementById("cancelBtn").addEventListener("click", function() {
-    window.location.href = "dashboard.html";
+    window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("dashboard") : "/dashboard");
 });
 
 document.getElementById("confirmCancelBtn").addEventListener("click", closeConfirmModal);
 document.getElementById("confirmSendBtn").addEventListener("click", executeSend);
 document.getElementById("resultCloseBtn").addEventListener("click", function() {
     closeResultModal();
-    window.location.href = "dashboard.html";
+    window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("dashboard") : "/dashboard");
 });
 
 document.getElementById("copyWalletBtn").addEventListener("click", function() {

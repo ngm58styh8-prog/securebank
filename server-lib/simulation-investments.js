@@ -494,7 +494,7 @@ async function enrollInSimulationPlan(email, planId, amount) {
         currency: "USD",
         status: "active",
         reference: reference,
-        href: "investments.html?investment=" + encodeURIComponent(positionId),
+        href: "/investments?investment=" + encodeURIComponent(positionId),
         investmentId: positionId
     });
 
@@ -585,7 +585,7 @@ async function getCustomerInvestmentPortfolio(email) {
             nextCreditAt: gi.nextCreditAt || null,
             startDate: gi.startDate,
             status: gi.status,
-            href: "gold-investment.html"
+            href: "/gold-investment"
         });
     }
 

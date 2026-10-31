@@ -394,7 +394,12 @@
     // Only same-site relative page links are allowed, never external URLs or javascript: links.
     function safeNotificationHref(value) {
         const href = String(value || "").trim();
-        return /^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(href) ? href : "";
+        if (typeof AppPaths !== "undefined") {
+            return AppPaths.normalizeSafeHref(href);
+        }
+        return /^[a-z0-9_-]+(\?[A-Za-z0-9_=&%.-]*)?$/i.test(href.replace(/^\//, "").replace(/\.html$/i, ""))
+            ? href.replace(/\.html(?=\?|#|$)/i, "")
+            : (/^[a-z0-9_-]+\.html(\?[A-Za-z0-9_=&%.-]*)?$/i.test(href) ? href.replace(/\.html(?=\?|#|$)/i, "") : "");
     }
 
     function renderNotificationItem(n, index) {

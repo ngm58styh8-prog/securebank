@@ -416,7 +416,7 @@ function buildVerificationEmailContent(code, recipientEmail) {
     const safeSiteUrl = escapeHtml(siteUrl);
     const safeSupport = escapeHtml(supportEmail);
     const safeAddress = escapeHtml(physicalAddress);
-    const loginUrl = siteUrl + "/login.html";
+    const loginUrl = siteUrl + "/login";
     const safeLoginUrl = escapeHtml(loginUrl);
     const referenceId = "gv-verify-" + String(recipientEmail || "").replace(/[^a-z0-9@._-]/gi, "");
 
@@ -512,7 +512,7 @@ function buildTransactionalEmailContent(subject, textBody, recipientEmail, optio
     const safeSiteUrl = escapeHtml(siteUrl);
     const safeSupport = escapeHtml(supportEmail);
     const safeAddress = escapeHtml(physicalAddress);
-    const loginUrl = siteUrl + "/login.html";
+    const loginUrl = siteUrl + "/login";
     const safeLoginUrl = escapeHtml(loginUrl);
     const category = options.category || "transactional";
     const referenceId = options.referenceId || ("gv-" + category + "-" + Date.now());

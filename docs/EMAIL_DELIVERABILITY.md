@@ -96,7 +96,7 @@ After 2–4 weeks of clean sending with aligned SPF/DKIM, tighten policy:
 - Semantic `<header>`, `<main>`, `<footer>` inside table layout
 - Hidden preheader for inbox preview
 - No images, tracking pixels, or URL shorteners
-- Single link: `https://globalvestbank.com/login.html`
+- Single link: `https://globalvestbank.com/login`
 - Physical address in footer
 - Support email and website in footer
 

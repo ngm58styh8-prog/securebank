@@ -4,6 +4,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".",
   "framework": null,
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/auth/callback.html", "destination": "/auth/callback", "permanent": true }
+  ],
   "functions": {
     "api/**/*.js": {
       "maxDuration": 30

@@ -77,7 +77,7 @@ function navigateToLogin(tab) {
     }
     sessionStorage.setItem("securebank_page_transition", "1");
     setTimeout(function() {
-        window.location.href = "login.html";
+        window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login");
     }, 380);
 }
 

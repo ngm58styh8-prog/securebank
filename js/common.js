@@ -6,8 +6,10 @@ const LOCAL_SERVER_PORT = 8765;
 
     if (window.location.protocol === "file:") {
         const page = window.location.pathname.split("/").pop() || "index.html";
+        const slug = page.replace(/\.html$/i, "");
+        const path = slug === "index" ? "/" : "/" + slug;
         window.location.replace(
-            "http://localhost:" + LOCAL_SERVER_PORT + "/" + page +
+            "http://localhost:" + LOCAL_SERVER_PORT + path +
             window.location.search +
             window.location.hash
         );
@@ -84,24 +86,33 @@ function isLocalServerHost() {
     return host === "localhost" || host === "127.0.0.1";
 }
 
+function appUrl(page) {
+    if (typeof AppPaths !== "undefined") {
+        return AppPaths.toCleanPath(page);
+    }
+    const p = String(page || "").replace(/\.html$/i, "");
+    return p.charAt(0) === "/" ? p : "/" + p;
+}
+
 function getLocalServerUrl(path) {
-    const file = path.charAt(0) === "/" ? path.slice(1) : path;
+    const clean = appUrl(path);
 
     if (window.location.protocol === "file:") {
-        return file;
+        return String(path || "").replace(/^\//, "");
     }
 
     if (window.location.protocol === "http:" || window.location.protocol === "https:") {
-        const dir = window.location.pathname.replace(/[^/]*$/, "");
-        return window.location.origin + dir + file;
+        return window.location.origin + clean;
     }
 
-    return file;
+    return clean;
 }
 
 function showAdminServerHint() {
-    const page = window.location.pathname.split("/").pop() || "";
-    if (page !== "admin.html" && page !== "admin-dashboard.html") return;
+    const page = typeof AppPaths !== "undefined"
+        ? AppPaths.pathnameSlug()
+        : (window.location.pathname.split("/").pop() || "").replace(/\.html$/i, "");
+    if (page !== "admin" && page !== "admin-dashboard") return;
     if (window.location.protocol !== "file:") return;
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -113,7 +124,7 @@ function showAdminServerHint() {
         hint.className = "admin-auth-message error";
         hint.style.display = "block";
         hint.style.marginBottom = "12px";
-        hint.textContent = "Open via the local server: run ./start.sh then visit http://localhost:8765/admin.html";
+        hint.textContent = "Open via the local server: run ./start.sh then visit http://localhost:8765/admin";
         box.insertBefore(hint, box.firstChild);
     });
 }
@@ -125,8 +136,10 @@ if (typeof repairAccountsStorage === "function") {
 }
 
 if (typeof reconcileAccountRegistry === "function") {
-    const page = (typeof window !== "undefined" && window.location.pathname.split("/").pop()) || "";
-    if (page !== "admin.html") {
+    const page = typeof AppPaths !== "undefined"
+        ? AppPaths.pathnameSlug()
+        : ((typeof window !== "undefined" && window.location.pathname.split("/").pop()) || "").replace(/\.html$/i, "");
+    if (page !== "admin") {
         reconcileAccountRegistry()
             .then(function() {
                 try {

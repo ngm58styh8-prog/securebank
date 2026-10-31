@@ -8,6 +8,7 @@ import ssl
 from email.mime.text import MIMEText
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "email.config.json"
@@ -230,6 +231,42 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
             return
         self.send_error(404)
 
+    def _resolve_clean_static_path(self):
+        parsed = urlparse(self.path)
+        path = parsed.path or "/"
+        query = ("?" + parsed.query) if parsed.query else ""
+        fragment = ("#" + parsed.fragment) if parsed.fragment else ""
+
+        if path.endswith(".html"):
+            if path == "/index.html":
+                target = "/" + query + fragment
+            else:
+                target = path[:-5] or "/"
+                target = target + query + fragment
+            self.send_response(301)
+            self.send_header("Location", target)
+            self.end_headers()
+            return True
+
+        if path.startswith("/api/"):
+            return False
+
+        rel = path.lstrip("/")
+        if not rel:
+            file_path = ROOT / "index.html"
+        elif rel == "auth/callback":
+            file_path = ROOT / "auth" / "callback.html"
+        else:
+            basename = rel.split("/")[-1]
+            if "." in basename:
+                file_path = ROOT / rel
+            else:
+                file_path = ROOT / (rel + ".html")
+
+        if file_path.is_file():
+            self.path = "/" + file_path.relative_to(ROOT).as_posix() + query + fragment
+        return False
+
     def do_GET(self):
         if self.path == "/api/accounts":
             accounts = load_accounts_registry()
@@ -238,6 +275,8 @@ class GlobalVestHandler(SimpleHTTPRequestHandler):
         if self.path == "/api/admin-data":
             admin = load_admin_registry()
             send_api_json(self, 200, {"ok": True, "admin": admin})
+            return
+        if self._resolve_clean_static_path():
             return
         super().do_GET()
 
@@ -382,8 +421,8 @@ def main():
     server = ThreadingHTTPServer(("0.0.0.0", PORT), GlobalVestHandler)
     print("")
     print(f"GlobalVest running at http://localhost:{PORT}")
-    print(f"  User:  http://localhost:{PORT}/index.html")
-    print(f"  Admin: http://localhost:{PORT}/admin.html")
+    print(f"  User:  http://localhost:{PORT}/")
+    print(f"  Admin: http://localhost:{PORT}/admin")
     if not CONFIG_PATH.exists():
         print("")
         print("  Email: not configured (copy email.config.example.json -> email.config.json)")

@@ -52,7 +52,7 @@ function renderList() {
     const list = document.getElementById("transferList");
 
     if (!filtered.length) {
-        list.innerHTML = '<div class="th-empty">No transfers found. <a href="send-money.html">Send money</a> to get started.</div>';
+        list.innerHTML = '<div class="th-empty">No transfers found. <a href="/send-money">Send money</a> to get started.</div>';
         return;
     }
 

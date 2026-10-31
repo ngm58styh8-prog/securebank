@@ -6,8 +6,8 @@ OAuth uses **Supabase Auth** for identity only. Accounts still live in the exist
 
 1. **Authentication → Providers** — enable **Google** and **Apple** with your OAuth client IDs/secrets.
 2. **Authentication → URL configuration** — add redirect URL:
-   - `https://globalvestbank.com/auth/callback.html`
-   - `http://localhost:8765/auth/callback.html` (local `./start.sh`)
+   - `https://globalvestbank.com/auth/callback`
+   - `http://localhost:8765/auth/callback` (local `./start.sh`)
 3. Copy **Project URL** → `SUPABASE_URL`
 4. Copy **anon public** key → `SUPABASE_ANON_KEY` (never use the service role key in the browser)
 

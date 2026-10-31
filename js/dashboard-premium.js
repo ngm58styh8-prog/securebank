@@ -79,7 +79,7 @@
         const transferBtn = document.getElementById("transferQuickBtn");
         if (transferBtn) {
             transferBtn.addEventListener("click", function() {
-                window.location.href = "send-money.html";
+                window.location.href = "/send-money";
             });
         }
     }
@@ -88,7 +88,7 @@
         const investBtn = document.getElementById("investQuickBtn") || document.getElementById("moreQuickBtn");
         if (investBtn && investBtn.id === "investQuickBtn") {
             investBtn.addEventListener("click", function() {
-                window.location.href = "exchange.html";
+                window.location.href = "/exchange";
             });
         }
     }
@@ -109,9 +109,9 @@
             btn.addEventListener("click", function() {
                 const q = prompt("Search assets, transactions, or pages:");
                 if (q && q.toLowerCase().indexOf("exchange") !== -1) {
-                    window.location.href = "exchange.html";
+                    window.location.href = "/exchange";
                 } else if (q && q.toLowerCase().indexOf("wallet") !== -1) {
-                    window.location.href = "wallet.html";
+                    window.location.href = "/wallet";
                 }
             });
         }

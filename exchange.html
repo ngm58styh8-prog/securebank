@@ -27,14 +27,14 @@
         <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest">
     </div>
     <div class="gv-nav-section">Menu</div>
-    <a href="dashboard.html" class="gv-nav-link">🏠 Dashboard</a>
-    <a href="wallet.html#accounts" class="gv-nav-link">🏦 Accounts</a>
-    <a href="wallet.html#portfolio" class="gv-nav-link">📈 Investments</a>
-    <a href="gold-investment.html" class="gv-nav-link">🐷 Savings</a>
-    <a href="exchange.html" class="gv-nav-link active" aria-current="page"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
-    <a href="send-money.html" class="gv-nav-link">⇄ Transfers</a>
-    <a href="wallet.html#transactions" class="gv-nav-link">🧾 Transactions</a>
-    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+    <a href="/dashboard" class="gv-nav-link">🏠 Dashboard</a>
+    <a href="/wallet#accounts" class="gv-nav-link">🏦 Accounts</a>
+    <a href="/wallet#portfolio" class="gv-nav-link">📈 Investments</a>
+    <a href="/gold-investment" class="gv-nav-link">🐷 Savings</a>
+    <a href="/exchange" class="gv-nav-link active" aria-current="page"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
+    <a href="/send-money" class="gv-nav-link">⇄ Transfers</a>
+    <a href="/wallet#transactions" class="gv-nav-link">🧾 Transactions</a>
+    <a href="/settings" class="gv-nav-link">⚙️ Settings</a>
     <button type="button" class="gv-nav-link gv-nav-logout" id="gvSidebarLogout">⎋ Logout</button>
 </aside>
 <div class="mk-scrim" id="mkScrim" hidden></div>
@@ -46,7 +46,7 @@
         <button type="button" class="gv-menu-toggle mk-menu-btn" id="sidebarToggle" aria-label="Open menu" aria-controls="gvSidebar" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
         </button>
-        <a href="dashboard.html" class="mk-logo" aria-label="GlobalVest home">
+        <a href="/dashboard" class="mk-logo" aria-label="GlobalVest home">
             <img src="assets/globalvest-logo-emerald.png" alt="GlobalVest" class="brand-logo-img">
         </a>
     </div>
@@ -57,10 +57,10 @@
         </button>
         <div id="mkAccountMenu" class="dropdown hidden" role="menu">
             <div class="dropdown-header" id="mkAccountName">👤 Account</div>
-            <a class="dropdown-item" role="menuitem" href="profile.html">My Profile</a>
-            <a class="dropdown-item" role="menuitem" href="settings.html">Account Settings</a>
-            <a class="dropdown-item" role="menuitem" href="wallet.html#transactions">Transaction History</a>
-            <a class="dropdown-item" role="menuitem" href="support.html">Support</a>
+            <a class="dropdown-item" role="menuitem" href="/profile">My Profile</a>
+            <a class="dropdown-item" role="menuitem" href="/settings">Account Settings</a>
+            <a class="dropdown-item" role="menuitem" href="/wallet#transactions">Transaction History</a>
+            <a class="dropdown-item" role="menuitem" href="/support">Support</a>
             <button class="dropdown-item" role="menuitem" type="button" id="logoutBtn">Logout</button>
         </div>
     </div>
@@ -380,6 +380,7 @@
 
 <div class="mk-toast" id="mkToast" role="status" aria-live="polite" hidden></div>
 
+<script src="js/app-paths.js"></script>
 <script src="js/storage.js?v=demo1"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-demo"></script>

@@ -26,12 +26,12 @@
     </div>
     <div class="header-right">
         <nav class="main-nav" id="mainNav">
-            <a href="dashboard.html" class="nav-link" data-page="dashboard">Dashboard</a>
-            <a href="exchange.html" class="nav-link" data-page="exchange"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="16" height="16"> Markets</a>
-            <a href="support.html" class="nav-link" data-page="support">Support</a>
-            <a href="settings.html" class="nav-link" data-page="settings">Settings</a>
+            <a href="/dashboard" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="/exchange" class="nav-link" data-page="exchange"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="16" height="16"> Markets</a>
+            <a href="/support" class="nav-link" data-page="support">Support</a>
+            <a href="/settings" class="nav-link" data-page="settings">Settings</a>
         </nav>
-        <a href="dashboard.html" class="nav-link mobile-back">← Dashboard</a>
+        <a href="/dashboard" class="nav-link mobile-back">← Dashboard</a>
         <button id="themeToggle" class="icon-btn" type="button">🌙</button>
         <button id="logoutBtn" class="icon-btn" type="button" title="Log out">🚪</button>
     </div>
@@ -52,9 +52,9 @@
         <div><dt>Account status</dt><dd id="bdStatus">—</dd></div>
     </dl>
     <div class="lv-detail-actions">
-        <a class="deposit-btn" href="dashboard.html?action=deposit">Deposit</a>
-        <a class="withdraw-btn" href="dashboard.html?action=withdraw">Withdraw</a>
-        <a class="deposit-btn" href="send-money.html">Transfer</a>
+        <a class="deposit-btn" href="/dashboard?action=deposit">Deposit</a>
+        <a class="withdraw-btn" href="/dashboard?action=withdraw">Withdraw</a>
+        <a class="deposit-btn" href="/send-money">Transfer</a>
         <a class="withdraw-btn" href="#transactions">View Statements</a>
     </div>
 </section>
@@ -68,9 +68,9 @@
         <div><dt>Interest / profit earned</dt><dd id="pfGoldEarned">—</dd></div>
     </dl>
     <div class="lv-detail-actions">
-        <a class="deposit-btn" href="exchange.html">Open Markets</a>
-        <a class="withdraw-btn" href="gold-investment.html">Gold Investment</a>
-        <a class="deposit-btn" href="dashboard.html#portfolioOverview">Live valuation &amp; trading</a>
+        <a class="deposit-btn" href="/exchange">Open Markets</a>
+        <a class="withdraw-btn" href="/gold-investment">Gold Investment</a>
+        <a class="deposit-btn" href="/dashboard#portfolioOverview">Live valuation &amp; trading</a>
     </div>
 </section>
 
@@ -119,6 +119,7 @@
 
 <div id="printArea" class="print-only"></div>
 
+<script src="js/app-paths.js"></script>
 <script src="js/storage.js?v=demo1"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-demo"></script>

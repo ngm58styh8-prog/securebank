@@ -23,12 +23,12 @@
 <aside class="gv-sidebar" id="gvSidebar">
     <div class="gv-sidebar-logo"><img src="assets/globalvest-logo-emerald.png" alt="GlobalVest"></div>
     <div class="gv-nav-section">Menu</div>
-    <a href="dashboard.html" class="gv-nav-link">🏠 Dashboard</a>
-    <a href="investments.html" class="gv-nav-link active" aria-current="page">📈 Investments</a>
-    <a href="wallet.html" class="gv-nav-link">💼 Wallet</a>
-    <a href="gold-investment.html" class="gv-nav-link">🟨 Gold Investment</a>
-    <a href="exchange.html" class="gv-nav-link"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
-    <a href="settings.html" class="gv-nav-link">⚙️ Settings</a>
+    <a href="/dashboard" class="gv-nav-link">🏠 Dashboard</a>
+    <a href="/investments" class="gv-nav-link active" aria-current="page">📈 Investments</a>
+    <a href="/wallet" class="gv-nav-link">💼 Wallet</a>
+    <a href="/gold-investment" class="gv-nav-link">🟨 Gold Investment</a>
+    <a href="/exchange" class="gv-nav-link"><img class="gv-markets-icon" src="public/icons/globalvest-markets.svg" alt="" width="20" height="20"> Markets</a>
+    <a href="/settings" class="gv-nav-link">⚙️ Settings</a>
     <button type="button" class="gv-nav-link gv-nav-logout" id="gvSidebarLogout">⎋ Logout</button>
 </aside>
 
@@ -84,7 +84,7 @@
         <section class="inv-section" aria-labelledby="invActiveHeading">
             <div class="inv-section-head">
                 <h2 id="invActiveHeading" class="inv-section-title">Active Investments</h2>
-                <a href="investment-history.html" class="inv-section-link">View All →</a>
+                <a href="/investment-history" class="inv-section-link">View All →</a>
             </div>
             <div class="inv-position-grid" id="invPositionGrid"></div>
             <p class="inv-empty hidden" id="invPositionsEmpty">No active investments yet. Browse assets below to get started.</p>
@@ -143,6 +143,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
 <script src="js/market-data.js?v=mk2"></script>
+<script src="js/app-paths.js"></script>
 <script src="js/storage.js?v=inv2"></script>
 <script src="js/common.js"></script>
 <script src="js/notifications.js?v=notif-premium2"></script>

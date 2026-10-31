@@ -34,7 +34,7 @@
         if (!creds.adminPassword) {
             return Promise.resolve({
                 ok: false,
-                error: "Admin session needs password for server APIs. Log out and sign in again at admin.html."
+                error: "Admin session needs password for server APIs. Log out and sign in again at /admin."
             });
         }
         if (typeof isServerSyncAvailable === "function" && !isServerSyncAvailable()) {

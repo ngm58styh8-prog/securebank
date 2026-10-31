@@ -337,7 +337,7 @@ function buildProjection(input) {
 }
 
 function buildViewUrl(investmentId) {
-    return getSiteUrl() + "/investments.html?investment=" + encodeURIComponent(investmentId);
+    return getSiteUrl() + "/investments?investment=" + encodeURIComponent(investmentId);
 }
 
 function generateInvestmentReference(date) {

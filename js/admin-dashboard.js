@@ -920,7 +920,7 @@ function renderUsersTable(admin, allUsers) {
     if (hintEl) {
         const canonicalHint = (function() {
             if (window.location.protocol === "file:") {
-                return " Warning: open via http://localhost:8765/admin.html (run ./start.sh).";
+                return " Warning: open via http://localhost:8765/admin (run ./start.sh).";
             }
             if (typeof isLocalServerHost === "function" && isLocalServerHost() &&
                 typeof isCanonicalAppOrigin === "function" && !isCanonicalAppOrigin()) {
@@ -1635,7 +1635,7 @@ document.getElementById("notificationForm").addEventListener("submit", function(
 
 document.getElementById("adminLogoutBtn").addEventListener("click", function() {
     clearAdminSession();
-    window.location.href = getLocalServerUrl("admin.html");
+    window.location.href = getLocalServerUrl("admin");
 });
 
 window.addEventListener("storage", function(e) {

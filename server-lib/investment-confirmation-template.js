@@ -39,7 +39,7 @@ function formatDate(iso) {
 }
 
 function resolveViewUrl(rawUrl) {
-    const fallback = getSiteUrl() + "/investments.html";
+    const fallback = getSiteUrl() + "/investments";
     try {
         const parsed = new URL(String(rawUrl || fallback));
         if (parsed.protocol !== "https:") return fallback;

@@ -65,10 +65,10 @@ function applyOAuthAccountResult(result) {
         setSession(email, { skipServerSync: true });
     }
     sessionStorage.setItem("securebank_new_signup", result.isNew ? "1" : "");
-    const dash = window.location.pathname.indexOf("/auth/") !== -1
-        ? "../dashboard.html"
-        : "dashboard.html";
-    window.location.href = dash;
+    const dest = typeof postLoginDestination === "function"
+        ? postLoginDestination()
+        : (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("dashboard") : "/dashboard");
+    window.location.href = dest;
 }
 
 function postOAuthComplete(accessToken) {
@@ -99,7 +99,7 @@ function startOAuthProvider(provider) {
             throw new Error("Could not initialize OAuth client.");
         }
         const redirectTo = config.redirectTo ||
-            (window.location.origin + "/auth/callback.html");
+            (window.location.origin + "/auth/callback");
 
         return client.auth.signInWithOAuth({
             provider: provider,
@@ -186,7 +186,7 @@ function completeOAuthCallback() {
     }).catch(function(err) {
         fail(err.message || "Sign-in failed.");
         setTimeout(function() {
-            window.location.href = "../login.html";
+            window.location.href = "/login";
         }, 3200);
     });
 }

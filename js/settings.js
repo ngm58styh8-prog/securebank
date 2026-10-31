@@ -135,7 +135,7 @@ function removeDeviceFromSettings(fingerprint) {
     const finish = function() {
         if (shouldLogout) {
             if (typeof clearSession === "function") clearSession();
-            window.location.href = "login.html?reason=device-removed";
+            window.location.href = (typeof AppPaths !== "undefined" ? AppPaths.toCleanPath("login") : "/login") + "?reason=device-removed";
             return;
         }
         renderDevices();

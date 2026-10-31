@@ -153,7 +153,7 @@ function getOAuthPublicConfig(origin) {
             google: configured,
             apple: configured
         },
-        redirectTo: redirectBase ? redirectBase + "/auth/callback.html" : null,
+        redirectTo: redirectBase ? redirectBase + "/auth/callback" : null,
         message: configured
             ? "OAuth ready when Google and Apple are enabled in Supabase Auth."
             : "Set SUPABASE_URL and SUPABASE_ANON_KEY (publishable) on the server to enable Google and Apple sign-in."

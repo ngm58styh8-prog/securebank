@@ -11,17 +11,18 @@
     };
 
     var ITEMS = [
-        { key: "home", label: "Home", href: "dashboard.html", pages: ["dashboard.html"] },
-        { key: "markets", label: "Markets", href: "exchange.html", pages: ["exchange.html"] },
-        { key: "transfer", label: "Transfer", href: "send-money.html", pages: ["send-money.html", "transfer-history.html"] },
-        { key: "portfolio", label: "Investments", href: "investments.html", pages: ["investments.html", "investment-history.html", "wallet.html", "gold-investment.html"] },
-        { key: "account", label: "Account", href: "settings.html", pages: ["settings.html", "profile.html", "support.html"] }
+        { key: "home", label: "Home", href: "/dashboard", pages: ["dashboard"] },
+        { key: "markets", label: "Markets", href: "/exchange", pages: ["exchange"] },
+        { key: "transfer", label: "Transfer", href: "/send-money", pages: ["send-money", "transfer-history"] },
+        { key: "portfolio", label: "Investments", href: "/investments", pages: ["investments", "investment-history", "wallet", "gold-investment"] },
+        { key: "account", label: "Account", href: "/settings", pages: ["settings", "profile", "support"] }
     ];
 
     function currentPage() {
+        if (typeof AppPaths !== "undefined") return AppPaths.pathnameSlug();
         var file = window.location.pathname.split("/").pop() || "";
-        if (!file || file === "/") return "dashboard.html";
-        return file.indexOf(".") === -1 ? file + ".html" : file;
+        if (!file) return "dashboard";
+        return file.replace(/\.html$/i, "");
     }
 
     function activeKey() {
