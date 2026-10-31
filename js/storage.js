@@ -4823,7 +4823,7 @@ function submitDepositRequest(userEmail, amount, method, depositMeta) {
         if (!walletConfig || !CryptoDepositConfig.isWalletDepositLive(walletConfig)) {
             return {
                 ok: false,
-                error: currency + " deposits are not available yet. Wallet verification is required before live deposits can be accepted."
+                error: currency + " deposits are temporarily unavailable. Please choose another asset or try again later."
             };
         }
     }

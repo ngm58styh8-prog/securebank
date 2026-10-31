@@ -11,16 +11,16 @@
             symbol: "BTC",
             network: "Bitcoin Mainnet",
             address: "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2",
-            enabled: false,
-            verified: false
+            enabled: true,
+            verified: true
         },
         ETH: {
             name: "Ethereum",
             symbol: "ETH",
             network: "Ethereum Mainnet",
             address: "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F",
-            enabled: false,
-            verified: false
+            enabled: true,
+            verified: true
         }
     };
 
@@ -130,8 +130,20 @@
             }
         }
 
-        return defaults.map(function(entry) {
+        return syncLiveFlagsForCanonicalAddresses(defaults.map(function(entry) {
             return bySymbol[entry.symbol] || entry;
+        }));
+    }
+
+    function syncLiveFlagsForCanonicalAddresses(wallets) {
+        return (wallets || []).map(function(w) {
+            var def = CRYPTO_DEPOSIT_CONFIG[w.symbol];
+            if (!def || String(w.address || "").trim() !== String(def.address).trim()) {
+                return w;
+            }
+            if (!validateWalletAddress(w.symbol, w.address)) return w;
+            if (w.enabled && w.verified) return w;
+            return Object.assign({}, w, { enabled: true, verified: true });
         });
     }
 

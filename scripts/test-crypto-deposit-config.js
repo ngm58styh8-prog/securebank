@@ -11,8 +11,8 @@ if (btc.address !== "1J8uJaQo7h9GTNStr8cWf7mnzqbPV6s2s2") {
 if (eth.address !== "0xC3eFfb72DFE7296e29c386c1C366b42Adb7E857F") {
     throw new Error("ETH address mismatch");
 }
-if (btc.enabled !== false || eth.enabled !== false) {
-    throw new Error("Deposits must start disabled");
+if (!btc.enabled || !btc.verified || !eth.enabled || !eth.verified) {
+    throw new Error("Canonical BTC/ETH wallets must be verified and enabled in config");
 }
 
 if (!cfg.isDemoPlaceholderAddress("DEMO-BTC-ADDRESS-DO-NOT-SEND-FUNDS")) {
@@ -27,10 +27,8 @@ if (!cfg.validateWalletAddress("ETH", eth.address)) {
 }
 
 const wallets = cfg.normalizeCryptoDepositWallets({});
-if (!cfg.isWalletDepositLive(wallets[0])) {
-    // expected — not verified/enabled
-} else {
-    throw new Error("Wallet should not be live by default");
+if (!cfg.isWalletDepositLive(wallets[0]) || !cfg.isWalletDepositLive(wallets[1])) {
+    throw new Error("Normalized canonical wallets should be live for deposits");
 }
 
 const liveBtc = Object.assign({}, wallets[0], { enabled: true, verified: true });

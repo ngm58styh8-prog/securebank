@@ -1457,7 +1457,8 @@ body[data-theme="dark"] .pending-badge {
     font-weight: 600;
 }
 
-.deposit-verification-notice {
+.deposit-verification-notice,
+.deposit-unavailable-notice {
     margin: 12px 0;
     padding: 12px 14px;
     border-radius: 10px;
@@ -1466,6 +1467,88 @@ body[data-theme="dark"] .pending-badge {
     color: #ffd9a6;
     font-size: 0.9rem;
     line-height: 1.45;
+}
+
+.deposit-flow-notice {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    background: rgba(0, 232, 155, 0.08);
+    border: 1px solid rgba(0, 232, 155, 0.22);
+    color: #b8ffe4;
+}
+
+.deposit-flow-notice--error {
+    background: rgba(231, 76, 60, 0.12);
+    border-color: rgba(231, 76, 60, 0.35);
+    color: #ffb4aa;
+}
+
+.deposit-details-card {
+    margin-top: 8px;
+}
+
+.deposit-details-title {
+    margin: 0 0 16px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+}
+
+.deposit-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px 16px;
+    margin-bottom: 18px;
+}
+
+.deposit-summary-value {
+    margin: 4px 0 0;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.deposit-summary-amount {
+    color: #3ee0a0;
+    font-size: 1.15rem;
+}
+
+.deposit-copy-feedback {
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    color: #3ee0a0;
+}
+
+.deposit-tx-status {
+    margin: 16px 0 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    color: #dbeafe;
+    font-size: 0.92rem;
+}
+
+.deposit-tx-status-label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #93c5fd;
+    margin-bottom: 4px;
+}
+
+.deposit-submit-success {
+    margin: 12px 0 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(0, 232, 155, 0.1);
+    border: 1px solid rgba(0, 232, 155, 0.25);
+    color: #c9ffe8;
+    font-size: 0.9rem;
+    line-height: 1.5;
 }
 
 .deposit-network-info {

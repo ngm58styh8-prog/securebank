@@ -202,26 +202,43 @@
         <label class="form-label" for="depositAmountInput">Deposit Amount (USD)</label>
         <input id="depositAmountInput" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Enter deposit amount" autocomplete="off">
         <p id="depositAmountError" class="deposit-amount-error hidden">Enter an amount greater than $0.</p>
-        <button type="button" class="deposit-continue-btn" id="depositContinueBtn">Continue</button>
-    </div>
 
-    <div id="depositAddressBox" class="admin-payto-box deposit-btc-banner hidden">
         <label class="form-label" for="depositCryptoSelect">Select Cryptocurrency</label>
         <select id="depositCryptoSelect" class="deposit-crypto-select wallet-filter" aria-label="Select cryptocurrency"></select>
 
-        <span class="form-label">Network</span>
-        <p id="depositCryptoNetwork" class="deposit-network-value">—</p>
+        <p id="depositFlowNotice" class="deposit-flow-notice hidden" role="alert"></p>
+        <button type="button" class="deposit-continue-btn" id="depositContinueBtn">Continue</button>
+    </div>
+
+    <div id="depositAddressBox" class="admin-payto-box deposit-btc-banner deposit-details-card hidden">
+        <h4 class="deposit-details-title">Deposit Cryptocurrency</h4>
+
+        <div class="deposit-summary-grid">
+            <div class="deposit-summary-item">
+                <span class="form-label">Selected Asset</span>
+                <p id="depositCryptoPayLabel" class="deposit-summary-value">Bitcoin (BTC)</p>
+            </div>
+            <div class="deposit-summary-item">
+                <span class="form-label">Network</span>
+                <p id="depositCryptoNetwork" class="deposit-summary-value">—</p>
+            </div>
+            <div class="deposit-summary-item">
+                <span class="form-label">Deposit Amount</span>
+                <p id="depositSummaryUsd" class="deposit-summary-value deposit-summary-amount">—</p>
+            </div>
+        </div>
 
         <span class="form-label">Deposit Address</span>
-        <p id="depositCryptoPayLabel" class="crypto-pay-label">Bitcoin (BTC)</p>
-        <div id="depositPageAddress" class="admin-payto-text admin-crypto-address">Loading deposit address…</div>
-        <p id="depositCryptoStatus" class="deposit-verification-notice hidden" role="status"></p>
+        <div id="depositPageAddress" class="admin-payto-text admin-crypto-address">—</div>
+        <p id="depositCryptoStatus" class="deposit-unavailable-notice hidden" role="status"></p>
+
+        <button type="button" class="copy-btn" id="copyDepositPageBtn">Copy Deposit Address</button>
+        <p id="depositCopyFeedback" class="deposit-copy-feedback hidden" role="status" aria-live="polite"></p>
 
         <div class="deposit-qr-wrap deposit-qr-disabled">
-            <img id="depositQrImage" class="deposit-qr-image hidden" alt="Deposit address QR code" width="200" height="200">
-            <p class="deposit-qr-placeholder">QR code available after wallet verification</p>
+            <img id="depositQrImage" class="deposit-qr-image hidden" alt="Deposit address QR code" width="200" height="200" loading="lazy">
+            <p class="deposit-qr-placeholder">QR code will appear when this deposit method is available.</p>
         </div>
-        <button type="button" class="copy-btn" id="copyDepositPageBtn" disabled>Copy Deposit Address</button>
 
         <div class="deposit-network-info">
             <p class="deposit-hint"><strong>Network information:</strong> Send only on the network shown above. Sending on the wrong network may result in permanent loss of funds.</p>
@@ -234,7 +251,13 @@
             <div id="depositPageBtcAmount" class="deposit-btc-preview-amount">—</div>
             <p class="deposit-hint">Based on current <span id="depositPageCryptoName">BTC</span> price for your $<span id="depositPageUsdDisplay">0.00</span> deposit.</p>
         </div>
-        <p id="depositConfirmInstruction" class="deposit-hint">Send the exact BTC amount above to the deposit address. Once you've completed the transfer, click 'Submit Deposit' to notify us of your payment.</p>
+        <p id="depositConfirmInstruction" class="deposit-hint">Send the exact crypto amount above to the deposit address. After you transfer, submit your deposit request so we can track confirmation.</p>
+        <p id="depositTxStatus" class="deposit-tx-status hidden" role="status">
+            <span class="deposit-tx-status-label">Transaction Status:</span>
+            <span id="depositTxStatusText">Awaiting Blockchain Confirmation</span>
+        </p>
+        <p id="depositSubmitSuccess" class="deposit-submit-success hidden" role="status"></p>
+        <p id="depositSubmitError" class="deposit-flow-notice deposit-flow-notice--error hidden" role="alert"></p>
         <div class="deposit-panel-actions">
             <button type="button" class="modal-cancel" id="depositBackBtn">Change Amount</button>
             <button type="button" class="modal-confirm" id="depositSubmitBtn">Submit Deposit</button>
