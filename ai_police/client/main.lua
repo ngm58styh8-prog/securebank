@@ -112,6 +112,19 @@ function AIP.beginEncounter(work)
     return true
 end
 
+local function applyWantedLevel(stars)
+    local player = PlayerId()
+    SetMaxWantedLevel(5)
+    SetDispatchCopsForPlayer(player, false)
+    if stars <= 0 then
+        SetPlayerWantedLevel(player, 0, false)
+        SetPlayerWantedLevelNow(player, false)
+        return
+    end
+    SetPlayerWantedLevelNoDrop(player, stars, false)
+    SetPlayerWantedLevelNow(player, false)
+end
+
 function AIP.showStars(count)
     local stars = math.floor(tonumber(count) or 0)
     local maxStars = (Config.Stars and Config.Stars.Max) or 5
@@ -119,11 +132,25 @@ function AIP.showStars(count)
     if stars > maxStars then stars = maxStars end
     AIP.stars = stars
     SendNUIMessage({ action = 'stars', stars = stars })
+    applyWantedLevel(stars)
+end
+
+function AIP.raiseStars(amount)
+    local nextStars = (AIP.stars or 0) + math.floor(tonumber(amount) or 1)
+    if nextStars <= (AIP.stars or 0) then return end
+    AIP.showStars(nextStars)
+    lib.notify({
+        title = Config.Department,
+        description = ('Wanted level is now %d stars.'):format(AIP.stars),
+        type = 'error',
+        duration = 5000,
+    })
 end
 
 function AIP.hideStars()
     AIP.stars = 0
     SendNUIMessage({ action = 'stars', stars = 0 })
+    applyWantedLevel(0)
 end
 
 function AIP.showText(message)
@@ -422,6 +449,7 @@ function AIP.maybeDeploySwat(cruisers, started, seen)
     local unit = AIP.spawnSwat(#cruisers + 1, GetEntityCoords(cache.ped))
     if not unit then return false end
     cruisers[#cruisers + 1] = unit
+    AIP.raiseStars(1)
     lib.notify({
         title = Config.Department,
         description = 'SWAT is in the chase. One van, four officers.',

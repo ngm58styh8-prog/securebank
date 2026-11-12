@@ -106,6 +106,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
         local lostSince = nil
         local hadSight = false
         local swatSent = false
+        local fleeStar = false
 
         while true do
             Wait(200)
@@ -157,7 +158,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
                 hostile = true
                 AIP.releaseHandbrake()
                 offense = 'assault_officer'
-                AIP.showStars((Config.Stars and Config.Stars.Floor and Config.Stars.Floor.assault_officer) or 3)
+                AIP.showStars(math.max(AIP.stars or 0, (Config.Stars and Config.Stars.Floor and Config.Stars.Floor.assault_officer) or 3))
                 AIP.showText('Stop. You are attacking an officer.')
                 AIP.engage({ cruiser }, ped)
             end
@@ -205,6 +206,10 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
 
             if warned and speed > Config.Traffic.EludeSpeed then
                 fastFlee = fastFlee + 200
+                if not fleeStar and fastFlee >= Config.Traffic.EludeTime then
+                    fleeStar = true
+                    AIP.raiseStars(1)
+                end
             end
 
             if stoppedFor >= 1600 then
