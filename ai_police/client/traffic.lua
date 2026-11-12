@@ -78,6 +78,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
             return
         end
         local units = { cruiser }
+        AIP.showStars(1)
 
         local offense = peakSpeed >= (limit * Config.Traffic.ExcessiveRatio) and 'excessive_speed' or 'speeding'
         local extras = nil
@@ -156,6 +157,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
                 hostile = true
                 AIP.releaseHandbrake()
                 offense = 'assault_officer'
+                AIP.showStars((Config.Stars and Config.Stars.Floor and Config.Stars.Floor.assault_officer) or 3)
                 AIP.showText('Stop. You are attacking an officer.')
                 AIP.engage({ cruiser }, ped)
             end

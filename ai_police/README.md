@@ -12,13 +12,13 @@ The folder you drop in `resources` must be named `ai_police`, and `fxmanifest.lu
 ensure ai_police
 ```
 
-It starts on a plain test server. The console should print `AI Police 1.1.3 started`. If the console instead says `Could not find dependency ox_lib`, the server is still running an older folder. Delete that folder and extract this one. On a plain test server each player has a test wallet of $50,000 in the bank. On Qbox or QBCore, put the ensure line after `ox_lib` and `qbx_core` (or `qb-core`) so the fine comes out of the character instead.
+It starts on a plain test server. The console should print `AI Police 1.1.4 started`. If the console instead says `Could not find dependency ox_lib`, the server is still running an older folder. Delete that folder and extract this one. On a plain test server each player has a test wallet of $50,000 in the bank. On Qbox or QBCore, put the ensure line after `ox_lib` and `qbx_core` (or `qb-core`) so the fine comes out of the character instead.
 
 Restart the server, or `ensure ai_police` from the console before players are in a chase. Do not restart it while a unit is already spawned on someone.
 
 ## What players do
 
-- Hold more than 12 km/h over the limit (80 km/h by default) for 5 seconds. One police cruiser comes from the road behind you. The script does not brake your car. Pull over for the speeding citation. Drive off and they chase.
+- Hold more than 12 km/h over the limit (80 km/h by default) for 5 seconds. One police cruiser comes from the road behind you. Gold stars stay in the top right for the whole response: 1 for speeding, more for a robbery, a kill, or a heist. The script does not brake your car. Pull over for the speeding citation. Drive off and they chase.
 - A chase stays on you while an officer can see you. Inside 25 m the lead car rams. You lose them only after 30 seconds out of sight. At 60 seconds a SWAT van with 4 officers joins.
 - A robbery raises it to at least 2 stars, a kill to 3, and a heist to 4. More stars send more police cars, up to 4. Call the export with `offense = 'robbery'` or `offense = 'heist'`.
 - Robbery and homicide do not write a citation and do not take a fine. A catch is 3 minutes in the Mission Row cell, even if the suspect drops the weapon.

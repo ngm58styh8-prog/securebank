@@ -48,6 +48,7 @@ function AIP.finishEncounter()
     AIP.finishing = true
 
     AIP.hideText()
+    AIP.hideStars()
     if AIP.releaseHandbrake then
         AIP.releaseHandbrake()
     end
@@ -109,6 +110,20 @@ function AIP.beginEncounter(work)
     end)
 
     return true
+end
+
+function AIP.showStars(count)
+    local stars = math.floor(tonumber(count) or 0)
+    local maxStars = (Config.Stars and Config.Stars.Max) or 5
+    if stars < 0 then stars = 0 end
+    if stars > maxStars then stars = maxStars end
+    AIP.stars = stars
+    SendNUIMessage({ action = 'stars', stars = stars })
+end
+
+function AIP.hideStars()
+    AIP.stars = 0
+    SendNUIMessage({ action = 'stars', stars = 0 })
 end
 
 function AIP.showText(message)

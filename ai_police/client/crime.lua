@@ -71,6 +71,8 @@ function AIP.respond(payload)
 
         if #cruisers == 0 then return end
 
+        AIP.showStars(stars)
+
         local suspectId = tonumber(payload.suspect)
         local iAmSuspect = suspectId == GetPlayerServerId(PlayerId())
         if iAmSuspect then

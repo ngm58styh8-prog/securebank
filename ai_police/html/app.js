@@ -1,5 +1,6 @@
 const overlay = document.getElementById('overlay');
 const countdown = document.getElementById('countdown');
+const wanted = document.getElementById('wanted');
 const charges = document.getElementById('charges');
 
 function reveal(el, shown) {
@@ -10,6 +11,7 @@ function reveal(el, shown) {
 
 reveal(overlay, false);
 reveal(countdown, false);
+reveal(wanted, false);
 
 function starText(count) {
     const filled = Math.max(1, Math.min(5, Number(count) || 1));
@@ -18,6 +20,17 @@ function starText(count) {
         text += i <= filled ? '★' : '☆';
     }
     return text;
+}
+
+function showWanted(count) {
+    const filled = Math.max(0, Math.min(5, Number(count) || 0));
+    if (filled < 1) {
+        reveal(wanted, false);
+        return;
+    }
+    document.getElementById('wanted-stars').textContent = starText(filled);
+    document.getElementById('wanted-label').textContent = filled === 1 ? '1 star' : (filled + ' stars');
+    reveal(wanted, true);
 }
 
 function show(data) {
@@ -63,6 +76,7 @@ window.addEventListener('message', function (event) {
     const data = event.data || {};
     if (data.action === 'citation') show(data);
     if (data.action === 'close') hide();
+    if (data.action === 'stars') showWanted(data.stars);
     if (data.action === 'countdown') {
         document.getElementById('count-num').textContent = String(data.seconds ?? '');
         reveal(countdown, true);

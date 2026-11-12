@@ -1039,5 +1039,5 @@ AddEventHandler('onResourceStart', function(resource)
     elseif GetResourceState('qb-core') == 'started' then
         framework = 'qb-core'
     end
-    print(('[ai_police] %s 1.1.3 started. Fines use %s. Crime units spawn only when no police job is online.'):format(Config.Department, framework))
+    print(('[ai_police] %s 1.1.4 started. Fines use %s. Crime units spawn only when no police job is online.'):format(Config.Department, framework))
 end)

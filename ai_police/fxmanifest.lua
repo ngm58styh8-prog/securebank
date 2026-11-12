@@ -5,7 +5,7 @@ lua54 'yes'
 name 'ai_police'
 author 'AI Police'
 description 'AI police for traffic tickets, citations, and crime response when no officers are online'
-version '1.1.3'
+version '1.1.4'
 
 shared_scripts {
     'shared/boot.lua',
@@ -32,4 +32,4 @@ server_scripts {
     'server/main.lua',
 }
 
--- 1.1.3: no citation for robbery or homicide (3 minute jail), real pursuit, SWAT at 60 seconds.
+-- 1.1.4 shows the wanted star level in the top right for the whole response.
