@@ -2,7 +2,7 @@ AIP = AIP or {}
 
 function AIP.debug(message)
     if not Config.Debug then return end
-    print(('[accra_aipolice] %s'):format(message))
+    print(('[ai_police] %s'):format(message))
 end
 
 function AIP.formatMoney(amount)

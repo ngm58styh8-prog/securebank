@@ -78,7 +78,7 @@ function AIP.finishEncounter()
 
     if AIP.holdingUnit then
         AIP.holdingUnit = false
-        TriggerServerEvent('accra_aipolice:server:release')
+        TriggerServerEvent('ai_police:server:release')
     end
 
     AIP.busy = false
@@ -102,7 +102,7 @@ function AIP.beginEncounter(work)
 
         local ok, err = pcall(work)
         if not ok then
-            print(('[accra_aipolice] encounter failed: %s'):format(err))
+            print(('[ai_police] encounter failed: %s'):format(err))
         end
 
         AIP.finishEncounter()
@@ -191,7 +191,7 @@ end
 
 function AIP.refreshStatus()
     local ok, status = pcall(function()
-        return lib.callback.await('accra_aipolice:server:status', false)
+        return lib.callback.await('ai_police:server:status', false)
     end)
     if ok and type(status) == 'table' and status.loaded then
         AIP.status = status
@@ -654,7 +654,7 @@ function AIP.issue(offense, details)
     details = details or {}
     details.offense = offense
     local ok, result = pcall(function()
-        return lib.callback.await('accra_aipolice:server:issue', false, details)
+        return lib.callback.await('ai_police:server:issue', false, details)
     end)
     if not ok or type(result) ~= 'table' then
         AIP.debug(tostring(result))
@@ -745,7 +745,7 @@ function AIP.present(result)
                 AIP.detain(seconds)
             end)
         elseif result.detain and result.detain > 0 and IsEntityDead(cache.ped) then
-            TriggerServerEvent('accra_aipolice:server:detainDone')
+            TriggerServerEvent('ai_police:server:detainDone')
         end
         return
     end
@@ -756,7 +756,7 @@ function AIP.present(result)
             AIP.detain(seconds)
         end)
     elseif result.detain and result.detain > 0 and IsEntityDead(cache.ped) then
-        TriggerServerEvent('accra_aipolice:server:detainDone')
+        TriggerServerEvent('ai_police:server:detainDone')
     end
 end
 
@@ -843,7 +843,7 @@ function AIP.detain(seconds)
 
     AIP.detained = false
     AIP.detainRunning = false
-    TriggerServerEvent('accra_aipolice:server:detainDone')
+    TriggerServerEvent('ai_police:server:detainDone')
     lib.notify({
         title = Config.Department,
         description = 'You are free to go. Unpaid fines stay on /citations.',
@@ -896,27 +896,27 @@ function AIP.fadeIn()
     DoScreenFadeIn(400)
 end
 
-RegisterNetEvent('accra_aipolice:client:paper', function(result)
+RegisterNetEvent('ai_police:client:paper', function(result)
     AIP.present(result)
 end)
 
-RegisterNetEvent('accra_aipolice:client:detain', function(seconds)
+RegisterNetEvent('ai_police:client:detain', function(seconds)
     CreateThread(function()
         AIP.detain(seconds)
     end)
 end)
 
-RegisterNetEvent('accra_aipolice:client:releaseDetain', function()
+RegisterNetEvent('ai_police:client:releaseDetain', function()
     AIP.detained = false
 end)
 
-RegisterNetEvent('accra_aipolice:client:notify', function(data)
+RegisterNetEvent('ai_police:client:notify', function(data)
     if lib and lib.notify then
         lib.notify(data)
     end
 end)
 
-RegisterNetEvent('accra_aipolice:client:policeAlert', function(data)
+RegisterNetEvent('ai_police:client:policeAlert', function(data)
     if type(data) ~= 'table' or not data.coords then return end
     local coords = vector3(data.coords.x + 0.0, data.coords.y + 0.0, data.coords.z + 0.0)
     lib.notify({
@@ -950,7 +950,7 @@ local function boot()
     AIP.refreshStatus()
 
     local ok, info = pcall(function()
-        return lib.callback.await('accra_aipolice:server:boot', false)
+        return lib.callback.await('ai_police:server:boot', false)
     end)
     if not ok or type(info) ~= 'table' then return end
 

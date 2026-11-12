@@ -20,13 +20,13 @@ local function oxReady()
     if not chunk then return false end
     local fn, err = load(chunk, '@@ox_lib/init.lua', 't', _ENV)
     if not fn then
-        print(('[accra_aipolice] ox_lib init failed to compile: %s'):format(err))
+        print(('[ai_police] ox_lib init failed to compile: %s'):format(err))
         return false
     end
 
     local ok, runErr = pcall(fn)
     if not ok then
-        print(('[accra_aipolice] ox_lib init failed: %s'):format(runErr))
+        print(('[ai_police] ox_lib init failed: %s'):format(runErr))
         return false
     end
     return lib ~= nil
@@ -36,7 +36,7 @@ if oxReady() then
     return
 end
 
-print('[accra_aipolice] ox_lib is not started. AI Police loaded its own menus so this server can still run it.')
+print('[ai_police] ox_lib is not started. AI Police loaded its own menus so this server can still run it.')
 
 lib = {}
 cache = cache or {}
@@ -50,14 +50,14 @@ if IsDuplicityVersion() then
         handlers[name] = fn
     end
 
-    RegisterNetEvent('accra_aipolice:cb', function(name, id, payload)
+    RegisterNetEvent('ai_police:cb', function(name, id, payload)
         local handler = handlers[name]
         local result = nil
         if handler then
             local ok, value = pcall(handler, source, table.unpack(payload or {}))
             if ok then result = value end
         end
-        TriggerClientEvent('accra_aipolice:cb:res', source, id, result)
+        TriggerClientEvent('ai_police:cb:res', source, id, result)
     end)
 
     function lib.addCommand(name, props, cb)
@@ -86,11 +86,11 @@ else
         local id = nextId
         local ticket = promise.new()
         pending[id] = ticket
-        TriggerServerEvent('accra_aipolice:cb', name, id, { ... })
+        TriggerServerEvent('ai_police:cb', name, id, { ... })
         return Citizen.Await(ticket)
     end
 
-    RegisterNetEvent('accra_aipolice:cb:res', function(id, result)
+    RegisterNetEvent('ai_police:cb:res', function(id, result)
         local ticket = pending[id]
         if not ticket then return end
         pending[id] = nil

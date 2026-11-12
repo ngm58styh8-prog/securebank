@@ -1,6 +1,6 @@
 local function reportCrime(offense)
     local coords = GetEntityCoords(cache.ped)
-    TriggerServerEvent('accra_aipolice:server:crimeSeen', {
+    TriggerServerEvent('ai_police:server:crimeSeen', {
         offense = offense,
         coords = { x = coords.x, y = coords.y, z = coords.z },
     })
@@ -36,7 +36,7 @@ end
 
 function AIP.respond(payload)
     AIP.beginEncounter(function()
-        local granted = lib.callback.await('accra_aipolice:server:request', false, {
+        local granted = lib.callback.await('ai_police:server:request', false, {
             kind = 'crime',
         })
 
@@ -240,7 +240,7 @@ function AIP.respond(payload)
     end)
 end
 
-RegisterNetEvent('accra_aipolice:client:respond', function(payload)
+RegisterNetEvent('ai_police:client:respond', function(payload)
     if type(payload) ~= 'table' then return end
     if AIP.busy then
         AIP.debug('ignored crime response, already on a call')
@@ -297,5 +297,5 @@ end)
 
 exports('Alert', function(data)
     if type(data) ~= 'table' then return end
-    TriggerServerEvent('accra_aipolice:server:dispatch', data)
+    TriggerServerEvent('ai_police:server:dispatch', data)
 end)

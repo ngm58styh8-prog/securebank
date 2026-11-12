@@ -204,7 +204,7 @@ local function notifyPolice(info)
         coords = { x = info.coords.x, y = info.coords.y, z = info.coords.z },
     }
     for i = 1, #targets do
-        TriggerClientEvent('accra_aipolice:client:policeAlert', targets[i], payload)
+        TriggerClientEvent('ai_police:client:policeAlert', targets[i], payload)
     end
 end
 
@@ -247,7 +247,7 @@ local function openCall(host, suspect, info, force)
             })
             cooldownUntil[key] = cooldownUntil[key] or {}
             cooldownUntil[key].alert = os.time() + 45
-            TriggerEvent('accra_aipolice:alert', {
+            TriggerEvent('ai_police:alert', {
                 coords = coords,
                 title = info.title,
                 code = info.code,
@@ -280,7 +280,7 @@ local function openCall(host, suspect, info, force)
         force = force == true,
     }
 
-    TriggerClientEvent('accra_aipolice:client:respond', host, {
+    TriggerClientEvent('ai_police:client:respond', host, {
         offense = offense.id,
         severity = stars,
         stars = stars,
@@ -291,7 +291,7 @@ local function openCall(host, suspect, info, force)
         test = force == true,
     })
 
-    TriggerEvent('accra_aipolice:alert', {
+    TriggerEvent('ai_police:alert', {
         coords = coords,
         title = info.title,
         code = info.code,
@@ -559,9 +559,9 @@ local function issueCitation(host, data)
 
     local citizen = player.PlayerData.citizenid or tostring(suspect)
     if noCitation then
-        print(('[accra_aipolice] %s jailed %ss for %s, no citation'):format(citizen, detain, offense.id))
+        print(('[ai_police] %s jailed %ss for %s, no citation'):format(citizen, detain, offense.id))
     else
-        print(('[accra_aipolice] %s fined %s for %s'):format(citizen, AIP.formatMoney(total), offense.id))
+        print(('[ai_police] %s fined %s for %s'):format(citizen, AIP.formatMoney(total), offense.id))
     end
 
     local stars = call.stars or 1
@@ -596,7 +596,7 @@ local function issueCitation(host, data)
     }
 
     if suspect ~= host then
-        TriggerClientEvent('accra_aipolice:client:paper', suspect, result)
+        TriggerClientEvent('ai_police:client:paper', suspect, result)
         return { ok = true, silent = true }
     end
     return result
@@ -615,7 +615,7 @@ local function isAdmin(src)
     return false
 end
 
-lib.callback.register('accra_aipolice:server:status', function(src)
+lib.callback.register('ai_police:server:status', function(src)
     if not getPlayer(src) then
         return { loaded = false }
     end
@@ -626,7 +626,7 @@ lib.callback.register('accra_aipolice:server:status', function(src)
     }
 end)
 
-lib.callback.register('accra_aipolice:server:boot', function(src)
+lib.callback.register('ai_police:server:boot', function(src)
     local player = getPlayer(src)
     if not player then
         return { debt = 0, detain = 0 }
@@ -644,7 +644,7 @@ lib.callback.register('accra_aipolice:server:boot', function(src)
     }
 end)
 
-lib.callback.register('accra_aipolice:server:request', function(src, data)
+lib.callback.register('ai_police:server:request', function(src, data)
     if type(data) ~= 'table' then
         return { ok = false, reason = 'bad' }
     end
@@ -732,14 +732,14 @@ lib.callback.register('accra_aipolice:server:request', function(src, data)
     return { ok = true, units = units, stars = calls[src].stars }
 end)
 
-lib.callback.register('accra_aipolice:server:issue', function(src, data)
+lib.callback.register('ai_police:server:issue', function(src, data)
     if type(data) ~= 'table' or type(data.offense) ~= 'string' then
         return { ok = false, reason = 'bad' }
     end
     return issueCitation(src, data)
 end)
 
-lib.callback.register('accra_aipolice:server:citations', function(src)
+lib.callback.register('ai_police:server:citations', function(src)
     local player = getPlayer(src)
     if not player then
         return { citations = {}, debt = 0 }
@@ -752,7 +752,7 @@ lib.callback.register('accra_aipolice:server:citations', function(src)
     return { citations = list, debt = debt }
 end)
 
-lib.callback.register('accra_aipolice:server:pay', function(src, id)
+lib.callback.register('ai_police:server:pay', function(src, id)
     local player = getPlayer(src)
     if not player then
         return { ok = false, message = 'Character is not loaded.' }
@@ -763,11 +763,11 @@ lib.callback.register('accra_aipolice:server:pay', function(src, id)
     return payCitation(player, id)
 end)
 
-RegisterNetEvent('accra_aipolice:server:release', function()
+RegisterNetEvent('ai_police:server:release', function()
     releaseCall(source)
 end)
 
-RegisterNetEvent('accra_aipolice:server:detainDone', function()
+RegisterNetEvent('ai_police:server:detainDone', function()
     local player = getPlayer(source)
     if not player then return end
     local untilAt = tonumber(player.PlayerData.metadata and player.PlayerData.metadata.aipdetain) or 0
@@ -782,7 +782,7 @@ local clientCrimes = {
     robbery = { severity = 2, title = 'Robbery', code = '10-31' },
 }
 
-RegisterNetEvent('accra_aipolice:server:crimeSeen', function(payload)
+RegisterNetEvent('ai_police:server:crimeSeen', function(payload)
     local src = source
     if type(payload) ~= 'table' then return end
     if isExempt(src) then return end
@@ -811,7 +811,7 @@ RegisterNetEvent('accra_aipolice:server:crimeSeen', function(payload)
     }, src, false)
 end)
 
-RegisterNetEvent('accra_aipolice:server:dispatch', function(payload)
+RegisterNetEvent('ai_police:server:dispatch', function(payload)
     dispatch(payload, source, false)
 end)
 
@@ -910,10 +910,10 @@ lib.addCommand('aipolice', {
     local mode = total > 0 and 'Real officers take crime calls.' or 'No officers online. AI will answer crime.'
     local description = ('%s %d online (%s). AI calls running: %d.'):format(mode, total, who, callCount())
     if source == 0 then
-        print('[accra_aipolice] ' .. description)
+        print('[ai_police] ' .. description)
         return
     end
-    TriggerClientEvent('accra_aipolice:client:notify', source, {
+    TriggerClientEvent('ai_police:client:notify', source, {
         title = Config.Department,
         description = description,
         type = 'inform',
@@ -945,7 +945,7 @@ lib.addCommand('aiptest', {
         return
     end
 
-    TriggerClientEvent('accra_aipolice:client:testTraffic', source)
+    TriggerClientEvent('ai_police:client:testTraffic', source)
 end)
 
 lib.addCommand('aipclear', {
@@ -958,8 +958,8 @@ lib.addCommand('aipclear', {
     player.Functions.SetMetaData('aipdebt', 0)
     player.Functions.SetMetaData('aipdetain', 0)
     player.Functions.SetMetaData('aipstars', 0)
-    TriggerClientEvent('accra_aipolice:client:releaseDetain', source)
-    TriggerClientEvent('accra_aipolice:client:notify', source, {
+    TriggerClientEvent('ai_police:client:releaseDetain', source)
+    TriggerClientEvent('ai_police:client:notify', source, {
         title = Config.Department,
         description = 'Your AI police record was cleared.',
         type = 'success',
@@ -1013,7 +1013,7 @@ CreateThread(function()
                 if debt > 0 then
                     local result = payCitation(player, 'all')
                     if result.ok and (result.paidNow or 0) > 0 then
-                        TriggerClientEvent('accra_aipolice:client:notify', src, {
+                        TriggerClientEvent('ai_police:client:notify', src, {
                             title = Config.Department,
                             description = result.message,
                             type = 'inform',
@@ -1039,5 +1039,5 @@ AddEventHandler('onResourceStart', function(resource)
     elseif GetResourceState('qb-core') == 'started' then
         framework = 'qb-core'
     end
-    print(('[accra_aipolice] %s 1.1.3 started. Fines use %s. Crime units spawn only when no police job is online.'):format(Config.Department, framework))
+    print(('[ai_police] %s 1.1.3 started. Fines use %s. Crime units spawn only when no police job is online.'):format(Config.Department, framework))
 end)

@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 lua54 'yes'
 
-name 'accra_aipolice'
+name 'ai_police'
 author 'AI Police'
 description 'AI police for traffic tickets, citations, and crime response when no officers are online'
 version '1.1.3'

@@ -45,7 +45,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
     AIP.nextTraffic = GetGameTimer() + 20000
 
     AIP.beginEncounter(function()
-        local granted = lib.callback.await('accra_aipolice:server:request', false, {
+        local granted = lib.callback.await('ai_police:server:request', false, {
             kind = 'traffic',
             offense = 'speeding',
         })
@@ -251,7 +251,7 @@ function AIP.startTraffic(peakSpeed, limit, isTest)
     end)
 end
 
-RegisterNetEvent('accra_aipolice:client:testTraffic', function()
+RegisterNetEvent('ai_police:client:testTraffic', function()
     local coords = GetEntityCoords(cache.ped)
     local limit = AIP.speedLimit(coords)
     AIP.startTraffic(limit + 45.0, limit, true)

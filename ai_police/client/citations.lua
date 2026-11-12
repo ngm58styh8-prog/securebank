@@ -7,7 +7,7 @@ end
 
 function AIP.openCitations()
     local ok, data = pcall(function()
-        return lib.callback.await('accra_aipolice:server:citations', false)
+        return lib.callback.await('ai_police:server:citations', false)
     end)
     if not ok or type(data) ~= 'table' then
         lib.notify({ title = Config.Department, description = 'Could not load your citations.', type = 'error' })
@@ -22,7 +22,7 @@ function AIP.openCitations()
         icon = 'file-invoice-dollar',
         disabled = debt <= 0,
         onSelect = function()
-            local paid = lib.callback.await('accra_aipolice:server:pay', false, 'all')
+            local paid = lib.callback.await('ai_police:server:pay', false, 'all')
             lib.notify({
                 title = Config.Department,
                 description = payResultText(paid),
@@ -62,7 +62,7 @@ function AIP.openCitations()
             icon = due > 0 and 'receipt' or 'check',
             disabled = due <= 0,
             onSelect = function()
-                local paid = lib.callback.await('accra_aipolice:server:pay', false, citation.id)
+                local paid = lib.callback.await('ai_police:server:pay', false, citation.id)
                 lib.notify({
                     title = Config.Department,
                     description = payResultText(paid),
@@ -74,11 +74,11 @@ function AIP.openCitations()
     end
 
     lib.registerContext({
-        id = 'accra_aipolice_citations',
+        id = 'ai_police_citations',
         title = Config.Department,
         options = options,
     })
-    lib.showContext('accra_aipolice_citations')
+    lib.showContext('ai_police_citations')
 end
 
 RegisterCommand('citations', function()
@@ -117,7 +117,7 @@ local function spawnClerk()
     if GetResourceState('ox_target') == 'started' then
         exports.ox_target:addLocalEntity(ped, {
             {
-                name = 'accra_aipolice_pay',
+                name = 'ai_police_pay',
                 label = 'Pay police fines',
                 icon = 'fa-solid fa-file-invoice-dollar',
                 distance = 2.0,

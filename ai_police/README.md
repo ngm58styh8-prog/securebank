@@ -6,15 +6,15 @@ Fines come out of the bank first, then cash. What the player cannot pay stays on
 
 ## Install
 
-The folder you drop in `resources` must be named `accra_aipolice`, and `fxmanifest.lua` has to sit directly inside it. Then add this line to `server.cfg`:
+The folder you drop in `resources` must be named `ai_police`, and `fxmanifest.lua` has to sit directly inside it. Then add this line to `server.cfg`:
 
 ```cfg
-ensure accra_aipolice
+ensure ai_police
 ```
 
 It starts on a plain test server. The console should print `AI Police 1.1.3 started`. If the console instead says `Could not find dependency ox_lib`, the server is still running an older folder. Delete that folder and extract this one. On a plain test server each player has a test wallet of $50,000 in the bank. On Qbox or QBCore, put the ensure line after `ox_lib` and `qbx_core` (or `qb-core`) so the fine comes out of the character instead.
 
-Restart the server, or `ensure accra_aipolice` from the console before players are in a chase. Do not restart it while a unit is already spawned on someone.
+Restart the server, or `ensure ai_police` from the console before players are in a chase. Do not restart it while a unit is already spawned on someone.
 
 ## What players do
 
@@ -39,7 +39,7 @@ Open `config.lua` and add the job name to `Config.PoliceJobs` and `Config.Exempt
 Gunfire at a heist already pages this script. A silent heist (hack, thermite, no shots) needs one server-side line where the robbery starts:
 
 ```lua
-exports['accra_aipolice']:Dispatch({
+exports['ai_police']:Dispatch({
     coords = coords,
     offense = 'heist',
     severity = 3,

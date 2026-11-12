@@ -7,7 +7,7 @@ Config = {}
 -- player gets the map alert and no AI unit is spawned.
 --
 -- Drop this folder in your resources, then add to server.cfg:
---   ensure accra_aipolice
+--   ensure ai_police
 -- On Qbox, start it after ox_lib and qbx_core so fines use the character.
 
 Config.Debug = false
