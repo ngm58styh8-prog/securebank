@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div id="wanted" class="hidden" style="display: none;">
+        <p id="wanted-stars"></p>
+        <p id="wanted-label">Wanted</p>
+    </div>
+    <div id="countdown" class="hidden" style="display: none;">
+        <p class="count-label">Police incoming</p>
+        <p id="count-num">10</p>
+        <p id="count-note">Your car is stopping</p>
+    </div>
+    <div id="overlay" class="hidden" style="display: none;">
+        <article id="ticket" role="dialog" aria-labelledby="department">
+            <header>
+                <p class="eyebrow">Official notice</p>
+                <p id="stars" class="stars"></p>
+                <h1 id="department">AI Police</h1>
+                <p id="citation-id"></p>
+            </header>
+            <p id="warning" class="warning hidden"></p>
+            <dl>
+                <div>
+                    <dt>Officer</dt>
+                    <dd id="officer"></dd>
+                </div>
+                <div>
+                    <dt>Badge</dt>
+                    <dd id="badge"></dd>
+                </div>
+                <div class="wide">
+                    <dt>Location</dt>
+                    <dd id="street"></dd>
+                </div>
+            </dl>
+            <p id="detail"></p>
+            <ul id="charges"></ul>
+            <footer>
+                <div>
+                    <p class="total-label">Total</p>
+                    <p id="total"></p>
+                    <p id="status"></p>
+                </div>
+                <button id="sign" type="button">Sign citation</button>
+            </footer>
+        </article>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
